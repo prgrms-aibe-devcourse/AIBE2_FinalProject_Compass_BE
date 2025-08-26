@@ -1,0 +1,284 @@
+openapi: 3.0.3
+info:
+  title: Recommendation & Admin Domain API - Compass Travel
+  description: |
+    # Recommendation & Admin 도메인 API 명세서 (v2.0)
+    
+    ## 📋 도메인 구성 요약
+    
+    ### 도메인이 제공하는 서비스
+    - **핵심 API (Core)**: 추천, 트렌드, 큐레이션 및 관리 기능 제공
+    - **웹훅 (Webhooks)**: 외부 데이터 파이프라인으로부터 이벤트 수신
+    
+    ## 📊 도메인 간 상호작용
+    
+    | 도메인 | Reco/Admin → 외부 (요청) | 외부 → Reco/Admin (호출) | 주요 용도 |
+    |---|---|---|---|
+    | **User** | • 사용자 정보 조회 | - | 개인화 추천, 관리자 감사 로그 |
+    | **Data Pipeline** | - | • 사용자 활동 업데이트 웹훅 | 추천 모델 데이터 최신화 |
+  version: 2.0.0
+
+servers:
+  - url: https://api.compass.com/v1
+    description: Production Server
+  - url: http://localhost:8081/v1
+    description: Development Server
+
+tags:
+  - name: Recommendation - Core
+    description: 추천 및 큐레이션 API (사용자 대상)
+  - name: Admin - Core
+    description: 관리 기능 API (관리자 대상)
+  - name: RecoAdmin - Webhooks
+    description: 외부 시스템으로부터 호출받는 Webhook
+  - name: External - User Domain
+    description: User 도메인 의존성
+
+paths:
+  # ============================================
+  # == 1. Core APIs
+  # ============================================
+  /recommendations/personalized:
+    get:
+      tags: [Recommendation - Core]
+      summary: 개인화 추천 조회
+      description: |
+        - **요구사항 ID**: REJ-RECO-001
+        - **외부 의존성**: User Domain (사용자 프로필 조회)
+      operationId: getPersonalizedRecommendations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedRecsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /trends:
+    get:
+      tags: [Recommendation - Core]
+      summary: 트렌드 분석 정보 조회
+      description: |
+        - **요구사항 ID**: REJ-RECO-003
+      operationId: getTrends
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendsResponse'
+
+  /curations:
+    get:
+      tags: [Recommendation - Core]
+      summary: 큐레이션 패키지 목록 조회
+      description: |
+        - **요구사항 ID**: REJ-RECO-004
+      operationId: getCurationPackages
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CurationPackageResponse'
+
+  /curations/{packageId}:
+    get:
+      tags: [Recommendation - Core]
+      summary: 큐레이션 패키지 상세 조회
+      description: |
+        - **요구사항 ID**: REJ-RECO-004
+      operationId: getCurationPackageById
+      parameters:
+        - $ref: '#/components/parameters/packageId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurationPackageDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /admin/dashboard:
+    get:
+      tags: [Admin - Core]
+      summary: 관리자 대시보드 조회
+      description: |
+        - **요구사항 ID**: REJ-RECO-006
+      operationId: getAdminDashboard
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /admin/users/{userId}/role:
+    put:
+      tags: [Admin - Core]
+      summary: 사용자 권한 변경
+      description: |
+        - **요구사항 ID**: REJ-USER-006
+      operationId: updateUserRoleByAdmin
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      requestBody:
+        $ref: '#/components/requestBodies/UpdateRoleRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalUserResponse' # User 도메인의 정보를 그대로 전달
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /admin/content/pending:
+    get:
+      tags: [Admin - Core]
+      summary: 통합 승인 대기 목록 조회
+      description: |
+        - **요구사항 ID**: REJ-USER-010
+      operationId: getPendingContentList
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PendingContent'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /admin/content/{contentType}/{contentId}/status:
+    put:
+      tags: [Admin - Core]
+      summary: 통합 콘텐츠 승인/반려
+      description: |
+        - **요구사항 ID**: REJ-USER-010
+      operationId: updateContentStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/contentType'
+        - $ref: '#/components/parameters/contentId'
+      requestBody:
+        $ref: '#/components/requestBodies/UpdateStatusRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateStatusResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================
+  # == 2. Webhooks
+  # ============================================
+  /webhooks/user-activity-updated:
+    post:
+      tags: [RecoAdmin - Webhooks]
+      summary: 사용자 활동 업데이트 수신
+      description: 데이터 파이프라인에서 사용자 활동 데이터 처리가 완료되면 추천 시스템에 알리기 위해 호출됩니다.
+      operationId: userActivityWebhook
+      security:
+        - internalApiKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                userId: { type: string, format: uuid }
+                hasNewActivity: { type: boolean }
+      responses:
+        '202':
+          description: Accepted
+
+  # ============================================
+  # == 3. External Dependencies
+  # ============================================
+  /internal/users/{userId}:
+    get:
+      tags: [External - User Domain]
+      summary: "[User Domain] 내부용 사용자 정보 조회"
+      description: "⚠️ User 도메인이 제공해야 하는 API. 개인화 추천, 관리자 기능 등에서 사용."
+      operationId: getUserInfoExternal
+      x-external-api: true
+      x-provided-by: User Domain
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalUserProfileResponse'
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    internalApiKey: { type: apiKey, in: header, name: X-Internal-API-Key }
+  parameters:
+    packageId: { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    userId: { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    contentType: { name: contentType, in: path, required: true, schema: { type: string, enum: [reviews, photos, trip-plans] } }
+    contentId: { name: contentId, in: path, required: true, schema: { type: string, format: uuid } }
+  schemas:
+    # --- Request DTOs ---
+    UpdateRoleRequest: { type: object, required: [role], properties: { role: { type: string, enum: [USER, ADMIN] } } }
+    UpdateStatusRequest: { type: object, required: [status], properties: { status: { type: string, enum: [APPROVED, REJECTED] }, reason: { type: string } } }
+    # --- Response DTOs ---
+    PersonalizedRecsResponse: { type: object, properties: { places: { type: array, items: { type: object, description: "Place 도메인에서 정의된 Place 요약 정보" } }, curations: { type: array, items: { $ref: '#/components/schemas/CurationPackageResponse' } } } }
+    TrendsResponse: { type: object, properties: { popularPlaces: { type: array, items: { type: object, description: "Place 도메인에서 정의된 Place 요약 정보" } }, seasonalTrends: { type: object, properties: { season: { type: string, example: "SUMMER" }, keywords: { type: array, items: { type: string } } } } } }
+    CurationPackageResponse: { type: object, properties: { packageId: { type: string, format: uuid }, title: { type: string }, theme: { type: string } } }
+    CurationPackageDetailResponse: { type: object, properties: { packageId: { type: string, format: uuid }, title: { type: string }, description: { type: string }, theme: { type: string }, places: { type: array, items: { type: object, description: "Place 도메인에서 정의된 Place 요약 정보" } } } }
+    DashboardResponse: { type: object, properties: { newUserCount: { type: integer }, totalUserCount: { type: integer }, pendingContentCount: { type: integer } } }
+    PendingContent: { type: object, properties: { contentType: { type: string }, contentId: { type: string, format: uuid }, author: { type: string, description: "콘텐츠 작성자 닉네임" }, snippet: { type: string, description: "콘텐츠 내용 일부 또는 URL" }, createdAt: { type: string, format: date-time } } }
+    UpdateStatusResponse: { type: object, properties: { status: { type: string, enum: [APPROVED, REJECTED] }, contentId: { type: string, format: uuid }, contentType: { type: string } } }
+    # --- External Schemas ---
+    ExternalUserProfileResponse: { type: object, description: "User 도메인이 제공하는 사용자 정보", properties: { id: { type: string, format: uuid }, nickname: { type: string }, preferredRegion: { type: string, nullable: true }, role: { type: string, enum: [USER, ADMIN] } } }
+    ErrorResponse: { type: object, properties: { code: { type: string }, message: { type: string }, timestamp: { type: string, format: date-time } } }
+  requestBodies:
+    UpdateRoleRequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateRoleRequest' } } } }
+    UpdateStatusRequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateStatusRequest' } } } }
+  responses:
+    UnauthorizedError: { description: 인증 실패, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { code: "AUTH_001", message: "인증이 필요합니다." } } } }
+    ForbiddenError: { description: 권한 없음, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { code: "AUTH_003", message: "요청에 대한 권한이 없습니다." } } } }
+    NotFoundError: { description: 리소스를 찾을 수 없음, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { code: "RECO_404", message: "리소스를 찾을 수 없습니다." } } } }

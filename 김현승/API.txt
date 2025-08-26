@@ -1,4 +1,43 @@
+요구사항 → 엔드포인트 매핑(발췌)
+REQ	설명	엔드포인트
+REQ-USER-001	회원가입	POST /api/users/signup
+REQ-USER-002	로그인/로그아웃	POST /api/auth/login, POST /api/auth/logout
+REQ-USER-003	JWT 토큰 갱신	POST /api/auth/refresh
+REQ-USER-004	프로필 조회/수정	GET/PUT /api/users/me
+REQ-USER-005	비밀번호 재설정	POST /api/users/password/reset-request
+REQ-USER-006	사용자 역할 변경	PUT /api/admin/users/{userId}/role
+REQ-USER-008	소셜 로그인	GET /api/auth/social/{provider}
+REQ-USER-010	콘텐츠 승인/반려	PUT /api/admin/content/{contentType}/{contentId}/status
+REQ-USER-011	회원 탈퇴	DELETE /api/users/me
+REQ-RECO-001	개인화 추천 조회	GET /api/recommendations/personalized
+REQ-RECO-003	트렌드 분석 조회	GET /api/trends
+REQ-RECO-004	큐레이션 목록/상세	GET /api/curations, GET /api/curations/{packageId}
+REQ-RECO-006	관리자 대시보드	GET /api/admin/dashboard
+
+ERD → DTO 매핑(?는 선택사항)
+SignUpRequest: { email, password, nickname }
+
+LoginRequest: { email, password }
+
+TokenResponse: { accessToken, refreshToken }
+
+UpdateProfileRequest: { nickname?, preferredRegion? }
+
+UserProfileResponse: { id, email, nickname, profileImageUrl?, preferredRegion? }
+
+UpdateRoleRequest: { role }
+
+UpdateStatusRequest: { status, reason? }
+
+PersonalizedRecsResponse: { places[]?, curations[]? }
+
+CurationPackageResponse: { packageId, title, theme }
+
+DashboardResponse: { newUserCount, totalUserCount, pendingContentCount }
+
+
 ✈️ 여행 추천 서비스 상세 API 명세서 (요구사항 ID 포함 최종본)
+
 1. 사용자 인증 (User Authentication)
 1.1. POST /api/users/signup (회원가입)
 요구사항 ID: REJ-USER-001
