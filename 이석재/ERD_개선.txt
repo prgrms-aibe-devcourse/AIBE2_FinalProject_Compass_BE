@@ -1,0 +1,450 @@
+# 📍 Trip Planning Domain ERD - 이석재
+
+## 📋 담당 도메인
+- Trip Planning Domain: 여행 계획, 일정 관리, AI 기반 여행 생성
+
+---
+
+## 📊 Entities
+
+### 여행 계획
+```sql
+Trip {
+    trip_id: UUID (PK)
+    user_id: UUID (FK → User Management Domain)
+    title: VARCHAR(255)
+    description: TEXT
+    start_date: DATE
+    end_date: DATE
+    destination: VARCHAR(255)
+    budget: DECIMAL(10,2)
+    travel_style: VARCHAR(100)
+    visibility: ENUM('private', 'shared', 'public')
+    status: ENUM('draft', 'planned', 'ongoing', 'completed')
+    total_likes: INT DEFAULT 0
+    total_views: INT DEFAULT 0
+    ai_generated: BOOLEAN DEFAULT false
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+### 여행 일정
+```sql
+Itinerary {
+    itinerary_id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    day_number: INT
+    date: DATE
+    title: VARCHAR(255)
+    notes: TEXT
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+### 일정 항목
+```sql
+ItineraryItem {
+    item_id: UUID (PK)
+    itinerary_id: UUID (FK → Itinerary)
+    place_id: UUID (FK → Place)
+    start_time: TIME
+    end_time: TIME
+    duration_minutes: INT
+    notes: TEXT
+    order_index: INT
+    transportation_mode: VARCHAR(50)
+    transportation_duration: INT
+    cost: DECIMAL(10,2)
+    created_at: TIMESTAMP
+}
+```
+
+### 장소
+```sql
+Place {
+    place_id: UUID (PK)
+    google_place_id: VARCHAR(255) (UNIQUE)
+    name: VARCHAR(255)
+    address: TEXT
+    latitude: DECIMAL(10,8)
+    longitude: DECIMAL(11,8)
+    category: VARCHAR(100)
+    phone: VARCHAR(50)
+    website: VARCHAR(500)
+    opening_hours: JSON
+    rating: DECIMAL(2,1)
+    price_level: INT
+    photo_urls: JSON
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+### 여행 협업자
+```sql
+TripCollaborator {
+    collaborator_id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    user_id: UUID (FK → User Management Domain)
+    permission: ENUM('view', 'edit', 'admin')
+    invited_at: TIMESTAMP
+    accepted_at: TIMESTAMP
+}
+```
+
+### 여행 좋아요
+```sql
+TripLike {
+    like_id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    user_id: UUID (FK → User Management Domain)
+    created_at: TIMESTAMP
+}
+```
+
+### AI 여행 생성 요청
+```sql
+AITripRequest {
+    request_id: UUID (PK)
+    thread_id: UUID (FK → AI Client Domain)
+    user_id: UUID (FK → User Management Domain)
+    request_data: JSON
+    preferences: JSON
+    generated_trip_id: UUID (FK → Trip)
+    status: ENUM('pending', 'processing', 'completed', 'failed')
+    created_at: TIMESTAMP
+    completed_at: TIMESTAMP
+}
+```
+
+### AI 추천 장소
+```sql
+AISuggestedPlace {
+    suggestion_id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    place_id: UUID (FK → Place)
+    reason: TEXT
+    confidence_score: DECIMAL(3,2)
+    accepted: BOOLEAN DEFAULT false
+    created_at: TIMESTAMP
+}
+```
+
+### 여행 템플릿
+```sql
+TripTemplate {
+    template_id: UUID (PK)
+    name: VARCHAR(255)
+    description: TEXT
+    destination: VARCHAR(255)
+    duration_days: INT
+    travel_style: VARCHAR(100)
+    budget_range: VARCHAR(50)
+    template_data: JSON
+    usage_count: INT DEFAULT 0
+    created_at: TIMESTAMP
+}
+```
+
+---
+
+## 🔵 External APIs (다른 도메인에서 호출 가능)
+
+### Trip Management
+```yaml
+GET /api/trips:
+  Description: "여행 목록 조회"
+  Query: page, size, visibility?, destination?
+  Response: TripListResponse
+  
+GET /api/trips/{tripId}:
+  Description: "여행 상세 조회"
+  Response: TripDetailResponse
+  
+POST /api/trips:
+  Description: "여행 생성"
+  Body: { title, description, start_date, end_date, destination, budget }
+  Response: TripResponse
+  
+PUT /api/trips/{tripId}:
+  Description: "여행 수정"
+  Body: { title?, description?, dates?, budget? }
+  Response: TripResponse
+  
+DELETE /api/trips/{tripId}:
+  Description: "여행 삭제"
+  Response: 204 No Content
+  
+POST /api/trips/{tripId}/like:
+  Description: "여행 좋아요"
+  Response: { liked: boolean, total_likes: number }
+```
+
+### AI Trip Generation (Trip Planning Domain 책임)
+```yaml
+POST /api/trips/generate-from-chat:
+  Description: "AI 기반 여행 생성"
+  Body: { thread_id, preferences, context }
+  Response: GeneratedTripResponse
+  
+GET /api/trips/ai-suggestions/{tripId}:
+  Description: "AI 추천 장소 조회"
+  Response: AISuggestedPlacesResponse
+  
+POST /api/trips/ai-suggestions/{tripId}/accept:
+  Description: "AI 추천 수락"
+  Body: { suggestion_id }
+  Response: SuggestionAcceptResponse
+```
+
+### Itinerary Management
+```yaml
+GET /api/trips/{tripId}/itineraries:
+  Description: "일정 목록 조회"
+  Response: ItineraryListResponse
+  
+POST /api/trips/{tripId}/itineraries:
+  Description: "일정 생성"
+  Body: { day_number, date, title }
+  Response: ItineraryResponse
+  
+PUT /api/itineraries/{itineraryId}:
+  Description: "일정 수정"
+  Body: { title?, notes? }
+  Response: ItineraryResponse
+  
+POST /api/itineraries/{itineraryId}/items:
+  Description: "일정 항목 추가"
+  Body: { place_id, start_time, end_time, notes }
+  Response: ItineraryItemResponse
+  
+PUT /api/itinerary-items/{itemId}:
+  Description: "일정 항목 수정"
+  Body: { start_time?, end_time?, notes? }
+  Response: ItineraryItemResponse
+  
+DELETE /api/itinerary-items/{itemId}:
+  Description: "일정 항목 삭제"
+  Response: 204 No Content
+```
+
+### Places
+```yaml
+GET /api/places:
+  Description: "장소 목록 조회"
+  Query: category?, location?, radius?
+  Response: PlaceListResponse
+  
+GET /api/places/{placeId}:
+  Description: "장소 상세 조회"
+  Response: PlaceDetailResponse
+  
+POST /api/places:
+  Description: "장소 등록"
+  Body: { google_place_id, name, address, location }
+  Response: PlaceResponse
+  
+POST /api/places/search:
+  Description: "장소 검색"
+  Body: { query, location?, category? }
+  Response: PlaceSearchResponse
+```
+
+### Collaboration
+```yaml
+POST /api/trips/{tripId}/collaborators:
+  Description: "협업자 초대"
+  Body: { user_id, permission }
+  Response: CollaboratorResponse
+  
+PUT /api/trips/{tripId}/collaborators/{userId}:
+  Description: "협업자 권한 수정"
+  Body: { permission }
+  Response: CollaboratorResponse
+  
+DELETE /api/trips/{tripId}/collaborators/{userId}:
+  Description: "협업자 제거"
+  Response: 204 No Content
+```
+
+### Templates
+```yaml
+GET /api/trip-templates:
+  Description: "템플릿 목록"
+  Query: destination?, style?, duration?
+  Response: TemplateListResponse
+  
+POST /api/trips/from-template:
+  Description: "템플릿으로 여행 생성"
+  Body: { template_id, customizations }
+  Response: TripResponse
+```
+
+---
+
+## 🔴 Internal APIs (도메인 내부용)
+
+```yaml
+POST /api/internal/trips/validate:
+  Description: "여행 유효성 검증"
+  Body: { trip_id, user_id }
+  
+POST /api/internal/trips/stats:
+  Description: "여행 통계 업데이트"
+  Body: { trip_id, view_count?, like_count? }
+  
+GET /api/internal/trips/user/{userId}:
+  Description: "사용자 여행 조회"
+  Response: UserTripsResponse
+  
+POST /api/internal/places/sync:
+  Description: "Google Places 동기화"
+  Body: { google_place_ids[] }
+  
+POST /api/internal/trips/optimize-route:
+  Description: "경로 최적화"
+  Body: { itinerary_id }
+  
+GET /api/internal/trips/chat/{threadId}:
+  Description: "채팅 연관 여행 조회"
+  Response: ChatLinkedTripsResponse
+```
+
+---
+
+## 🔗 외부 도메인 의존성
+
+### 필요한 외부 API
+```yaml
+User Management Domain:
+  - GET /api/users/{userId}: "사용자 정보 조회"
+  - GET /api/internal/users/validate: "사용자 유효성 검증"
+  
+AI Client Domain:
+  - GET /api/chat/threads/{threadId}/context: "채팅 컨텍스트 조회"
+  - POST /api/chat/threads/{threadId}/trip-request: "여행 생성 요청 기록"
+  
+Review System Domain:
+  - GET /api/reviews/place/{placeId}: "장소 리뷰 조회"
+  - GET /api/reviews/trip/{tripId}: "여행 리뷰 조회"
+  
+Media Management Domain:
+  - POST /api/media/upload: "여행 사진 업로드"
+  - GET /api/media/trip/{tripId}: "여행 미디어 조회"
+  
+Sharing Domain:
+  - POST /api/share/trip: "여행 공유"
+  - GET /api/share/trip/{tripId}: "공유 정보 조회"
+```
+
+---
+
+## 📝 DTO 정의
+
+### Request DTOs
+```typescript
+CreateTripRequest {
+  title: string
+  description?: string
+  start_date: string
+  end_date: string
+  destination: string
+  budget?: number
+  travel_style?: string
+}
+
+GenerateTripFromChatRequest {
+  thread_id: string
+  preferences: {
+    destination?: string
+    duration?: number
+    budget?: number
+    travel_style?: string
+    interests?: string[]
+  }
+  context: object
+}
+
+AddItineraryItemRequest {
+  place_id: string
+  start_time: string
+  end_time: string
+  notes?: string
+  transportation_mode?: string
+  cost?: number
+}
+```
+
+### Response DTOs
+```typescript
+TripResponse {
+  trip_id: string
+  title: string
+  description: string
+  start_date: string
+  end_date: string
+  destination: string
+  budget: number
+  visibility: string
+  status: string
+  total_likes: number
+  total_views: number
+  ai_generated: boolean
+  itineraries?: ItineraryResponse[]
+  collaborators?: CollaboratorResponse[]
+  created_at: string
+}
+
+GeneratedTripResponse {
+  trip: TripResponse
+  suggestions: AISuggestedPlaceResponse[]
+  generation_metadata: {
+    thread_id: string
+    confidence_score: number
+    generation_time_ms: number
+  }
+}
+
+PlaceResponse {
+  place_id: string
+  name: string
+  address: string
+  location: {
+    lat: number
+    lng: number
+  }
+  category: string
+  rating?: number
+  price_level?: number
+  opening_hours?: object
+  photo_urls?: string[]
+}
+```
+
+---
+
+## 💡 핵심 비즈니스 로직
+
+1. **AI 여행 생성 플로우**
+   - 채팅 컨텍스트 수신 → 사용자 선호도 분석 → 장소 추천 생성 → 일정 최적화 → 여행 계획 생성
+
+2. **일정 최적화**
+   - 장소 간 거리 계산 → 이동 시간 추정 → 영업시간 고려 → 최적 경로 생성
+
+3. **협업 관리**
+   - 초대 발송 → 권한 설정 → 실시간 동기화 → 변경 알림
+
+4. **템플릿 시스템**
+   - 인기 여행 분석 → 템플릿 생성 → 사용자 맞춤화 → 여행 생성
+
+---
+
+## 🔐 보안 고려사항
+
+- 여행 공개 범위 제어
+- 협업자 권한 관리
+- 위치 정보 프라이버시
+- API Rate Limiting
+- 데이터 암호화

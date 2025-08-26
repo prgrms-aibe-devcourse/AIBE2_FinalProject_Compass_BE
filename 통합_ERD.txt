@@ -8,8 +8,9 @@
 4. Trip Planning Domain (이석재) - 여행 계획 생성, 일정, 장소, 날씨, 예약, AI 여행 생성
 5. Sharing Domain (남정현) - 공유, 협업, 링크 관리
 6. Payment & Billing Domain (남정현) - 결제, 크레딧 관리
-7. Review System Domain (조민귀) - 리뷰, 평점, 피드백, 매칭
+7. Review System Domain (조민귀) - 리뷰, 평점, 피드백, 베스트 리뷰
 8. Media Management Domain (조민귀) - 미디어, 파일 관리, 피드
+9. System Monitoring Domain (조민귀) - 시스템 모니터링, 성능 추적, 에러 로깅
 ```
 
 ---
@@ -595,28 +596,20 @@ Review {
     id: BIGINT (PK)
     reviewer_id: BIGINT (FK → User)
     reviewee_id: BIGINT (FK → User)
-    matching_id: BIGINT (FK → Matching)
     trip_id: BIGINT (FK → Trip)
     title: VARCHAR(255)
     content: TEXT
     rating: INT (1-5)
     helpful_count: INT DEFAULT 0
-    status: ENUM('PENDING', 'APPROVED', 'HIDDEN')
+    is_best_weekly: BOOLEAN DEFAULT false
+    is_best_monthly: BOOLEAN DEFAULT false
+    status: ENUM('PENDING', 'APPROVED', 'HIDDEN', 'DELETED')
+    edited_count: INT DEFAULT 0
+    last_edited_at: TIMESTAMP
     created_at: TIMESTAMP
     updated_at: TIMESTAMP
-}
-
--- 매칭
-Matching {
-    id: BIGINT (PK)
-    requester_id: BIGINT (FK → User)
-    responder_id: BIGINT (FK → User)
-    trip_id: BIGINT (FK → Trip)
-    status: ENUM('PENDING', 'ACCEPTED', 'REJECTED', 'COMPLETED')
-    rejection_reason: TEXT
-    completed_at: TIMESTAMP
-    review_deadline: TIMESTAMP
-    created_at: TIMESTAMP
+    deleted_at: TIMESTAMP
+    deleted_reason: TEXT
 }
 
 -- 댓글
@@ -675,6 +668,51 @@ UserBadge {
     earned_at: TIMESTAMP
     UNIQUE(user_id, badge_id)
 }
+
+-- 베스트 리뷰 이력
+BestReviewHistory {
+    id: BIGINT (PK)
+    review_id: BIGINT (FK → Review)
+    type: ENUM('WEEKLY', 'MONTHLY')
+    selected_date: DATE
+    score: DECIMAL(10,2)
+    rank: INT
+    is_manually_fixed: BOOLEAN DEFAULT false
+    fixed_by: BIGINT (FK → AdminUser)
+    created_at: TIMESTAMP
+}
+
+-- 스팸 키워드
+SpamKeyword {
+    id: BIGINT (PK)
+    keyword: VARCHAR(100) (UNIQUE)
+    severity: ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')
+    auto_action: ENUM('NONE', 'FLAG', 'HIDE', 'BLOCK')
+    is_active: BOOLEAN DEFAULT true
+    created_at: TIMESTAMP
+    created_by: BIGINT (FK → AdminUser)
+}
+
+-- 리뷰 태그
+ReviewTag {
+    id: BIGINT (PK)
+    review_id: BIGINT (FK → Review)
+    tag: VARCHAR(50)
+    created_at: TIMESTAMP
+}
+
+-- 포인트 제한
+PointLimit {
+    id: BIGINT (PK)
+    user_id: BIGINT (FK → User)
+    date: DATE
+    daily_earned: INT DEFAULT 0
+    weekly_earned: INT DEFAULT 0
+    daily_transaction_count: INT DEFAULT 0
+    same_target_count: INT DEFAULT 0
+    created_at: TIMESTAMP
+    UNIQUE(user_id, date)
+}
 ```
 
 ### 🔵 External APIs
@@ -684,15 +722,11 @@ Reviews:
   POST /api/reviews: "리뷰 작성"
   GET /api/reviews/{reviewId}: "리뷰 상세"
   PUT /api/reviews/{reviewId}: "리뷰 수정"
+  DELETE /api/reviews/{reviewId}: "리뷰 삭제"
   POST /api/reviews/{reviewId}/helpful: "도움됨 표시"
   GET /api/reviews/best: "베스트 리뷰"
-  
-Matching:
-  GET /api/matchings: "매칭 목록"
-  POST /api/matchings: "매칭 요청"
-  PUT /api/matchings/{matchingId}/accept: "매칭 수락"
-  PUT /api/matchings/{matchingId}/reject: "매칭 거절"
-  PUT /api/matchings/{matchingId}/complete: "매칭 완료"
+  GET /api/reviews/best/weekly: "주간 베스트 리뷰"
+  GET /api/reviews/best/monthly: "월간 베스트 리뷰"
   
 Comments:
   GET /api/{type}/{id}/comments: "댓글 목록"
@@ -819,6 +853,83 @@ Internal:
 
 ---
 
+## 9. 📊 System Monitoring Domain (조민귀)
+
+### 📊 Entities
+```sql
+-- API 성능 메트릭
+APIPerformanceMetric {
+    id: BIGINT (PK)
+    endpoint: VARCHAR(255)
+    method: VARCHAR(10)
+    response_time_ms: INT
+    status_code: INT
+    concurrent_users: INT
+    timestamp: TIMESTAMP
+}
+
+-- 시스템 가용성
+SystemAvailability {
+    id: BIGINT (PK)
+    service_name: VARCHAR(100)
+    status: ENUM('UP', 'DOWN', 'DEGRADED')
+    uptime_seconds: BIGINT
+    downtime_seconds: BIGINT
+    availability_percentage: DECIMAL(5,2)
+    deployment_type: VARCHAR(50)
+    checked_at: TIMESTAMP
+}
+
+-- 에러 로그
+ErrorLog {
+    id: BIGINT (PK)
+    severity: ENUM('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
+    service: VARCHAR(100)
+    message: TEXT
+    stack_trace: TEXT
+    user_id: BIGINT (FK → User)
+    request_id: VARCHAR(100)
+    slack_notified: BOOLEAN DEFAULT false
+    created_at: TIMESTAMP
+}
+
+-- 관리자 액션 로그
+AdminActionLog {
+    id: BIGINT (PK)
+    admin_id: BIGINT (FK → AdminUser)
+    action_type: ENUM('USER_BLOCK', 'CONTENT_HIDE', 'REVIEW_MODERATE', 'POINT_ADJUST')
+    target_type: VARCHAR(50)
+    target_id: BIGINT
+    reason: TEXT
+    metadata: JSON
+    ip_address: VARCHAR(45)
+    created_at: TIMESTAMP
+}
+```
+
+### 🔵 External APIs
+```yaml
+Monitoring:
+  GET /api/monitoring/performance: "성능 메트릭 조회"
+  GET /api/monitoring/availability: "시스템 가용성 조회"
+  GET /api/monitoring/errors: "에러 로그 조회"
+  
+Admin Logs:
+  GET /api/admin/logs: "관리자 액션 로그 조회"
+  GET /api/admin/logs/{logId}: "특정 로그 상세 조회"
+```
+
+### 🔴 Internal APIs
+```yaml
+Internal:
+  POST /api/internal/monitoring/log-performance: "성능 로그 기록"
+  POST /api/internal/monitoring/log-error: "에러 로그 기록"
+  POST /api/internal/monitoring/health-check: "헬스체크"
+  POST /api/internal/slack/notify: "Slack 알림 발송"
+```
+
+---
+
 # 🔗 도메인 간 의존관계 및 Core API 매트릭스
 
 ## 주요 도메인 간 연결
@@ -843,7 +954,7 @@ Trip Planning → Recommendation:
   - GET /api/recommendations/places
   
 Review System → Trip Planning:
-  - 매칭된 여행 후 리뷰 작성
+  - 여행 참여 후 리뷰 작성
   - GET /api/trips/{tripId}/participants
   
 Media Management → Review System:
@@ -886,17 +997,17 @@ Notification (Cross-cutting) ← All Domains:
 13. Sharing → Notification: POST /api/internal/notifications/send
 ```
 
-### 시나리오 2: 여행 매칭 및 리뷰
+### 시나리오 2: 여행 공유 후 리뷰
 ```sequence
-1. User A → Review API: POST /api/matchings (매칭 요청)
-2. Review → Notification: POST /api/internal/notifications/send
-3. User B → Review API: PUT /api/matchings/{id}/accept
-4. User B → Trip API: POST /api/trips/{id}/participants
+1. User A → Trip API: POST /api/trips (여행 생성)
+2. User A → Sharing API: POST /api/share/trips/{tripId} (공유 링크 생성)
+3. User B → Sharing API: GET /api/share/{token} (공유된 여행 조회)
+4. User B → Trip API: POST /api/trips/{id}/participants (참여 요청)
 5. After trip completion...
-6. User A → Review API: POST /api/reviews
-7. Review → User API: PUT /api/internal/users/{userId}/rating
-8. Review → Points API: POST /api/internal/points/add
-9. Review → Badge API: POST /api/internal/badges/check
+6. User B → Review API: POST /api/reviews (리뷰 작성)
+7. Review → User API: PUT /api/internal/users/{userId}/rating (평점 업데이트)
+8. Review → Points API: POST /api/internal/points/add (포인트 추가)
+9. Review → Badge API: POST /api/internal/badges/check (뱃지 확인)
 ```
 
 ---

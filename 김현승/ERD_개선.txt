@@ -1,0 +1,419 @@
+# 👤 User Management & Recommendation Domains ERD - 김현승
+
+## 📋 담당 도메인
+1. User Management Domain: 사용자 관리, 인증, 프로필
+2. Recommendation Domain: 추천, 큐레이션, 트렌드
+
+---
+
+# Domain 1: User Management
+
+## 📊 Entities
+
+### 사용자 기본 정보
+```sql
+User {
+    id: UUID (PK)
+    email: VARCHAR(255) (UNIQUE)
+    password_hash: VARCHAR(255)
+    nickname: VARCHAR(100) (UNIQUE)
+    profile_image_url: VARCHAR(500)
+    bio: TEXT
+    preferred_region: VARCHAR(100)
+    provider: ENUM('LOCAL', 'GOOGLE', 'KAKAO')
+    role: ENUM('USER', 'ADMIN')
+    status: ENUM('ACTIVE', 'BLOCKED', 'WITHDRAWN')
+    is_2fa_enabled: BOOLEAN
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+### 프로필
+```sql
+Profile {
+    profile_id: UUID (PK)
+    user_id: UUID (FK → User, UNIQUE)
+    travel_style: TEXT
+    preferences: TEXT
+    budget_level: VARCHAR(50)
+    updated_at: TIMESTAMP
+}
+```
+
+### 프로필 이미지
+```sql
+ProfileImage {
+    image_id: UUID (PK)
+    profile_id: UUID (FK → Profile)
+    image_url: VARCHAR(500)
+    upload_order: INT
+    created_at: TIMESTAMP
+}
+```
+
+### 로그인 기록
+```sql
+LoginHistory {
+    id: UUID (PK)
+    user_id: UUID (FK → User)
+    ip_address: VARCHAR(50)
+    device_info: TEXT
+    login_at: TIMESTAMP
+}
+```
+
+### 사용자 활동 추적
+```sql
+UserActivity {
+    id: BIGSERIAL (PK)
+    user_id: UUID (FK → User)
+    activity_type: VARCHAR(50)
+    target_id: VARCHAR(255)
+    ab_test_group: VARCHAR(50)
+    created_at: TIMESTAMP
+}
+```
+
+### 관리자
+```sql
+AdminUser {
+    id: UUID (PK)
+    username: VARCHAR(100) (UNIQUE)
+    password: VARCHAR(255)
+    email: VARCHAR(255) (UNIQUE)
+    role: ENUM('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+    created_at: TIMESTAMP
+    last_login_at: TIMESTAMP
+}
+```
+
+### 관리 대상 사용자
+```sql
+ManagedUser {
+    id: UUID (PK)
+    user_id: UUID (FK → User)
+    action: ENUM('BLOCK', 'UNBLOCK', 'WARNING')
+    reason: TEXT
+    admin_id: UUID (FK → AdminUser)
+    created_at: TIMESTAMP
+    expires_at: TIMESTAMP
+}
+```
+
+## 🔵 External APIs (User Management)
+
+### Authentication
+```yaml
+POST /api/auth/login:
+  Description: "로그인"
+  Body: { email, password }
+  Response: { access_token, refresh_token, user }
+  
+POST /api/auth/logout:
+  Description: "로그아웃"
+  Response: 204 No Content
+  
+POST /api/auth/refresh:
+  Description: "토큰 갱신"
+  Body: { refresh_token }
+  Response: { access_token, refresh_token }
+  
+GET /api/auth/verify:
+  Description: "토큰 검증"
+  Headers: Authorization: Bearer {token}
+  Response: { valid, user_id }
+  
+GET /api/auth/social/{provider}:
+  Description: "소셜 로그인"
+  Redirect: OAuth Provider → Callback
+```
+
+### User Profile
+```yaml
+GET /api/users/{userId}:
+  Description: "사용자 정보 조회"
+  Response: UserProfileResponse
+  
+GET /api/users/me:
+  Description: "현재 사용자 정보"
+  Response: CurrentUserResponse
+  
+PUT /api/users/me:
+  Description: "프로필 수정"
+  Body: { nickname?, bio?, preferred_region?, profile_image_url? }
+  Response: UserProfileResponse
+  
+POST /api/users/signup:
+  Description: "회원가입"
+  Body: { email, password, nickname }
+  Response: { user, access_token }
+  
+DELETE /api/users/me:
+  Description: "회원 탈퇴"
+  Body: { password, reason? }
+  Response: 204 No Content
+  
+POST /api/users/password/reset-request:
+  Description: "비밀번호 재설정 요청"
+  Body: { email }
+  Response: { message }
+  
+PUT /api/users/password/reset:
+  Description: "비밀번호 재설정"
+  Body: { token, new_password }
+  Response: { message }
+```
+
+### Admin
+```yaml
+GET /api/admin/dashboard:
+  Description: "관리자 대시보드"
+  Response: DashboardResponse
+  
+GET /api/admin/users:
+  Description: "사용자 목록"
+  Query: page, size, status?, search?
+  Response: UserListResponse
+  
+PUT /api/admin/users/{userId}/role:
+  Description: "역할 변경"
+  Body: { role }
+  Response: UserResponse
+  
+PUT /api/admin/users/{userId}/status:
+  Description: "상태 변경"
+  Body: { status, reason? }
+  Response: UserResponse
+  
+PUT /api/admin/content/{contentType}/{contentId}/status:
+  Description: "콘텐츠 승인/반려"
+  Body: { status, reason? }
+  Response: ContentStatusResponse
+```
+
+## 🔴 Internal APIs (User Management)
+```yaml
+POST /api/internal/users/activity:
+  Description: "활동 로그 기록"
+  Body: { user_id, activity_type, target_id }
+  
+GET /api/internal/users/{userId}/permissions:
+  Description: "권한 조회"
+  Response: { permissions[] }
+  
+PUT /api/internal/users/{userId}/trust-score:
+  Description: "신뢰도 점수 업데이트"
+  Body: { trust_score, reason }
+  
+GET /api/internal/users/validate:
+  Description: "사용자 유효성 검증"
+  Query: user_id
+  Response: { valid, status }
+```
+
+---
+
+# Domain 2: Recommendation
+
+## 📊 Entities
+
+### 큐레이션 패키지
+```sql
+CurationPackage {
+    id: UUID (PK)
+    created_by: UUID (FK → User, 관리자)
+    title: VARCHAR(255)
+    description: TEXT
+    theme: VARCHAR(100)
+    image_url: VARCHAR(500)
+    view_count: INT DEFAULT 0
+    is_featured: BOOLEAN DEFAULT false
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+### 큐레이션 아이템
+```sql
+CurationPackageItem {
+    id: UUID (PK)
+    package_id: UUID (FK → CurationPackage)
+    place_id: UUID (FK → Place from Trip Domain)
+    visit_order: INTEGER
+    description: TEXT
+    tips: TEXT
+}
+```
+
+### 추천 이력
+```sql
+RecommendationHistory {
+    id: UUID (PK)
+    user_id: UUID (FK → User)
+    recommendation_type: VARCHAR(50)
+    recommended_items: JSON
+    clicked_items: JSON
+    conversion_rate: DECIMAL(3,2)
+    created_at: TIMESTAMP
+}
+```
+
+### 트렌드 데이터
+```sql
+TrendData {
+    id: UUID (PK)
+    trend_type: VARCHAR(50)
+    location: VARCHAR(100)
+    season: VARCHAR(20)
+    data: JSON
+    score: DECIMAL(5,2)
+    calculated_at: TIMESTAMP
+}
+```
+
+### 사용자 선호도
+```sql
+UserPreference {
+    id: UUID (PK)
+    user_id: UUID (FK → User)
+    preference_type: VARCHAR(50)
+    preference_value: JSON
+    confidence: DECIMAL(3,2)
+    updated_at: TIMESTAMP
+}
+```
+
+## 🔵 External APIs (Recommendation)
+
+### Recommendations
+```yaml
+GET /api/recommendations/personalized:
+  Description: "개인화 추천"
+  Query: limit?, category?
+  Response: PersonalizedRecommendationResponse
+  
+GET /api/recommendations/similar-users:
+  Description: "유사 사용자 기반 추천"
+  Query: user_id, limit?
+  Response: SimilarUserRecommendationResponse
+  
+GET /api/recommendations/popular:
+  Description: "인기 추천"
+  Query: period?, location?, limit?
+  Response: PopularRecommendationResponse
+  
+GET /api/recommendations/places:
+  Description: "장소 추천"
+  Query: location, preferences?, budget?
+  Response: PlaceRecommendationResponse
+```
+
+### Curations
+```yaml
+GET /api/curations:
+  Description: "큐레이션 목록"
+  Query: page, size, theme?, featured?
+  Response: CurationListResponse
+  
+GET /api/curations/{packageId}:
+  Description: "큐레이션 상세"
+  Response: CurationDetailResponse
+  
+POST /api/curations:
+  Description: "큐레이션 생성 (관리자)"
+  Body: { title, description, theme, items[] }
+  Response: CurationPackageResponse
+  
+PUT /api/curations/{packageId}:
+  Description: "큐레이션 수정 (관리자)"
+  Body: { title?, description?, items[]? }
+  Response: CurationPackageResponse
+  
+DELETE /api/curations/{packageId}:
+  Description: "큐레이션 삭제 (관리자)"
+  Response: 204 No Content
+```
+
+### Trends
+```yaml
+GET /api/trends:
+  Description: "트렌드 분석 조회"
+  Query: type?, limit?
+  Response: TrendAnalysisResponse
+  
+GET /api/trends/seasonal:
+  Description: "시즌별 트렌드"
+  Query: season?, year?
+  Response: SeasonalTrendResponse
+  
+GET /api/trends/regions:
+  Description: "지역별 트렌드"
+  Query: region?, period?
+  Response: RegionalTrendResponse
+```
+
+## 🔴 Internal APIs (Recommendation)
+```yaml
+POST /api/internal/recommendations/log:
+  Description: "추천 로그 기록"
+  Body: { user_id, recommendation_type, items, clicked }
+  
+POST /api/internal/trends/calculate:
+  Description: "트렌드 계산"
+  Body: { trend_type, data_source }
+  
+GET /api/internal/recommendations/ab-test:
+  Description: "A/B 테스트 그룹 조회"
+  Query: user_id
+  Response: { test_group, variant }
+  
+POST /api/internal/preferences/update:
+  Description: "사용자 선호도 업데이트"
+  Body: { user_id, preferences }
+```
+
+---
+
+## 🔗 외부 도메인 의존성
+
+### 필요한 외부 API
+```yaml
+Trip Planning Domain:
+  - GET /api/places/{placeId}: "장소 정보 조회"
+  - GET /api/trips/user/{userId}: "사용자 여행 이력"
+  
+Review System Domain:
+  - GET /api/reviews/user/{userId}: "사용자 리뷰 조회"
+  - GET /api/internal/users/{userId}/rating: "평점 조회"
+  
+Media Management Domain:
+  - POST /api/media/upload: "프로필 이미지 업로드"
+  - GET /api/media/{mediaId}: "미디어 조회"
+```
+
+---
+
+## 💡 핵심 비즈니스 로직
+
+### User Management
+1. **인증 플로우**: 로그인 → JWT 발급 → 토큰 검증 → 권한 확인
+2. **소셜 로그인**: OAuth 2.0 → 프로필 연동 → 자동 회원가입
+3. **권한 관리**: RBAC 기반 역할별 접근 제어
+
+### Recommendation
+1. **개인화 추천**: 사용자 활동 분석 → 선호도 계산 → 협업 필터링 → 추천 생성
+2. **트렌드 분석**: 데이터 수집 → 시계열 분석 → 스코어링 → 트렌드 도출
+3. **큐레이션**: 전문가 선정 → 테마별 구성 → 순서 최적화 → 패키지 생성
+
+---
+
+## 🔐 보안 고려사항
+
+- JWT 토큰 보안 (RS256)
+- 비밀번호 암호화 (bcrypt)
+- 2FA 인증
+- OAuth 2.0 소셜 로그인
+- Rate Limiting
+- SQL Injection 방어
+- XSS 방어
