@@ -1,0 +1,797 @@
+# Chat 도메인 ERD 분석 결과
+
+## 사고 과정
+
+### 1. 요구사항 분석
+Chat 도메인의 요구사항 명세서를 분석한 결과, 다음과 같은 핵심 기능들이 식별되었습니다:
+- AI와의 대화를 통한 여행 계획 생성
+- 채팅 스레드 관리 (생성, 조회, 삭제, 수정)
+- 실시간 메시지 송수신
+- AI 응답 캐싱 및 관리
+- 채팅 모드 변경 (여행계획/여행추천/여행질문)
+- 이미지 첨부 및 위치 공유
+- 개인화 설정
+- API 사용량 모니터링 및 크레딧 관리
+
+### 2. 엔티티 도출 과정
+요구사항에서 다음과 같은 핵심 개념들을 엔티티로 변환했습니다:
+- 채팅 대화 관리 → ChatThread
+- 개별 메시지 → Message
+- 대화 모드 → ChatMode
+- 사용자 설정 → ChatSettings
+- AI 응답 캐시 → AIResponse
+- API 사용량 추적 → APIUsageLog
+- 빠른 제안 → QuickSuggestion
+- 생성된 여행 계획 → TripPlan
+
+## 최종 ERD
+
+### 엔티티 정의
+
+#### 1. ChatThread (채팅 스레드)
+```
+ChatThread {
+    thread_id: UUID (PK)
+    user_id: UUID (FK → User)
+    title: VARCHAR(255)
+    mode_id: INT (FK → ChatMode)
+    status: ENUM('active', 'archived', 'deleted')
+    last_message_at: TIMESTAMP
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+#### 2. Message (메시지)
+```
+Message {
+    message_id: UUID (PK)
+    thread_id: UUID (FK → ChatThread)
+    sender_type: ENUM('user', 'ai')
+    content: TEXT
+    image_url: VARCHAR(500) NULL
+    location_lat: DECIMAL(10,8) NULL
+    location_lng: DECIMAL(11,8) NULL
+    tokens_used: INT
+    parent_message_id: UUID NULL (FK → Message)
+    created_at: TIMESTAMP
+}
+```
+
+#### 3. ChatMode (채팅 모드)
+```
+ChatMode {
+    mode_id: INT (PK)
+    name: VARCHAR(50)
+    description: TEXT
+    context_prompt: TEXT
+    is_active: BOOLEAN
+    created_at: TIMESTAMP
+}
+```
+
+#### 4. ChatSettings (채팅 설정)
+```
+ChatSettings {
+    setting_id: UUID (PK)
+    user_id: UUID (FK → User, UNIQUE)
+    response_style: VARCHAR(50)
+    language: VARCHAR(10)
+    response_speed: ENUM('slow', 'normal', 'fast')
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+#### 5. AIResponse (AI 응답 캐시)
+```
+AIResponse {
+    response_id: UUID (PK)
+    question_pattern: VARCHAR(500) (INDEX)
+    response_content: TEXT
+    ttl_expires_at: TIMESTAMP
+    hit_count: INT DEFAULT 0
+    created_at: TIMESTAMP
+}
+```
+
+#### 6. APIUsageLog (API 사용량 로그)
+```
+APIUsageLog {
+    log_id: UUID (PK)
+    user_id: UUID (FK → User)
+    thread_id: UUID (FK → ChatThread)
+    tokens_used: INT
+    api_cost: DECIMAL(10,4)
+    api_endpoint: VARCHAR(255)
+    created_at: TIMESTAMP
+}
+```
+
+#### 7. QuickSuggestion (빠른 제안)
+```
+QuickSuggestion {
+    suggestion_id: INT (PK)
+    title: VARCHAR(100)
+    content: TEXT
+    category: VARCHAR(50)
+    display_order: INT
+    is_active: BOOLEAN
+    created_at: TIMESTAMP
+}
+```
+
+#### 8. TripPlan (생성된 여행 계획)
+```
+TripPlan {
+    plan_id: UUID (PK)
+    thread_id: UUID (FK → ChatThread)
+    trip_id: UUID (FK → Trip 도메인)
+    plan_data: JSON
+    status: ENUM('draft', 'confirmed', 'cancelled')
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+### 관계 정의
+
+#### 1:N 관계
+- User (1) : ChatThread (N)
+  - 한 사용자는 여러 채팅 스레드를 가질 수 있음
+  
+- ChatThread (1) : Message (N)
+  - 하나의 채팅 스레드는 여러 메시지를 포함
+  
+- User (1) : APIUsageLog (N)
+  - 한 사용자는 여러 API 사용 로그를 생성
+  
+- ChatThread (1) : APIUsageLog (N)
+  - 하나의 채팅 스레드는 여러 API 호출을 발생시킴
+
+#### N:1 관계
+- ChatThread (N) : ChatMode (1)
+  - 여러 채팅 스레드가 하나의 모드를 사용할 수 있음
+
+#### 1:1 관계
+- User (1) : ChatSettings (1)
+  - 한 사용자는 하나의 설정을 가짐
+
+#### 1:0..N 관계
+- ChatThread (1) : TripPlan (0..N)
+  - 하나의 채팅 스레드에서 여러 여행 계획이 생성될 수 있음
+
+#### 자기 참조 관계
+- Message : Message (parent_message_id)
+  - AI 응답 재생성 기능을 위한 자기 참조
+
+### 인덱스 전략
+
+1. **ChatThread**
+   - INDEX on user_id (채팅 목록 조회 최적화)
+   - INDEX on (user_id, status, last_message_at) (활성 채팅 조회)
+
+2. **Message**
+   - INDEX on thread_id (채팅 히스토리 조회)
+   - INDEX on (thread_id, created_at) (메시지 순서 조회)
+   - FULLTEXT INDEX on content (메시지 검색 기능)
+
+3. **AIResponse**
+   - UNIQUE INDEX on question_pattern (캐시 조회 최적화)
+   - INDEX on ttl_expires_at (만료된 캐시 정리)
+
+4. **APIUsageLog**
+   - INDEX on (user_id, created_at) (사용량 집계)
+   - INDEX on created_at (일일/월간 집계)
+
+### 비기능 요구사항 고려사항
+
+1. **성능 (REQ-CHAT-NFR-001)**
+   - Message 테이블 파티셔닝 고려 (월별)
+   - AIResponse 캐시 테이블로 응답 시간 단축
+
+2. **동시성 (REQ-CHAT-NFR-002)**
+   - ChatThread와 Message 테이블에 적절한 인덱스 설정
+   - 읽기 전용 레플리카 활용 고려
+
+3. **보안 (REQ-CHAT-NFR-004)**
+   - Message.content 필드 암호화
+   - 민감 정보 필드 별도 암호화 처리
+
+4. **확장성 (REQ-CHAT-NFR-007)**
+   - 세션 정보는 Redis에 저장 (ERD에는 미포함)
+   - 테이블 파티셔닝 전략 수립
+
+5. **데이터 관리 (REQ-CHAT-NFR-008)**
+   - Message 테이블에 archived 상태 추가 고려
+   - 90일 이후 콜드 스토리지 이전 정책 구현
+
+### 외부 도메인과의 연결점
+
+1. **User 도메인**
+   - ChatThread.user_id
+   - ChatSettings.user_id
+   - APIUsageLog.user_id
+
+2. **Trip 도메인**
+   - TripPlan.trip_id (생성된 여행 계획 연동)
+
+3. **Credit 도메인** (향후 연동 필요)
+   - 크레딧 차감 및 잔액 관리
+
+---
+
+# 섹션 1: ERD 기반 설계
+## (위의 내용은 기존 ERD 분석 결과)
+
+---
+
+# 섹션 2: API 엔드포인트 및 DTO 설계
+
+## 도출 과정
+
+### 1. API 엔드포인트 설계 과정
+
+요구사항 명세서와 ERD를 분석하여 다음과 같은 API 카테고리를 도출했습니다:
+
+1. **채팅 스레드 관리**: REQ-CHAT-002, 003, 013, 014, 016, 017
+2. **메시지 처리**: REQ-CHAT-004, 010, 011, 018, 019
+3. **AI 통합**: REQ-CHAT-001, 005, 006
+4. **설정 및 개인화**: REQ-CHAT-008, 009, 012
+5. **모니터링**: REQ-CHAT-007, 020
+
+각 요구사항을 충족하기 위해 RESTful API 원칙을 따라 엔드포인트를 설계했습니다.
+
+### 2. DTO 변환 전략
+
+엔티티를 DTO로 변환할 때 다음 원칙을 적용했습니다:
+
+- **Request DTO**: 클라이언트가 제공해야 할 최소한의 정보만 포함
+- **Response DTO**: 클라이언트에 필요한 정보를 구조화하여 제공
+- **보안**: 민감한 정보(user_id, 내부 ID 등)는 필요시에만 노출
+- **성능**: 불필요한 데이터 전송을 최소화하여 네트워크 효율성 향상
+
+## API 엔드포인트 정의
+
+### 채팅 스레드 관련 API
+
+#### 1. 채팅 목록 조회
+```
+GET /api/chat/threads
+Query Parameters: page, size, sort
+Response: ChatThreadListResponse
+Status: 200 OK
+```
+
+#### 2. 새 채팅 생성
+```
+POST /api/chat/threads
+Request Body: CreateChatThreadRequest
+Response: ChatThreadResponse
+Status: 201 Created
+```
+
+#### 3. 특정 채팅 조회
+```
+GET /api/chat/threads/{threadId}
+Response: ChatThreadDetailResponse
+Status: 200 OK
+```
+
+#### 4. 채팅 제목 수정
+```
+PUT /api/chat/threads/{threadId}
+Request Body: UpdateChatThreadRequest
+Response: ChatThreadResponse
+Status: 200 OK
+```
+
+#### 5. 채팅 삭제
+```
+DELETE /api/chat/threads/{threadId}
+Status: 204 No Content
+```
+
+#### 6. 채팅 모드 변경
+```
+PUT /api/chat/threads/{threadId}/mode
+Request Body: ChangeChatModeRequest
+Response: ChatThreadResponse
+Status: 200 OK
+```
+
+### 메시지 관련 API
+
+#### 7. 메시지 목록 조회
+```
+GET /api/chat/threads/{threadId}/messages
+Query Parameters: page, size, lastMessageId
+Response: MessageListResponse
+Status: 200 OK
+```
+
+#### 8. 메시지 전송
+```
+POST /api/chat/threads/{threadId}/messages
+Request Body: SendMessageRequest
+Response: MessageResponse
+Status: 201 Created
+```
+
+#### 9. 이미지 첨부 메시지
+```
+POST /api/chat/threads/{threadId}/messages/image
+Request Body: MultipartFile + MessageWithImageRequest
+Response: MessageResponse
+Status: 201 Created
+```
+
+#### 10. 위치 공유 메시지
+```
+POST /api/chat/threads/{threadId}/messages/location
+Request Body: MessageWithLocationRequest
+Response: MessageResponse
+Status: 201 Created
+```
+
+#### 11. AI 응답 재생성
+```
+POST /api/chat/threads/{threadId}/messages/{messageId}/regenerate
+Response: MessageResponse
+Status: 200 OK
+```
+
+#### 12. 메시지 검색
+```
+GET /api/chat/threads/{threadId}/messages/search
+Query Parameters: q, page, size
+Response: MessageSearchResponse
+Status: 200 OK
+```
+
+### AI 및 여행 계획 API
+
+#### 13. 여행 계획 생성
+```
+POST /api/chat/threads/{threadId}/generate-trip
+Request Body: GenerateTripPlanRequest
+Response: TripPlanResponse
+Status: 201 Created
+```
+
+#### 14. 생성된 여행 계획 조회
+```
+GET /api/chat/threads/{threadId}/trip-plans
+Response: TripPlanListResponse
+Status: 200 OK
+```
+
+### 설정 및 부가 기능 API
+
+#### 15. 채팅 설정 조회
+```
+GET /api/chat/settings
+Response: ChatSettingsResponse
+Status: 200 OK
+```
+
+#### 16. 채팅 설정 수정
+```
+PUT /api/chat/settings
+Request Body: UpdateChatSettingsRequest
+Response: ChatSettingsResponse
+Status: 200 OK
+```
+
+#### 17. 빠른 제안 조회
+```
+GET /api/chat/suggestions
+Query Parameters: category
+Response: QuickSuggestionListResponse
+Status: 200 OK
+```
+
+#### 18. 채팅 모드 목록 조회
+```
+GET /api/chat/modes
+Response: ChatModeListResponse
+Status: 200 OK
+```
+
+### 모니터링 API
+
+#### 19. 크레딧 사용량 조회
+```
+GET /api/chat/usage
+Query Parameters: period (daily/monthly)
+Response: CreditUsageResponse
+Status: 200 OK
+```
+
+#### 20. API 사용량 통계
+```
+GET /api/chat/api-usage
+Query Parameters: startDate, endDate
+Response: APIUsageStatisticsResponse
+Status: 200 OK
+```
+
+## Request/Response DTO 정의
+
+### 채팅 스레드 DTOs
+
+#### CreateChatThreadRequest
+```java
+{
+  "title": "string (optional)",
+  "modeId": "integer",
+  "initialMessage": "string (optional)"
+}
+```
+
+#### UpdateChatThreadRequest
+```java
+{
+  "title": "string"
+}
+```
+
+#### ChangeChatModeRequest
+```java
+{
+  "modeId": "integer"
+}
+```
+
+#### ChatThreadResponse
+```java
+{
+  "threadId": "uuid",
+  "title": "string",
+  "mode": {
+    "modeId": "integer",
+    "name": "string"
+  },
+  "status": "string",
+  "lastMessage": {
+    "content": "string",
+    "createdAt": "timestamp"
+  },
+  "lastMessageAt": "timestamp",
+  "createdAt": "timestamp"
+}
+```
+
+#### ChatThreadListResponse
+```java
+{
+  "threads": [ChatThreadResponse],
+  "pagination": {
+    "page": "integer",
+    "size": "integer",
+    "totalElements": "long",
+    "totalPages": "integer"
+  }
+}
+```
+
+#### ChatThreadDetailResponse
+```java
+{
+  "threadId": "uuid",
+  "title": "string",
+  "mode": ChatModeDto,
+  "status": "string",
+  "messageCount": "integer",
+  "lastMessageAt": "timestamp",
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
+
+### 메시지 DTOs
+
+#### SendMessageRequest
+```java
+{
+  "content": "string",
+  "attachments": {
+    "imageUrl": "string (optional)",
+    "location": {
+      "lat": "double",
+      "lng": "double"
+    } (optional)
+  }
+}
+```
+
+#### MessageWithImageRequest
+```java
+{
+  "content": "string",
+  "imageDescription": "string (optional)"
+}
+```
+
+#### MessageWithLocationRequest
+```java
+{
+  "content": "string",
+  "location": {
+    "lat": "double",
+    "lng": "double",
+    "address": "string (optional)"
+  }
+}
+```
+
+#### MessageResponse
+```java
+{
+  "messageId": "uuid",
+  "threadId": "uuid",
+  "senderType": "user|ai",
+  "content": "string",
+  "imageUrl": "string (optional)",
+  "location": {
+    "lat": "double",
+    "lng": "double"
+  } (optional),
+  "tokensUsed": "integer",
+  "parentMessageId": "uuid (optional)",
+  "createdAt": "timestamp"
+}
+```
+
+#### MessageListResponse
+```java
+{
+  "messages": [MessageResponse],
+  "hasMore": "boolean",
+  "nextCursor": "string (optional)"
+}
+```
+
+#### MessageSearchResponse
+```java
+{
+  "results": [
+    {
+      "message": MessageResponse,
+      "highlights": ["string"]
+    }
+  ],
+  "totalResults": "integer",
+  "pagination": PaginationDto
+}
+```
+
+### AI 및 여행 계획 DTOs
+
+#### GenerateTripPlanRequest
+```java
+{
+  "preferences": {
+    "budget": "decimal",
+    "duration": "integer (days)",
+    "travelStyle": "string",
+    "interests": ["string"]
+  },
+  "constraints": {
+    "startDate": "date",
+    "endDate": "date",
+    "startLocation": "string"
+  }
+}
+```
+
+#### TripPlanResponse
+```java
+{
+  "planId": "uuid",
+  "threadId": "uuid",
+  "tripId": "uuid",
+  "planData": {
+    "title": "string",
+    "description": "string",
+    "itinerary": [
+      {
+        "day": "integer",
+        "activities": ["string"],
+        "locations": ["string"]
+      }
+    ]
+  },
+  "status": "draft|confirmed|cancelled",
+  "createdAt": "timestamp"
+}
+```
+
+#### TripPlanListResponse
+```java
+{
+  "plans": [TripPlanResponse],
+  "totalCount": "integer"
+}
+```
+
+### 설정 DTOs
+
+#### ChatSettingsResponse
+```java
+{
+  "settingId": "uuid",
+  "responseStyle": "casual|formal|friendly",
+  "language": "ko|en|ja|zh",
+  "responseSpeed": "slow|normal|fast",
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
+
+#### UpdateChatSettingsRequest
+```java
+{
+  "responseStyle": "string (optional)",
+  "language": "string (optional)",
+  "responseSpeed": "string (optional)"
+}
+```
+
+### 부가 기능 DTOs
+
+#### QuickSuggestionDto
+```java
+{
+  "suggestionId": "integer",
+  "title": "string",
+  "content": "string",
+  "category": "string",
+  "displayOrder": "integer"
+}
+```
+
+#### QuickSuggestionListResponse
+```java
+{
+  "suggestions": [QuickSuggestionDto]
+}
+```
+
+#### ChatModeDto
+```java
+{
+  "modeId": "integer",
+  "name": "string",
+  "description": "string",
+  "isActive": "boolean"
+}
+```
+
+#### ChatModeListResponse
+```java
+{
+  "modes": [ChatModeDto]
+}
+```
+
+### 모니터링 DTOs
+
+#### CreditUsageResponse
+```java
+{
+  "userId": "uuid",
+  "period": "daily|monthly",
+  "usage": {
+    "tokensUsed": "integer",
+    "creditsSpent": "decimal",
+    "remainingCredits": "decimal"
+  },
+  "details": [
+    {
+      "threadId": "uuid",
+      "tokensUsed": "integer",
+      "creditsSpent": "decimal",
+      "timestamp": "timestamp"
+    }
+  ]
+}
+```
+
+#### APIUsageStatisticsResponse
+```java
+{
+  "period": {
+    "startDate": "date",
+    "endDate": "date"
+  },
+  "totalCalls": "integer",
+  "totalTokens": "integer",
+  "totalCost": "decimal",
+  "dailyBreakdown": [
+    {
+      "date": "date",
+      "calls": "integer",
+      "tokens": "integer",
+      "cost": "decimal"
+    }
+  ],
+  "endpointBreakdown": [
+    {
+      "endpoint": "string",
+      "calls": "integer",
+      "avgResponseTime": "decimal"
+    }
+  ]
+}
+```
+
+### 공통 DTOs
+
+#### PaginationDto
+```java
+{
+  "page": "integer",
+  "size": "integer",
+  "totalElements": "long",
+  "totalPages": "integer",
+  "hasNext": "boolean",
+  "hasPrevious": "boolean"
+}
+```
+
+#### ErrorResponse
+```java
+{
+  "code": "string",
+  "message": "string",
+  "details": "string (optional)",
+  "timestamp": "timestamp"
+}
+```
+
+#### BaseResponse<T>
+```java
+{
+  "success": "boolean",
+  "data": "T",
+  "message": "string (optional)",
+  "timestamp": "timestamp"
+}
+```
+
+## API 보안 및 인증
+
+### 인증 헤더
+```
+Authorization: Bearer {JWT_TOKEN}
+```
+
+### API Rate Limiting
+```
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 1640995200
+```
+
+### CORS 설정
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE
+Access-Control-Allow-Headers: Content-Type, Authorization
+```
+
+## 에러 코드 정의
+
+| 코드 | 설명 | HTTP Status |
+|------|------|-------------|
+| CHAT_001 | 채팅 스레드를 찾을 수 없음 | 404 |
+| CHAT_002 | 권한이 없는 채팅 접근 | 403 |
+| CHAT_003 | 메시지 전송 실패 | 500 |
+| CHAT_004 | AI API 호출 실패 | 503 |
+| CHAT_005 | 크레딧 부족 | 402 |
+| CHAT_006 | 잘못된 채팅 모드 | 400 |
+| CHAT_007 | 파일 업로드 실패 | 400 |
+| CHAT_008 | 위치 정보 오류 | 400 |
+| CHAT_009 | 여행 계획 생성 실패 | 500 |
+| CHAT_010 | API 한도 초과 | 429 |
