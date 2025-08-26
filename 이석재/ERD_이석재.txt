@@ -122,33 +122,33 @@ admin --> UC_Admin
 
 ## Step 2. 요구사항 명세서 (기능/비기능/제약) ([finalteamproject-aca78.web.app][1])
 
-### 2.1 기능적 요구사항(발췌; 도메인별 FR ID)
+### 2.1 기능적 요구사항(발췌; 도메인별 REQ ID)
 
 * **TRIP**
 
-  * FR-TRIP-001: 여행 계획 생성(PLANNING)
-  * FR-TRIP-002: 계획 부분 수정/상태 전이 검증
-  * FR-TRIP-003: 일정 아이템 CRUD, 시간 겹침 금지
-  * FR-TRIP-004: 체크리스트 CRUD, 완료율 계산
-  * FR-TRIP-005: 참여자 초대/제거(권한: EDIT/VIEW)
+  * REQ-TRIP-001: 여행 계획 생성(PLANNING)
+  * REQ-TRIP-002: 계획 부분 수정/상태 전이 검증
+  * REQ-TRIP-003: 일정 아이템 CRUD, 시간 겹침 금지
+  * REQ-TRIP-004: 체크리스트 CRUD, 완료율 계산
+  * REQ-TRIP-005: 참여자 초대/제거(권한: EDIT/VIEW)
 * **PLACE/ROUTE**
 
-  * FR-PLACE-001: 키워드/필터/좌표 검색(내부→외부, 정규화·중복제거, 페이지네이션)
-  * FR-PLACE-002: 장소 상세 캐시/만료 갱신
-  * FR-PLACE-003: 일정에 장소 연결
-  * FR-ROUTE-001: 경로/시간/거리 계산(캐시)
+  * REQ-PLACE-001: 키워드/필터/좌표 검색(내부→외부, 정규화·중복제거, 페이지네이션)
+  * REQ-PLACE-002: 장소 상세 캐시/만료 갱신
+  * REQ-PLACE-003: 일정에 장소 연결
+  * REQ-ROUTE-001: 경로/시간/거리 계산(캐시)
 * **RESERVATION**
 
-  * FR-RESV-001: 예약 추가(PENDING), 기간/중복 검증
-  * FR-RESV-002: 예약 상태 전이/메모/알림 갱신
-  * FR-RESV-003: 예약 목록/상세 + 통화 합계
-  * FR-RESV-004: 예약 메일 파싱(임시→확정)
+  * REQ-RESV-001: 예약 추가(PENDING), 기간/중복 검증
+  * REQ-RESV-002: 예약 상태 전이/메모/알림 갱신
+  * REQ-RESV-003: 예약 목록/상세 + 통화 합계
+  * REQ-RESV-004: 예약 메일 파싱(임시→확정)
 * **WEATHER**
 
-  * FR-WEATHER-001: 현재/예보 조회(≤14일)
-  * FR-WEATHER-002: 일정 기반 요약
-  * FR-WEATHER-003: 알림 구독/해지(현지 TZ)
-  * FR-WEATHER-004: 대체 코스 제안
+  * REQ-WEATHER-001: 현재/예보 조회(≤14일)
+  * REQ-WEATHER-002: 일정 기반 요약
+  * REQ-WEATHER-003: 알림 구독/해지(현지 TZ)
+  * REQ-WEATHER-004: 대체 코스 제안
 
 ### 2.2 비기능적 요구사항(가이드 문구 반영)
 
@@ -321,24 +321,24 @@ CREATE TABLE places (
 
 ### 4.1 요구사항 → 엔드포인트 매핑(발췌)
 
-| FR             | 설명         | 엔드포인트                                                        |            |
+| REQ             | 설명         | 엔드포인트                                                        |            |
 | -------------- | ---------- | ------------------------------------------------------------ | ---------- |
-| FR-TRIP-001    | 여행 생성      | **POST** `/api/trips`                                        |            |
-| FR-TRIP-002    | 여행 부분수정/상태 | **PATCH** `/api/trips/{tripId}`                              |            |
-| FR-TRIP-003    | 일정 CRUD    | \*\*/api/trips/{tripId}/schedules` (POST/PATCH/DELETE/GET)`  |            |
-| FR-TRIP-004    | 체크리스트      | \*\*/api/trips/{tripId}/checklist` (POST/PATCH/DELETE/GET)`  |            |
-| FR-TRIP-005    | 참여자 초대/제거  | **POST/DELETE** `/api/trips/{tripId}/participants`           |            |
-| FR-PLACE-001   | 장소 검색      | **GET** `/api/places/search`                                 |            |
-| FR-PLACE-002   | 장소 상세      | **GET** `/api/places/{placeId}`                              |            |
-| FR-PLACE-003   | 일정에 장소 연결  | **POST** `/api/trips/{tripId}/schedules/{scheduleId}/place`  |            |
-| FR-ROUTE-001   | 경로 계산      | **GET** `/api/routes`                                        |            |
-| FR-RESV-001    | 예약 추가      | **POST** `/api/trips/{tripId}/reservations`                  |            |
-| FR-RESV-002    | 예약 상태/메모   | **PATCH** `/api/trips/{tripId}/reservations/{reservationId}` |            |
-| FR-RESV-003    | 예약 목록/상세   | **GET** `/api/trips/{tripId}/reservations[/{reservationId}]` |            |
-| FR-RESV-004    | 메일 파싱      | **POST** `/api/reservations/email/ingest`                    |            |
-| FR-WEATHER-001 | 현재/예보      | **GET** \`/api/weather/current                               | forecast\` |
-| FR-WEATHER-002 | 일정 기반 요약   | **GET** `/api/trips/{tripId}/weather/summary`                |            |
-| FR-WEATHER-003 | 알림 구독/해지   | **POST/DELETE** `/api/trips/{tripId}/weather/subscription`   |            |
+| REQ-TRIP-001    | 여행 생성      | **POST** `/api/trips`                                        |            |
+| REQ-TRIP-002    | 여행 부분수정/상태 | **PATCH** `/api/trips/{tripId}`                              |            |
+| REQ-TRIP-003    | 일정 CRUD    | \*\*/api/trips/{tripId}/schedules` (POST/PATCH/DELETE/GET)`  |            |
+| REQ-TRIP-004    | 체크리스트      | \*\*/api/trips/{tripId}/checklist` (POST/PATCH/DELETE/GET)`  |            |
+| REQ-TRIP-005    | 참여자 초대/제거  | **POST/DELETE** `/api/trips/{tripId}/participants`           |            |
+| REQ-PLACE-001   | 장소 검색      | **GET** `/api/places/search`                                 |            |
+| REQ-PLACE-002   | 장소 상세      | **GET** `/api/places/{placeId}`                              |            |
+| REQ-PLACE-003   | 일정에 장소 연결  | **POST** `/api/trips/{tripId}/schedules/{scheduleId}/place`  |            |
+| REQ-ROUTE-001   | 경로 계산      | **GET** `/api/routes`                                        |            |
+| REQ-RESV-001    | 예약 추가      | **POST** `/api/trips/{tripId}/reservations`                  |            |
+| REQ-RESV-002    | 예약 상태/메모   | **PATCH** `/api/trips/{tripId}/reservations/{reservationId}` |            |
+| REQ-RESV-003    | 예약 목록/상세   | **GET** `/api/trips/{tripId}/reservations[/{reservationId}]` |            |
+| REQ-RESV-004    | 메일 파싱      | **POST** `/api/reservations/email/ingest`                    |            |
+| REQ-WEATHER-001 | 현재/예보      | **GET** \`/api/weather/current                               | forecast\` |
+| REQ-WEATHER-002 | 일정 기반 요약   | **GET** `/api/trips/{tripId}/weather/summary`                |            |
+| REQ-WEATHER-003 | 알림 구독/해지   | **POST/DELETE** `/api/trips/{tripId}/weather/subscription`   |            |
 
 ### 4.2 ERD → DTO 매핑(가이드 규칙 준수: Request/Response 분리, 민감정보 최소화) ([finalteamproject-aca78.web.app][1])
 
@@ -439,18 +439,6 @@ paths:
 ```
 
 (OpenAPI 작성법·구성은 페이지 스펙 섹션 흐름을 따름. ([finalteamproject-aca78.web.app][1]))
-
----
-
-## 에러 코드 설계(표준 HTTP 상태) ([finalteamproject-aca78.web.app][1])
-
-* **200 OK**: 조회/수정 성공
-* **201 Created**: 생성 성공
-* **400 Bad Request**: 유효성 실패(기간/필수값/시간 겹침 등)
-* **401 Unauthorized**: 인증 실패(JWT 없음/만료)
-* **404 Not Found**: 리소스 없음(tripId/placeId 등)
-* **409 Conflict**: 일정 겹침/상태 전이 위반
-* **500 Internal Server Error**: 서버 오류
 
 ---
 
