@@ -171,6 +171,8 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+
+  /trips/{tripId}/participants/{userId}:
     delete:
       tags: [Trip - Core]
       summary: 참여자 제거
@@ -179,12 +181,7 @@ paths:
       operationId: removeParticipant
       parameters:
         - $ref: '#/components/parameters/tripId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RemoveParticipantRequest'
+        - $ref: '#/components/parameters/userId'
       responses:
         '204':
           description: 제거 성공 (No Content)
@@ -354,6 +351,13 @@ components:
         format: uuid
     reservationId:
       name: reservationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    userId:
+      name: userId
       in: path
       required: true
       schema:
