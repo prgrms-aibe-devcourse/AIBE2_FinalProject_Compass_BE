@@ -1,0 +1,1168 @@
+# 🌐 Compass 여행 플랫폼 - 통합 ERD 및 도메인별 Core API
+
+## 📋 도메인 구조 및 담당자
+```
+1. AI Client Domain (김민제) - AI 채팅 인터페이스, 대화 관리
+2. User Management Domain (김현승) - 사용자 관리, 인증, 프로필
+3. Recommendation Domain (김현승) - 추천, 큐레이션, 트렌드
+4. Trip Planning Domain (이석재) - 여행 계획 생성, 일정, 장소, 날씨, 예약, AI 여행 생성
+5. Sharing Domain (남정현) - 공유, 협업, 링크 관리
+6. Payment & Billing Domain (남정현) - 결제, 크레딧 관리
+7. Review System Domain (조민귀) - 리뷰, 평점, 피드백, 베스트 리뷰
+8. Media Management Domain (조민귀) - 미디어, 파일 관리, 피드
+9. System Monitoring Domain (조민귀) - 시스템 모니터링, 성능 추적, 에러 로깅
+```
+
+---
+
+# 🏗️ 도메인별 엔티티 및 Core API
+
+## 1. 💬 AI Client Domain (김민제)
+
+### 📊 Entities
+```sql
+-- 채팅 스레드
+ChatThread {
+    thread_id: UUID (PK)
+    user_id: UUID (FK → User)
+    title: VARCHAR(255)
+    mode_id: INT (FK → ChatMode)
+    status: ENUM('active', 'archived', 'deleted')
+    last_message_at: TIMESTAMP
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+
+-- 메시지
+Message {
+    message_id: UUID (PK)
+    thread_id: UUID (FK → ChatThread)
+    sender_type: ENUM('user', 'ai')
+    content: TEXT
+    image_url: VARCHAR(500)
+    location_lat: DECIMAL(10,8)
+    location_lng: DECIMAL(11,8)
+    tokens_used: INT
+    parent_message_id: UUID (FK → Message)
+    created_at: TIMESTAMP
+}
+
+-- 채팅 모드
+ChatMode {
+    mode_id: INT (PK)
+    name: VARCHAR(50)
+    description: TEXT
+    context_prompt: TEXT
+    is_active: BOOLEAN
+    created_at: TIMESTAMP
+}
+
+-- AI 응답 캐시
+AIResponse {
+    response_id: UUID (PK)
+    question_pattern: VARCHAR(500) (INDEX)
+    response_content: TEXT
+    ttl_expires_at: TIMESTAMP
+    hit_count: INT DEFAULT 0
+    created_at: TIMESTAMP
+}
+
+-- API 사용량 로그
+APIUsageLog {
+    log_id: UUID (PK)
+    user_id: UUID (FK → User)
+    thread_id: UUID (FK → ChatThread)
+    tokens_used: INT
+    api_cost: DECIMAL(10,4)
+    api_endpoint: VARCHAR(255)
+    created_at: TIMESTAMP
+}
+
+-- 채팅-여행 연결
+ChatTripLink {
+    link_id: UUID (PK)
+    thread_id: UUID (FK → ChatThread)
+    trip_id: UUID (FK → Trip Domain)
+    created_at: TIMESTAMP
+}
+```
+
+### 🔵 External APIs (다른 도메인에서 호출 가능)
+```yaml
+Chat Management:
+  GET /api/chat/threads: "채팅 목록 조회"
+  POST /api/chat/threads: "새 채팅 생성"
+  GET /api/chat/threads/{threadId}: "채팅 상세 조회"
+  DELETE /api/chat/threads/{threadId}: "채팅 삭제"
+  PUT /api/chat/threads/{threadId}/mode: "채팅 모드 변경"
+  
+Messages:
+  GET /api/chat/threads/{threadId}/messages: "메시지 목록 조회"
+  POST /api/chat/threads/{threadId}/messages: "메시지 전송"
+  POST /api/chat/threads/{threadId}/messages/image: "이미지 첨부 메시지"
+  POST /api/chat/threads/{threadId}/messages/{messageId}/regenerate: "AI 응답 재생성"
+  
+AI Chat Context:
+  GET /api/chat/threads/{threadId}/context: "채팅 컨텍스트 조회"
+  POST /api/chat/threads/{threadId}/trip-request: "여행 생성 요청 기록"
+  
+Usage & Statistics:
+  GET /api/chat/usage: "크레딧 사용량 조회"
+  GET /api/chat/api-usage: "API 사용 통계"
+```
+
+### 🔴 Internal APIs (도메인 내부용)
+```yaml
+Internal:
+  POST /api/internal/chat/cache-response: "AI 응답 캐싱"
+  GET /api/internal/chat/cache/{pattern}: "캐시 조회"
+  POST /api/internal/chat/log-usage: "사용량 로깅"
+```
+
+---
+
+## 2. 👤 User Management Domain (김현승)
+
+### 📊 Entities
+```sql
+-- 사용자 기본 정보
+User {
+    id: UUID (PK)
+    email: VARCHAR(255) (UNIQUE)
+    password_hash: VARCHAR(255)
+    nickname: VARCHAR(100) (UNIQUE)
+    profile_image_url: VARCHAR(500)
+    bio: TEXT
+    preferred_region: VARCHAR(100)
+    provider: ENUM('LOCAL', 'GOOGLE', 'KAKAO')
+    role: ENUM('USER', 'ADMIN')
+    status: ENUM('ACTIVE', 'BLOCKED', 'WITHDRAWN')
+    is_2fa_enabled: BOOLEAN
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+
+-- 프로필
+Profile {
+    profile_id: UUID (PK)
+    user_id: UUID (FK → User, UNIQUE)
+    travel_style: TEXT
+    preferences: TEXT
+    budget_level: VARCHAR(50)
+    updated_at: TIMESTAMP
+}
+
+-- 로그인 기록
+LoginHistory {
+    id: UUID (PK)
+    user_id: UUID (FK → User)
+    ip_address: VARCHAR(50)
+    device_info: TEXT
+    login_at: TIMESTAMP
+}
+
+-- 사용자 활동 추적
+UserActivity {
+    id: BIGSERIAL (PK)
+    user_id: UUID (FK → User)
+    activity_type: VARCHAR(50)
+    target_id: VARCHAR(255)
+    ab_test_group: VARCHAR(50)
+    created_at: TIMESTAMP
+}
+
+-- 관리자
+AdminUser {
+    id: UUID (PK)
+    username: VARCHAR(100) (UNIQUE)
+    password: VARCHAR(255)
+    email: VARCHAR(255) (UNIQUE)
+    role: ENUM('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+    created_at: TIMESTAMP
+    last_login_at: TIMESTAMP
+}
+
+-- 관리 대상 사용자
+ManagedUser {
+    id: UUID (PK)
+    user_id: UUID (FK → User)
+    action: ENUM('BLOCK', 'UNBLOCK', 'WARNING')
+    reason: TEXT
+    admin_id: UUID (FK → AdminUser)
+    created_at: TIMESTAMP
+    expires_at: TIMESTAMP
+}
+```
+
+### 🔵 External APIs
+```yaml
+Authentication:
+  POST /api/auth/login: "로그인"
+  POST /api/auth/logout: "로그아웃"
+  POST /api/auth/refresh: "토큰 갱신"
+  GET /api/auth/social/{provider}: "소셜 로그인"
+  
+User Profile:
+  GET /api/users/{userId}: "사용자 정보 조회"
+  GET /api/users/me: "현재 사용자 정보"
+  PUT /api/users/me: "프로필 수정"
+  POST /api/users/signup: "회원가입"
+  DELETE /api/users/me: "회원 탈퇴"
+  POST /api/users/password/reset-request: "비밀번호 재설정 요청"
+  
+Admin:
+  GET /api/admin/dashboard: "관리자 대시보드"
+  GET /api/admin/users: "사용자 목록"
+  PUT /api/admin/users/{userId}/role: "역할 변경"
+  PUT /api/admin/users/{userId}/status: "상태 변경"
+  PUT /api/admin/content/{contentType}/{contentId}/status: "콘텐츠 승인/반려"
+```
+
+### 🔴 Internal APIs
+```yaml
+Internal:
+  POST /api/internal/users/activity: "활동 로그 기록"
+  GET /api/internal/users/{userId}/permissions: "권한 조회"
+  PUT /api/internal/users/{userId}/trust-score: "신뢰도 점수 업데이트"
+```
+
+---
+
+## 3. 🎯 Recommendation Domain (김현승)
+
+### 📊 Entities
+```sql
+-- 큐레이션 패키지
+CurationPackage {
+    id: UUID (PK)
+    created_by: UUID (FK → User, 관리자)
+    title: VARCHAR(255)
+    description: TEXT
+    theme: VARCHAR(100)
+    created_at: TIMESTAMP
+}
+
+-- 큐레이션 아이템
+CurationPackageItem {
+    id: UUID (PK)
+    package_id: UUID (FK → CurationPackage)
+    place_id: UUID (FK → Place)
+    visit_order: INTEGER
+}
+
+-- 추천 이력
+RecommendationHistory {
+    id: UUID (PK)
+    user_id: UUID (FK → User)
+    recommendation_type: VARCHAR(50)
+    recommended_items: JSON
+    clicked_items: JSON
+    created_at: TIMESTAMP
+}
+
+-- 트렌드 데이터
+TrendData {
+    id: UUID (PK)
+    trend_type: VARCHAR(50)
+    location: VARCHAR(100)
+    season: VARCHAR(20)
+    data: JSON
+    calculated_at: TIMESTAMP
+}
+```
+
+### 🔵 External APIs
+```yaml
+Recommendations:
+  GET /api/recommendations/personalized: "개인화 추천"
+  GET /api/recommendations/similar-users: "유사 사용자 기반 추천"
+  GET /api/recommendations/popular: "인기 추천"
+  
+Curations:
+  GET /api/curations: "큐레이션 목록"
+  GET /api/curations/{packageId}: "큐레이션 상세"
+  POST /api/curations: "큐레이션 생성 (관리자)"
+  
+Trends:
+  GET /api/trends: "트렌드 분석 조회"
+  GET /api/trends/seasonal: "시즌별 트렌드"
+  GET /api/trends/regions: "지역별 트렌드"
+```
+
+### 🔴 Internal APIs
+```yaml
+Internal:
+  POST /api/internal/recommendations/log: "추천 로그 기록"
+  POST /api/internal/trends/calculate: "트렌드 계산"
+  GET /api/internal/recommendations/ab-test: "A/B 테스트 그룹 조회"
+```
+
+---
+
+## 4. ✈️ Trip Planning Domain (이석재)
+
+### 📊 Entities
+```sql
+-- 여행 계획
+Trip {
+    id: UUID (PK)
+    owner_id: UUID (FK → User)
+    title: VARCHAR(255)
+    description: TEXT
+    destination: VARCHAR(255)
+    start_date: DATE
+    end_date: DATE
+    status: ENUM('PLANNING', 'ACTIVE', 'COMPLETED', 'CANCELLED')
+    budget: JSON
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+
+-- 여행 참여자
+TripParticipant {
+    id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    user_id: UUID (FK → User)
+    role: ENUM('OWNER', 'EDITOR', 'VIEWER')
+    invited_at: TIMESTAMP
+    UNIQUE(trip_id, user_id)
+}
+
+-- 일정 아이템
+ScheduleItem {
+    id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    date: DATE
+    start_time: TIME
+    end_time: TIME
+    title: VARCHAR(200)
+    memo: TEXT
+    place_id: UUID (FK → Place)
+    cost_minor: INT
+    sort_order: INT
+    updated_at: TIMESTAMP
+}
+
+-- 체크리스트
+ChecklistItem {
+    id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    text: TEXT
+    checked: BOOLEAN
+    sort_order: INT
+    updated_at: TIMESTAMP
+}
+
+-- 장소 정보 (캐시)
+Place {
+    id: UUID (PK)
+    source: VARCHAR(50) -- google, kakao
+    external_id: VARCHAR(255)
+    name: VARCHAR(255)
+    location: JSON -- {lat, lng, address}
+    detail: JSON -- {openingHours, phone}
+    cached_at: TIMESTAMP
+    UNIQUE(source, external_id)
+}
+
+-- 예약 정보
+Reservation {
+    id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    type: VARCHAR(50) -- hotel, flight, tour
+    vendor: VARCHAR(100)
+    ref_code: VARCHAR(100)
+    start_at: TIMESTAMP
+    end_at: TIMESTAMP
+    amount_minor: INT
+    currency: VARCHAR(3)
+    status: ENUM('PENDING', 'CONFIRMED', 'CANCELLED')
+    notes: TEXT
+    updated_at: TIMESTAMP
+}
+
+-- 날씨 구독
+WeatherSubscription {
+    id: UUID (PK)
+    user_id: UUID (FK → User)
+    trip_id: UUID (FK → Trip)
+    notify_time_local: TIME
+    thresholds: JSON
+    tz: VARCHAR(50)
+    active: BOOLEAN
+    UNIQUE(user_id, trip_id)
+}
+
+-- AI 생성 여행 계획 (Trip Planning Domain)
+AIGeneratedPlan {
+    plan_id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    chat_thread_id: UUID -- AI Client의 thread_id 참조
+    ai_context: JSON -- AI가 생성한 원본 데이터
+    status: ENUM('draft', 'confirmed', 'modified')
+    created_at: TIMESTAMP
+}
+```
+
+### 🔵 External APIs
+```yaml
+Trip Management:
+  GET /api/trips: "여행 목록"
+  POST /api/trips: "여행 생성"
+  GET /api/trips/{tripId}: "여행 상세"
+  PATCH /api/trips/{tripId}: "여행 수정"
+  DELETE /api/trips/{tripId}: "여행 삭제"
+  
+AI Trip Generation:
+  POST /api/trips/generate-from-chat: "AI 채팅 기반 여행 계획 생성"
+  GET /api/trips/ai-suggestions: "AI 여행 제안 조회"
+  POST /api/trips/confirm-ai-plan: "AI 생성 계획 확정"
+  
+Participants:
+  POST /api/trips/{tripId}/participants: "참여자 초대"
+  DELETE /api/trips/{tripId}/participants/{userId}: "참여자 제거"
+  
+Schedule:
+  GET /api/trips/{tripId}/schedules: "일정 조회"
+  POST /api/trips/{tripId}/schedules: "일정 추가"
+  PATCH /api/trips/{tripId}/schedules/{scheduleId}: "일정 수정"
+  DELETE /api/trips/{tripId}/schedules/{scheduleId}: "일정 삭제"
+  POST /api/trips/{tripId}/schedules/{scheduleId}/place: "장소 연결"
+  
+Checklist:
+  GET /api/trips/{tripId}/checklist: "체크리스트 조회"
+  POST /api/trips/{tripId}/checklist: "아이템 추가"
+  PATCH /api/trips/{tripId}/checklist/{itemId}: "아이템 수정"
+  
+Places:
+  GET /api/places/search: "장소 검색"
+  GET /api/places/{placeId}: "장소 상세"
+  GET /api/places/nearby: "주변 장소"
+  
+Routes:
+  GET /api/routes: "경로 계산"
+  POST /api/routes/multi-point: "다중 경유지 경로"
+  
+Reservations:
+  GET /api/trips/{tripId}/reservations: "예약 목록"
+  POST /api/trips/{tripId}/reservations: "예약 추가"
+  PATCH /api/trips/{tripId}/reservations/{reservationId}: "예약 수정"
+  POST /api/reservations/email/parse: "이메일 예약 파싱"
+  
+Weather:
+  GET /api/weather/current: "현재 날씨"
+  GET /api/weather/forecast: "날씨 예보"
+  GET /api/trips/{tripId}/weather/summary: "일정별 날씨"
+  POST /api/trips/{tripId}/weather/subscription: "날씨 알림 구독"
+```
+
+### 🔴 Internal APIs
+```yaml
+Internal:
+  POST /api/internal/places/cache: "장소 캐싱"
+  POST /api/internal/weather/cache: "날씨 캐싱"
+  GET /api/internal/trips/{tripId}/validate-dates: "날짜 검증"
+  POST /api/internal/reservations/validate: "예약 검증"
+  POST /api/internal/trips/process-ai-context: "AI 컨텍스트 처리"
+  GET /api/internal/trips/chat/{threadId}: "채팅 스레드 연관 여행 조회"
+```
+
+---
+
+## 5. 🔗 Sharing Domain (남정현)
+
+### 📊 Entities
+```sql
+-- 공유 링크
+ShareLink {
+    link_id: UUID (PK)
+    trip_id: UUID (FK → Trip)
+    share_token: VARCHAR(255) (UNIQUE)
+    is_active: BOOLEAN DEFAULT true
+    expires_at: TIMESTAMP
+    created_at: TIMESTAMP
+}
+
+-- 공유 권한
+SharePermission {
+    id: UUID (PK)
+    share_link_id: UUID (FK → ShareLink)
+    permission_type: ENUM('VIEW', 'EDIT', 'COMMENT')
+    created_at: TIMESTAMP
+}
+
+-- 공유 접속 기록
+ShareAccessLog {
+    id: UUID (PK)
+    share_link_id: UUID (FK → ShareLink)
+    accessed_by_user_id: UUID (FK → User, nullable)
+    ip_address: VARCHAR(50)
+    accessed_at: TIMESTAMP
+}
+```
+
+### 🔵 External APIs
+```yaml
+Sharing:
+  POST /api/share/trips/{tripId}: "공유 링크 생성"
+  GET /api/share/{token}: "공유된 여행 조회"
+  DELETE /api/share/{linkId}: "공유 링크 삭제"
+  PUT /api/share/{linkId}/permissions: "권한 수정"
+  GET /api/share/{linkId}/access-log: "접속 기록 조회"
+```
+
+### 🔴 Internal APIs
+```yaml
+Internal:
+  POST /api/internal/share/validate-token: "토큰 유효성 검증"
+  POST /api/internal/share/log-access: "접속 로그 기록"
+```
+
+---
+
+## 6. 💳 Payment & Billing Domain (남정현)
+
+### 📊 Entities
+```sql
+-- 크레딧 상품
+CreditProduct {
+    product_id: UUID (PK)
+    product_name: VARCHAR(255)
+    price: DECIMAL(10,2)
+    credit_amount: INT
+    is_active: BOOLEAN
+}
+
+-- 결제 내역
+Payment {
+    payment_id: UUID (PK)
+    user_id: UUID (FK → User)
+    product_id: UUID (FK → CreditProduct)
+    amount: DECIMAL(10,2)
+    status: VARCHAR(50)
+    kakaopay_tid: VARCHAR(255) (UNIQUE)
+    created_at: TIMESTAMP
+}
+
+-- 크레딧 거래
+CreditTransaction {
+    transaction_id: UUID (PK)
+    user_id: UUID (FK → User)
+    transaction_type: VARCHAR(50)
+    amount: INT
+    description: VARCHAR(500)
+    balance_after: INT
+    created_at: TIMESTAMP
+}
+
+-- 사용자 크레딧 잔액
+UserCreditBalance {
+    user_id: UUID (PK, FK → User)
+    balance: INT DEFAULT 0
+    updated_at: TIMESTAMP
+}
+```
+
+### 🔵 External APIs
+```yaml
+Payment:
+  GET /api/credits/products: "크레딧 상품 목록"
+  POST /api/payments/kakaopay/ready: "카카오페이 결제 준비"
+  GET /api/payments/kakaopay/approve: "결제 승인"
+  POST /api/payments/kakaopay/cancel: "결제 취소"
+  
+Credit:
+  GET /api/credits/balance: "크레딧 잔액 조회"
+  GET /api/credits/transactions: "거래 내역"
+  POST /api/credits/use: "크레딧 사용"
+```
+
+### 🔴 Internal APIs
+```yaml
+Internal:
+  POST /api/internal/credits/add: "크레딧 추가"
+  POST /api/internal/credits/deduct: "크레딧 차감"
+  GET /api/internal/credits/validate/{userId}: "잔액 유효성 확인"
+```
+
+---
+
+## 7. ⭐ Review System Domain (조민귀)
+
+### 📊 Entities
+```sql
+-- 리뷰
+Review {
+    id: BIGINT (PK)
+    reviewer_id: BIGINT (FK → User)
+    reviewee_id: BIGINT (FK → User)
+    trip_id: BIGINT (FK → Trip)
+    title: VARCHAR(255)
+    content: TEXT
+    rating: INT (1-5)
+    helpful_count: INT DEFAULT 0
+    is_best_weekly: BOOLEAN DEFAULT false
+    is_best_monthly: BOOLEAN DEFAULT false
+    status: ENUM('PENDING', 'APPROVED', 'HIDDEN', 'DELETED')
+    edited_count: INT DEFAULT 0
+    last_edited_at: TIMESTAMP
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+    deleted_at: TIMESTAMP
+    deleted_reason: TEXT
+}
+
+-- 댓글
+Comment {
+    id: BIGINT (PK)
+    user_id: BIGINT (FK → User)
+    review_id: BIGINT (FK → Review)
+    feed_id: BIGINT (FK → Feed)
+    parent_comment_id: BIGINT (FK → Comment)
+    content: TEXT
+    like_count: INT DEFAULT 0
+    status: ENUM('ACTIVE', 'DELETED')
+    created_at: TIMESTAMP
+}
+
+-- 신고
+Report {
+    id: BIGINT (PK)
+    reporter_id: BIGINT (FK → User)
+    reported_user_id: BIGINT (FK → User)
+    reported_review_id: BIGINT (FK → Review)
+    reported_comment_id: BIGINT (FK → Comment)
+    type: ENUM('SPAM', 'ABUSE', 'FAKE', 'INAPPROPRIATE')
+    description: TEXT
+    status: ENUM('PENDING', 'REVIEWED', 'RESOLVED')
+    created_at: TIMESTAMP
+}
+
+-- 포인트 거래
+PointTransaction {
+    id: BIGINT (PK)
+    user_id: BIGINT (FK → User)
+    amount: INT
+    type: VARCHAR(50)
+    reference_id: BIGINT
+    balance_after: INT
+    created_at: TIMESTAMP
+}
+
+-- 뱃지
+Badge {
+    id: BIGINT (PK)
+    name: VARCHAR(100)
+    description: TEXT
+    icon_url: VARCHAR(500)
+    condition_type: VARCHAR(50)
+    condition_value: INT
+    created_at: TIMESTAMP
+}
+
+-- 사용자 뱃지
+UserBadge {
+    id: BIGINT (PK)
+    user_id: BIGINT (FK → User)
+    badge_id: BIGINT (FK → Badge)
+    earned_at: TIMESTAMP
+    UNIQUE(user_id, badge_id)
+}
+
+-- 베스트 리뷰 이력
+BestReviewHistory {
+    id: BIGINT (PK)
+    review_id: BIGINT (FK → Review)
+    type: ENUM('WEEKLY', 'MONTHLY')
+    selected_date: DATE
+    score: DECIMAL(10,2)
+    rank: INT
+    is_manually_fixed: BOOLEAN DEFAULT false
+    fixed_by: BIGINT (FK → AdminUser)
+    created_at: TIMESTAMP
+}
+
+-- 스팸 키워드
+SpamKeyword {
+    id: BIGINT (PK)
+    keyword: VARCHAR(100) (UNIQUE)
+    severity: ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')
+    auto_action: ENUM('NONE', 'FLAG', 'HIDE', 'BLOCK')
+    is_active: BOOLEAN DEFAULT true
+    created_at: TIMESTAMP
+    created_by: BIGINT (FK → AdminUser)
+}
+
+-- 리뷰 태그
+ReviewTag {
+    id: BIGINT (PK)
+    review_id: BIGINT (FK → Review)
+    tag: VARCHAR(50)
+    created_at: TIMESTAMP
+}
+
+-- 포인트 제한
+PointLimit {
+    id: BIGINT (PK)
+    user_id: BIGINT (FK → User)
+    date: DATE
+    daily_earned: INT DEFAULT 0
+    weekly_earned: INT DEFAULT 0
+    daily_transaction_count: INT DEFAULT 0
+    same_target_count: INT DEFAULT 0
+    created_at: TIMESTAMP
+    UNIQUE(user_id, date)
+}
+```
+
+### 🔵 External APIs
+```yaml
+Reviews:
+  GET /api/reviews: "리뷰 목록"
+  POST /api/reviews: "리뷰 작성"
+  GET /api/reviews/{reviewId}: "리뷰 상세"
+  PUT /api/reviews/{reviewId}: "리뷰 수정"
+  DELETE /api/reviews/{reviewId}: "리뷰 삭제"
+  POST /api/reviews/{reviewId}/helpful: "도움됨 표시"
+  GET /api/reviews/best: "베스트 리뷰"
+  GET /api/reviews/best/weekly: "주간 베스트 리뷰"
+  GET /api/reviews/best/monthly: "월간 베스트 리뷰"
+  
+Comments:
+  GET /api/{type}/{id}/comments: "댓글 목록"
+  POST /api/{type}/{id}/comments: "댓글 작성"
+  DELETE /api/comments/{commentId}: "댓글 삭제"
+  
+Points & Badges:
+  GET /api/points/balance: "포인트 잔액"
+  GET /api/points/history: "포인트 내역"
+  GET /api/badges: "획득한 뱃지"
+  
+Reports:
+  POST /api/reports: "신고하기"
+  GET /api/reports/{reportId}: "신고 상태 조회"
+```
+
+### 🔴 Internal APIs
+```yaml
+Internal:
+  POST /api/internal/reviews/calculate-rating: "평점 재계산"
+  POST /api/internal/points/add: "포인트 추가"
+  POST /api/internal/badges/check: "뱃지 조건 체크"
+  POST /api/internal/spam/check: "스팸 체크"
+```
+
+---
+
+## 8. 📸 Media Management Domain (조민귀)
+
+### 📊 Entities
+```sql
+-- 피드
+Feed {
+    id: BIGINT (PK)
+    user_id: BIGINT (FK → User)
+    title: VARCHAR(255)
+    content: TEXT
+    view_count: INT DEFAULT 0
+    like_count: INT DEFAULT 0
+    comment_count: INT DEFAULT 0
+    status: ENUM('PUBLISHED', 'HIDDEN', 'DELETED')
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+
+-- 미디어 파일
+MediaFile {
+    id: BIGINT (PK)
+    uploader_id: BIGINT (FK → User)
+    original_filename: VARCHAR(255)
+    storage_path: VARCHAR(500)
+    file_type: ENUM('IMAGE', 'VIDEO')
+    mime_type: VARCHAR(100)
+    file_size: BIGINT
+    width: INT
+    height: INT
+    duration: INT -- 비디오 길이(초)
+    thumbnail_url: VARCHAR(500)
+    is_nsfw: BOOLEAN DEFAULT false
+    virus_scan_status: ENUM('PENDING', 'CLEAN', 'INFECTED')
+    created_at: TIMESTAMP
+}
+
+-- 피드 미디어
+FeedMedia {
+    id: BIGINT (PK)
+    feed_id: BIGINT (FK → Feed)
+    media_id: BIGINT (FK → MediaFile)
+    order_index: INT
+    created_at: TIMESTAMP
+    UNIQUE(feed_id, order_index)
+}
+
+-- 미디어 태그
+MediaTag {
+    id: BIGINT (PK)
+    media_id: BIGINT (FK → MediaFile)
+    tag: VARCHAR(100)
+    confidence: DECIMAL(3,2) -- AI 신뢰도
+    source: ENUM('AI', 'USER', 'ADMIN')
+    created_at: TIMESTAMP
+}
+
+-- 피드 좋아요
+FeedLike {
+    id: BIGINT (PK)
+    feed_id: BIGINT (FK → Feed)
+    user_id: BIGINT (FK → User)
+    created_at: TIMESTAMP
+    UNIQUE(feed_id, user_id)
+}
+```
+
+### 🔵 External APIs
+```yaml
+Feeds:
+  GET /api/feeds: "피드 목록"
+  POST /api/feeds: "피드 작성"
+  GET /api/feeds/{feedId}: "피드 상세"
+  PUT /api/feeds/{feedId}: "피드 수정"
+  DELETE /api/feeds/{feedId}: "피드 삭제"
+  POST /api/feeds/{feedId}/like: "좋아요"
+  DELETE /api/feeds/{feedId}/like: "좋아요 취소"
+  
+Media:
+  POST /api/media/upload: "미디어 업로드"
+  GET /api/media/{mediaId}: "미디어 조회"
+  DELETE /api/media/{mediaId}: "미디어 삭제"
+  GET /api/media/{mediaId}/thumbnail: "썸네일 조회"
+  
+Tags:
+  GET /api/media/{mediaId}/tags: "태그 조회"
+  POST /api/media/{mediaId}/tags: "태그 추가"
+```
+
+### 🔴 Internal APIs
+```yaml
+Internal:
+  POST /api/internal/media/scan-nsfw: "NSFW 스캔"
+  POST /api/internal/media/scan-virus: "바이러스 스캔"
+  POST /api/internal/media/generate-thumbnail: "썸네일 생성"
+  POST /api/internal/media/extract-tags: "AI 태그 추출"
+```
+
+---
+
+## 9. 📊 System Monitoring Domain (조민귀)
+
+### 📊 Entities
+```sql
+-- API 성능 메트릭
+APIPerformanceMetric {
+    id: BIGINT (PK)
+    endpoint: VARCHAR(255)
+    method: VARCHAR(10)
+    response_time_ms: INT
+    status_code: INT
+    concurrent_users: INT
+    timestamp: TIMESTAMP
+}
+
+-- 시스템 가용성
+SystemAvailability {
+    id: BIGINT (PK)
+    service_name: VARCHAR(100)
+    status: ENUM('UP', 'DOWN', 'DEGRADED')
+    uptime_seconds: BIGINT
+    downtime_seconds: BIGINT
+    availability_percentage: DECIMAL(5,2)
+    deployment_type: VARCHAR(50)
+    checked_at: TIMESTAMP
+}
+
+-- 에러 로그
+ErrorLog {
+    id: BIGINT (PK)
+    severity: ENUM('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
+    service: VARCHAR(100)
+    message: TEXT
+    stack_trace: TEXT
+    user_id: BIGINT (FK → User)
+    request_id: VARCHAR(100)
+    slack_notified: BOOLEAN DEFAULT false
+    created_at: TIMESTAMP
+}
+
+-- 관리자 액션 로그
+AdminActionLog {
+    id: BIGINT (PK)
+    admin_id: BIGINT (FK → AdminUser)
+    action_type: ENUM('USER_BLOCK', 'CONTENT_HIDE', 'REVIEW_MODERATE', 'POINT_ADJUST')
+    target_type: VARCHAR(50)
+    target_id: BIGINT
+    reason: TEXT
+    metadata: JSON
+    ip_address: VARCHAR(45)
+    created_at: TIMESTAMP
+}
+```
+
+### 🔵 External APIs
+```yaml
+Monitoring:
+  GET /api/monitoring/performance: "성능 메트릭 조회"
+  GET /api/monitoring/availability: "시스템 가용성 조회"
+  GET /api/monitoring/errors: "에러 로그 조회"
+  
+Admin Logs:
+  GET /api/admin/logs: "관리자 액션 로그 조회"
+  GET /api/admin/logs/{logId}: "특정 로그 상세 조회"
+```
+
+### 🔴 Internal APIs
+```yaml
+Internal:
+  POST /api/internal/monitoring/log-performance: "성능 로그 기록"
+  POST /api/internal/monitoring/log-error: "에러 로그 기록"
+  POST /api/internal/monitoring/health-check: "헬스체크"
+  POST /api/internal/slack/notify: "Slack 알림 발송"
+```
+
+---
+
+# 🔗 도메인 간 의존관계 및 Core API 매트릭스
+
+## 주요 도메인 간 연결
+```yaml
+AI Client ↔ Trip Planning:
+  - AI Client: 채팅 컨텍스트 제공
+  - Trip Planning: AI 기반 여행 계획 생성
+  - GET /api/chat/threads/{threadId}/context (AI Client → Trip)
+  - POST /api/trips/generate-from-chat (Trip이 AI Client 컨텍스트 활용)
+  
+AI Client → Payment & Billing:
+  - AI 사용 시 크레딧 차감
+  - POST /api/internal/credits/deduct
+  
+User Management ← All Domains:
+  - 모든 도메인에서 인증/인가 필요
+  - GET /api/auth/verify
+  - GET /api/internal/users/{userId}/permissions
+  
+Trip Planning → Recommendation:
+  - 여행 계획 시 추천 장소 조회
+  - GET /api/recommendations/places
+  
+Review System → Trip Planning:
+  - 여행 참여 후 리뷰 작성
+  - GET /api/trips/{tripId}/participants
+  
+Media Management → Review System:
+  - 리뷰에 미디어 첨부
+  - POST /api/media/upload
+  
+Media Management → AI Client:
+  - 채팅에 이미지 첨부
+  - GET /api/media/{mediaId}
+  
+Sharing → Trip Planning:
+  - 여행 계획 공유
+  - GET /api/trips/{tripId}
+  
+Payment & Billing → User Management:
+  - 결제 후 사용자 정보 업데이트
+  - PUT /api/internal/users/{userId}/credit-balance
+  
+Notification (Cross-cutting) ← All Domains:
+  - 각 도메인에서 알림 발송
+  - POST /api/internal/notifications/send
+```
+
+## API 호출 시나리오
+
+### 시나리오 1: AI로 여행 계획 생성 후 공유
+```sequence
+1. User → Auth API: POST /api/auth/login
+2. User → AI Client API: POST /api/chat/threads
+3. User → AI Client API: POST /api/chat/threads/{id}/messages (여행 요구사항 대화)
+4. AI Client → Payment API: POST /api/internal/credits/validate
+5. AI Client → OpenAI Service: Generate Response
+6. AI Client → Payment API: POST /api/internal/credits/deduct
+7. User → AI Client API: POST /api/chat/threads/{id}/trip-request (여행 생성 요청)
+8. Trip Planning → AI Client API: GET /api/chat/threads/{id}/context (대화 컨텍스트 조회)
+9. User → Trip Planning API: POST /api/trips/generate-from-chat (AI 기반 여행 생성)
+10. Trip Planning → AI Service: Process and Generate Trip Plan
+11. Trip Planning → User: Return Generated Trip
+12. User → Sharing API: POST /api/share/trips/{tripId}
+13. Sharing → Notification: POST /api/internal/notifications/send
+```
+
+### 시나리오 2: 여행 공유 후 리뷰
+```sequence
+1. User A → Trip API: POST /api/trips (여행 생성)
+2. User A → Sharing API: POST /api/share/trips/{tripId} (공유 링크 생성)
+3. User B → Sharing API: GET /api/share/{token} (공유된 여행 조회)
+4. User B → Trip API: POST /api/trips/{id}/participants (참여 요청)
+5. After trip completion...
+6. User B → Review API: POST /api/reviews (리뷰 작성)
+7. Review → User API: PUT /api/internal/users/{userId}/rating (평점 업데이트)
+8. Review → Points API: POST /api/internal/points/add (포인트 추가)
+9. Review → Badge API: POST /api/internal/badges/check (뱃지 확인)
+```
+
+---
+
+# 🔒 보안 및 권한 관리
+
+## API 접근 권한 레벨
+```yaml
+Public (인증 불필요):
+  - POST /api/auth/login
+  - POST /api/users/signup
+  - GET /api/auth/social/{provider}
+  - GET /api/share/{token} (공유 링크)
+
+Protected (일반 사용자):
+  - 자신의 데이터 CRUD
+  - 공개된 피드/리뷰 조회
+  - 매칭 요청/응답
+
+Admin (관리자):
+  - 사용자 관리
+  - 콘텐츠 모더레이션
+  - 시스템 설정
+
+Internal (서비스 간):
+  - /api/internal/* 엔드포인트
+  - Service-to-Service 통신
+  - 배치 작업
+```
+
+## 데이터 접근 제어
+```yaml
+Row-Level Security:
+  - User: 자신의 데이터만 접근
+  - Trip: 참여자만 접근 (Owner > Editor > Viewer)
+  - Review: 작성자 수정, 모두 읽기
+  - Feed: 공개/비공개 설정
+  
+Column-Level Security:
+  - Sensitive: password_hash, payment_info
+  - PII: email, phone, address
+  - Internal: trust_score, spam_score
+```
+
+---
+
+# 📈 성능 최적화 전략
+
+## 캐싱 계층
+```yaml
+CDN Level:
+  - Static Assets: 이미지, CSS, JS
+  - Media Files: 썸네일, 프로필 이미지
+
+Application Level (Redis):
+  - Session: 30분 TTL
+  - API Response: 5분 TTL
+  - Hot Data: 자주 조회되는 피드/리뷰
+
+Database Level:
+  - Place Cache: 7일
+  - Weather Cache: 1시간
+  - AI Response Cache: 24시간
+  - Recommendation Cache: 6시간
+```
+
+## 데이터베이스 인덱스
+```yaml
+Primary Indexes:
+  - User: email, nickname
+  - Trip: owner_id, status
+  - Feed: user_id, created_at
+  - Review: reviewer_id, reviewee_id
+  
+Composite Indexes:
+  - Trip: (owner_id, status, start_date)
+  - Review: (reviewee_id, rating, created_at)
+  - Feed: (user_id, status, created_at)
+  - MediaFile: (uploader_id, file_type, created_at)
+```
+
+---
+
+# 🚀 확장성 및 배포
+
+## 마이크로서비스 아키텍처
+```yaml
+Core Services (도메인별):
+  - AI Service (AI Client Domain)
+  - Auth Service (User Management)
+  - Recommendation Service
+  - Trip Service (Trip Planning)
+  - Share Service (Sharing)
+  - Payment Service (Payment & Billing)
+  - Review Service (Review System)
+  - Media Service (Media Management)
+
+Supporting Services:
+  - Notification Service (Cross-cutting)
+  - Cache Service (Redis Cluster)
+  - Queue Service (RabbitMQ/Kafka)
+  - Search Service (Elasticsearch)
+```
+
+## 스케일링 전략
+```yaml
+Horizontal Scaling:
+  - 각 서비스 독립적 스케일링
+  - Kubernetes HPA 활용
+  - Load Balancer 분산
+
+Vertical Scaling:
+  - RDS Aurora 자동 스케일링
+  - Redis Cluster 확장
+  - ElastiCache 활용
+
+Database Optimization:
+  - Read Replicas for 읽기 부하 분산
+  - Sharding for 대용량 테이블 (Feed, Review)
+  - Partitioning for 시계열 데이터 (Logs)
+```
+
+---
+
+# 📊 모니터링 및 관리
+
+## 시스템 모니터링
+```yaml
+Performance Metrics:
+  - API Response Time: P95 < 1초
+  - Database Query Time: P99 < 100ms
+  - Cache Hit Rate: > 80%
+  
+Availability:
+  - Uptime: 99.9% SLA
+  - Health Check: /health 엔드포인트
+  - Circuit Breaker: 장애 격리
+  
+Business Metrics:
+  - Daily Active Users
+  - API Call Volume
+  - Credit Usage
+  - Content Creation Rate
+```
+
+## 로깅 및 감사
+```yaml
+Application Logs:
+  - Request/Response 로깅
+  - Error Tracking (Sentry)
+  - Performance Monitoring (APM)
+  
+Audit Logs:
+  - User Actions
+  - Admin Operations
+  - Payment Transactions
+  - Data Changes
+```

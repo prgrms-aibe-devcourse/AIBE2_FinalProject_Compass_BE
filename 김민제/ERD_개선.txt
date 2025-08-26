@@ -1,0 +1,367 @@
+# 🤖 AI Client Domain ERD - 김민제
+
+## 📋 담당 도메인
+- AI Client Domain: AI 채팅 인터페이스, 대화 관리
+
+---
+
+## 📊 Entities
+
+### 채팅 스레드
+```sql
+ChatThread {
+    thread_id: UUID (PK)
+    user_id: UUID (FK → User Domain)
+    title: VARCHAR(255)
+    mode_id: INT (FK → ChatMode)
+    status: ENUM('active', 'archived', 'deleted')
+    last_message_at: TIMESTAMP
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+### 메시지
+```sql
+Message {
+    message_id: UUID (PK)
+    thread_id: UUID (FK → ChatThread)
+    sender_type: ENUM('user', 'ai')
+    content: TEXT
+    image_url: VARCHAR(500)
+    location_lat: DECIMAL(10,8)
+    location_lng: DECIMAL(11,8)
+    tokens_used: INT
+    parent_message_id: UUID (FK → Message) -- 재생성용
+    created_at: TIMESTAMP
+}
+```
+
+### 채팅 모드
+```sql
+ChatMode {
+    mode_id: INT (PK)
+    name: VARCHAR(50)
+    description: TEXT
+    context_prompt: TEXT
+    is_active: BOOLEAN
+    created_at: TIMESTAMP
+}
+```
+
+### 채팅 설정
+```sql
+ChatSettings {
+    setting_id: UUID (PK)
+    user_id: UUID (FK → User Domain, UNIQUE)
+    response_style: VARCHAR(50)
+    language: VARCHAR(10)
+    response_speed: ENUM('slow', 'normal', 'fast')
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+```
+
+### AI 응답 캐시
+```sql
+AIResponse {
+    response_id: UUID (PK)
+    question_pattern: VARCHAR(500) (INDEX)
+    response_content: TEXT
+    ttl_expires_at: TIMESTAMP
+    hit_count: INT DEFAULT 0
+    created_at: TIMESTAMP
+}
+```
+
+### API 사용량 로그
+```sql
+APIUsageLog {
+    log_id: UUID (PK)
+    user_id: UUID (FK → User Domain)
+    thread_id: UUID (FK → ChatThread)
+    tokens_used: INT
+    api_cost: DECIMAL(10,4)
+    api_endpoint: VARCHAR(255)
+    created_at: TIMESTAMP
+}
+```
+
+### 채팅-여행 연결
+```sql
+ChatTripLink {
+    link_id: UUID (PK)
+    thread_id: UUID (FK → ChatThread)
+    trip_id: UUID (FK → Trip Planning Domain)
+    created_at: TIMESTAMP
+}
+```
+
+### 빠른 제안
+```sql
+QuickSuggestion {
+    suggestion_id: INT (PK)
+    title: VARCHAR(100)
+    content: TEXT
+    category: VARCHAR(50)
+    display_order: INT
+    is_active: BOOLEAN
+    created_at: TIMESTAMP
+}
+```
+
+---
+
+## 🔵 External APIs (다른 도메인에서 호출 가능)
+
+### Chat Management
+```yaml
+GET /api/chat/threads:
+  Description: "채팅 목록 조회"
+  Query: page, size, sort
+  Response: ChatThreadListResponse
+  
+POST /api/chat/threads:
+  Description: "새 채팅 생성"
+  Body: { title?, mode_id, initial_message? }
+  Response: ChatThreadResponse
+  
+GET /api/chat/threads/{threadId}:
+  Description: "채팅 상세 조회"
+  Response: ChatThreadDetailResponse
+  
+DELETE /api/chat/threads/{threadId}:
+  Description: "채팅 삭제"
+  Response: 204 No Content
+  
+PUT /api/chat/threads/{threadId}/mode:
+  Description: "채팅 모드 변경"
+  Body: { mode_id }
+  Response: ChatThreadResponse
+  
+PUT /api/chat/threads/{threadId}:
+  Description: "채팅 제목 수정"
+  Body: { title }
+  Response: ChatThreadResponse
+```
+
+### Messages
+```yaml
+GET /api/chat/threads/{threadId}/messages:
+  Description: "메시지 목록 조회"
+  Query: page, size, lastMessageId
+  Response: MessageListResponse
+  
+POST /api/chat/threads/{threadId}/messages:
+  Description: "메시지 전송"
+  Body: { content, attachments? }
+  Response: MessageResponse
+  
+POST /api/chat/threads/{threadId}/messages/image:
+  Description: "이미지 첨부 메시지"
+  Body: MultipartFile + MessageWithImageRequest
+  Response: MessageResponse
+  
+POST /api/chat/threads/{threadId}/messages/location:
+  Description: "위치 공유 메시지"
+  Body: { content, location: {lat, lng, address?} }
+  Response: MessageResponse
+  
+POST /api/chat/threads/{threadId}/messages/{messageId}/regenerate:
+  Description: "AI 응답 재생성"
+  Response: MessageResponse
+  
+GET /api/chat/threads/{threadId}/messages/search:
+  Description: "메시지 검색"
+  Query: q, page, size
+  Response: MessageSearchResponse
+```
+
+### AI Chat Context (Trip Planning Domain과 연동)
+```yaml
+GET /api/chat/threads/{threadId}/context:
+  Description: "채팅 컨텍스트 조회"
+  Response: ChatContextResponse
+  
+POST /api/chat/threads/{threadId}/trip-request:
+  Description: "여행 생성 요청 기록"
+  Body: { request_type, metadata }
+  Response: TripRequestResponse
+```
+
+### Settings & Suggestions
+```yaml
+GET /api/chat/settings:
+  Description: "채팅 설정 조회"
+  Response: ChatSettingsResponse
+  
+PUT /api/chat/settings:
+  Description: "채팅 설정 수정"
+  Body: { response_style?, language?, response_speed? }
+  Response: ChatSettingsResponse
+  
+GET /api/chat/suggestions:
+  Description: "빠른 제안 조회"
+  Query: category?
+  Response: QuickSuggestionListResponse
+  
+GET /api/chat/modes:
+  Description: "채팅 모드 목록"
+  Response: ChatModeListResponse
+```
+
+### Usage & Statistics
+```yaml
+GET /api/chat/usage:
+  Description: "크레딧 사용량 조회"
+  Query: period (daily/monthly)
+  Response: CreditUsageResponse
+  
+GET /api/chat/api-usage:
+  Description: "API 사용 통계"
+  Query: startDate, endDate
+  Response: APIUsageStatisticsResponse
+```
+
+---
+
+## 🔴 Internal APIs (도메인 내부용)
+
+```yaml
+POST /api/internal/chat/cache-response:
+  Description: "AI 응답 캐싱"
+  Body: { pattern, response, ttl }
+  
+GET /api/internal/chat/cache/{pattern}:
+  Description: "캐시 조회"
+  Response: CachedResponse
+  
+POST /api/internal/chat/log-usage:
+  Description: "사용량 로깅"
+  Body: { user_id, tokens, cost, endpoint }
+  
+DELETE /api/internal/chat/cache/expired:
+  Description: "만료 캐시 정리"
+  
+GET /api/internal/chat/thread/{threadId}/validation:
+  Description: "스레드 유효성 검증"
+```
+
+---
+
+## 🔗 외부 도메인 의존성
+
+### 필요한 외부 API
+```yaml
+User Management Domain:
+  - GET /api/users/{userId}: "사용자 정보 조회"
+  - GET /api/auth/verify: "토큰 검증"
+  
+Payment & Billing Domain:
+  - POST /api/internal/credits/validate: "크레딧 잔액 확인"
+  - POST /api/internal/credits/deduct: "크레딧 차감"
+  
+Trip Planning Domain:
+  - POST /api/trips/generate-from-chat: "AI 기반 여행 생성"
+  - GET /api/internal/trips/chat/{threadId}: "채팅 연관 여행 조회"
+  
+Media Management Domain:
+  - POST /api/media/upload: "이미지 업로드"
+  - GET /api/media/{mediaId}: "미디어 조회"
+```
+
+---
+
+## 📝 DTO 정의
+
+### Request DTOs
+```typescript
+CreateChatThreadRequest {
+  title?: string
+  mode_id: number
+  initial_message?: string
+}
+
+SendMessageRequest {
+  content: string
+  attachments?: {
+    image_url?: string
+    location?: {
+      lat: number
+      lng: number
+    }
+  }
+}
+
+UpdateChatSettingsRequest {
+  response_style?: string
+  language?: string
+  response_speed?: 'slow' | 'normal' | 'fast'
+}
+```
+
+### Response DTOs
+```typescript
+ChatThreadResponse {
+  thread_id: string
+  title: string
+  mode: {
+    mode_id: number
+    name: string
+  }
+  status: string
+  last_message?: {
+    content: string
+    created_at: string
+  }
+  created_at: string
+}
+
+MessageResponse {
+  message_id: string
+  thread_id: string
+  sender_type: 'user' | 'ai'
+  content: string
+  image_url?: string
+  location?: {
+    lat: number
+    lng: number
+  }
+  tokens_used: number
+  created_at: string
+}
+
+ChatContextResponse {
+  thread_id: string
+  messages: MessageResponse[]
+  mode: ChatModeDto
+  user_preferences: object
+  trip_context?: object
+}
+```
+
+---
+
+## 💡 핵심 비즈니스 로직
+
+1. **AI 응답 생성 플로우**
+   - 사용자 메시지 수신 → 크레딧 확인 → OpenAI API 호출 → 응답 캐싱 → 크레딧 차감 → 응답 전송
+
+2. **캐싱 전략**
+   - 유사 질문 패턴 감지 → 캐시 조회 → TTL 확인 → 캐시 히트 시 즉시 응답
+
+3. **여행 계획 연동**
+   - 대화 컨텍스트 축적 → 여행 생성 요청 → Trip Planning Domain 호출 → 결과 연결
+
+4. **토큰 관리**
+   - 메시지별 토큰 사용량 추적 → 일/월 단위 집계 → 크레딧 소비 계산
+
+---
+
+## 🔐 보안 고려사항
+
+- JWT 토큰 기반 인증
+- 메시지 내용 암호화 저장
+- API Rate Limiting
+- 크레딧 잔액 검증
+- XSS/SQL Injection 방어

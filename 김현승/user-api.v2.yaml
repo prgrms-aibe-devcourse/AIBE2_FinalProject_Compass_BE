@@ -1,0 +1,337 @@
+openapi: 3.0.3
+info:
+  title: Compass User Domain API
+  description: |
+    # User 도메인 API 명세서 (v2.0)
+    
+    ## 📋 도메인 구성 요약
+    
+    ### User 도메인이 제공하는 서비스
+    - **핵심 API (Core)**: 클라이언트(웹/앱)를 위한 사용자 인증 및 계정 관리 기능
+    - **내부 API (Internal)**: 다른 백엔드 도메인을 위한 사용자 정보 조회 및 토큰 검증 기능
+    
+    ## 📊 도메인 간 상호작용
+    
+    | 도메인 | User → 외부 (요청) | 외부 → User (호출) | 주요 용도 |
+    |---|---|---|---|
+    | **(Self)** | - | (All Domains) | 사용자 인증/계정 관리 기능 제공 |
+    | **Notification** | • 이메일 발송 요청 | - | 회원가입 환영, 비밀번호 재설정 등 |
+    
+    ## 📌 API 분류
+    
+    | 분류 | 설명 | 태그 |
+    |---|---|---|
+    | **User Core** | 사용자가 직접 호출하는 핵심 API | User - Core |
+    | **User Internal** | 다른 도메인이 호출하는 내부 API | User - Internal |
+    | **External APIs**| User가 의존하는 외부 도메인 API | External - * |
+  version: 2.0.0
+  contact:
+    name: User Domain Team
+    email: user-team@compass.com
+
+servers:
+  - url: https://api.compass.com/v1
+    description: Production Server
+  - url: http://localhost:8080/v1
+    description: Development Server
+
+tags:
+  - name: User - Core
+    description: 사용자 인증 및 계정 관리 API (클라이언트 대상)
+  - name: User - Internal
+    description: 서버 간 통신용 내부 API (다른 도메인 대상)
+  - name: External - Notification Domain
+    description: Notification 도메인 의존성
+
+x-events-published:
+  UserSignedUp:
+    description: 신규 사용자 가입 이벤트
+    consumers: [Notification, Analytics, Recommendation]
+    payload: { userId: uuid, email: string, nickname: string, timestamp: datetime }
+  ProfileUpdated:
+    description: 사용자 프로필 변경 이벤트
+    consumers: [Recommendation, Analytics]
+    payload: { userId: uuid, updatedFields: [string], timestamp: datetime }
+
+paths:
+  # ============================================
+  # == 1. User Domain - Core APIs
+  # ============================================
+  /users/signup:
+    post:
+      tags: [User - Core]
+      summary: 회원가입
+      description: |
+        - **요구사항 ID**: REJ-USER-001
+      operationId: signUpUser
+      requestBody:
+        $ref: '#/components/requestBodies/SignUpRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /auth/login:
+    post:
+      tags: [User - Core]
+      summary: 로그인
+      description: |
+        - **요구사항 ID**: REJ-USER-002, REJ-USER-003
+      operationId: loginUser
+      requestBody:
+        $ref: '#/components/requestBodies/LoginRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/TokenResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/logout:
+    post:
+      tags: [User - Core]
+      summary: 로그아웃
+      description: |
+        - **요구사항 ID**: REJ-USER-002
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/RefreshTokenRequest'
+      responses:
+        '204':
+          description: No Content
+
+  /auth/refresh:
+    post:
+      tags: [User - Core]
+      summary: 토큰 갱신
+      description: |
+        - **요구사항 ID**: REJ-USER-003
+      operationId: refreshAccessToken
+      requestBody:
+        $ref: '#/components/requestBodies/RefreshTokenRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/AccessTokenResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/social/{provider}:
+    get:
+      tags: [User - Core]
+      summary: 소셜 로그인
+      description: |
+        - **요구사항 ID**: REJ-USER-008
+      operationId: handleSocialLogin
+      parameters:
+        - $ref: '#/components/parameters/provider'
+      responses:
+        '302':
+          description: 소셜 인증 페이지로 리디렉션
+        '200':
+          description: 콜백 처리 후 토큰 발급
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /users/me:
+    get:
+      tags: [User - Core]
+      summary: 내 프로필 조회
+      description: |
+        - **요구사항 ID**: REJ-USER-004
+      operationId: getMyProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/UserProfileResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    put:
+      tags: [User - Core]
+      summary: 내 프로필 수정
+      description: |
+        - **요구사항 ID**: REJ-USER-004
+      operationId: updateMyProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/UpdateProfileRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/UserProfileResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+    delete:
+      tags: [User - Core]
+      summary: 회원 탈퇴
+      description: |
+        - **요구사항 ID**: REJ-USER-011
+      operationId: withdrawUser
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: No Content
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /users/password/reset-request:
+    post:
+      tags: [User - Core]
+      summary: 비밀번호 재설정 요청
+      description: |
+        - **요구사항 ID**: REJ-USER-005
+      operationId: requestPasswordReset
+      requestBody:
+        $ref: '#/components/requestBodies/PasswordResetRequest'
+      responses:
+        '204':
+          description: No Content
+
+  /users/password/reset:
+    post:
+      tags: [User - Core]
+      summary: 새 비밀번호 설정
+      description: |
+        - **요구사항 ID**: REJ-USER-005
+      operationId: setNewPassword
+      requestBody:
+        $ref: '#/components/requestBodies/NewPasswordRequest'
+      responses:
+        '204':
+          description: No Content
+
+  /users/me/security/2fa:
+    post:
+      tags: [User - Core]
+      summary: 2단계 인증 설정
+      description: |
+        - **요구사항 ID**: REJ-USER-009
+      operationId: toggle2FA
+      security:
+        - bearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/Toggle2FARequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  is2faEnabled: { type: boolean }
+
+  /users/me/login-history:
+    get:
+      tags: [User - Core]
+      summary: 로그인 기록 조회
+      description: |
+        - **요구사항 ID**: REJ-USER-009
+      operationId: getLoginHistory
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LoginHistoryResponse'
+
+  # ============================================
+  # == 2. User Domain - Internal APIs
+  # ============================================
+  /internal/users/{userId}:
+    get:
+      tags: [User - Internal]
+      summary: 내부용 사용자 정보 조회
+      description: 다른 도메인에서 서버 간 통신으로 특정 사용자 정보를 조회합니다.
+      operationId: getUserInfoInternal
+      security:
+        - internalApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================
+  # == 3. External Dependencies
+  # ============================================
+  /notifications/send:
+    post:
+      tags: [External - Notification Domain]
+      summary: '[Notification Domain] 이메일 발송'
+      description: "⚠️ Notification 도메인이 제공해야 하는 API. 회원가입, 비밀번호 재설정 시 호출."
+      operationId: sendEmailExternal
+      x-external-api: true
+      x-provided-by: Notification Domain
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendEmailRequest'
+      responses:
+        '202':
+          description: Accepted
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    internalApiKey: { type: apiKey, in: header, name: X-Internal-API-Key }
+  parameters:
+    userId: { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    provider: { name: provider, in: path, required: true, schema: { type: string, enum: [google, kakao] } }
+  schemas:
+    # --- Request DTOs ---
+    SignUpRequest: { type: object, required: [email, password, nickname], properties: { email: { type: string, format: email }, password: { type: string, format: password, minLength: 8 }, nickname: { type: string } } }
+    LoginRequest: { type: object, required: [email, password], properties: { email: { type: string, format: email }, password: { type: string, format: password } } }
+    RefreshTokenRequest: { type: object, properties: { refreshToken: { type: string } } }
+    UpdateProfileRequest: { type: object, properties: { nickname: { type: string }, preferredRegion: { type: string } } }
+    PasswordResetRequest: { type: object, required: [email], properties: { email: { type: string, format: email } } }
+    NewPasswordRequest: { type: object, required: [token, newPassword], properties: { token: { type: string }, newPassword: { type: string, format: password } } }
+    Toggle2FARequest: { type: object, required: [enable], properties: { enable: { type: boolean } } }
+    WithdrawalRequest: { type: object, required: [password], properties: { password: { type: string, format: password } } }
+    # --- Response DTOs ---
+    UserResponse: { type: object, properties: { id: { type: string, format: uuid }, email: { type: string, format: email }, nickname: { type: string }, createdAt: { type: string, format: date-time } } }
+    UserProfileResponse: { type: object, properties: { id: { type: string, format: uuid }, email: { type: string, format: email }, nickname: { type: string }, profileImageUrl: { type: string, format: uri, nullable: true }, preferredRegion: { type: string, nullable: true } } }
+    TokenResponse: { type: object, properties: { accessToken: { type: string }, refreshToken: { type: string } } }
+    AccessTokenResponse: { type: object, properties: { accessToken: { type: string } } }
+    LoginHistoryResponse: { type: object, properties: { ipAddress: { type: string }, deviceInfo: { type: string }, loginAt: { type: string, format: date-time } } }
+    # --- External DTOs ---
+    SendEmailRequest: { type: object, properties: { to: { type: string, format: email }, templateId: { type: string }, variables: { type: object } } }
+    ErrorResponse: { type: object, properties: { code: { type: string }, message: { type: string }, timestamp: { type: string, format: date-time } } }
+  requestBodies:
+    SignUpRequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SignUpRequest' } } } }
+    LoginRequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/LoginRequest' } } } }
+    RefreshTokenRequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RefreshTokenRequest' } } } }
+    UpdateProfileRequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateProfileRequest' } } } }
+    PasswordResetRequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PasswordResetRequest' } } } }
+    NewPasswordRequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/NewPasswordRequest' } } } }
+    Toggle2FARequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Toggle2FARequest' } } } }
+    WithdrawalRequest: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WithdrawalRequest' } } } }
+  responses:
+    UserResponse: { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } } }
+    UserProfileResponse: { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UserProfileResponse' } } } }
+    TokenResponse: { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+    AccessTokenResponse: { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AccessTokenResponse' } } } }
+    BadRequestError: { description: 잘못된 요청, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { code: "VALIDATION_ERROR", message: "요청 값이 유효하지 않습니다." } } } }
+    UnauthorizedError: { description: 인증 실패, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { code: "AUTH_001", message: "인증이 필요합니다." } } } }
+    NotFoundError: { description: 리소스를 찾을 수 없음, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { code: "USER_404", message: "사용자를 찾을 수 없습니다." } } } }
+    ConflictError: { description: 충돌 발생, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { code: "USER_009", message: "이미 사용 중인 닉네임입니다." } } } }
