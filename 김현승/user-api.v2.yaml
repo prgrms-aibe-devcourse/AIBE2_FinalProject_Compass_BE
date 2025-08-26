@@ -177,8 +177,6 @@ paths:
       operationId: withdrawUser
       security:
         - bearerAuth: []
-      requestBody:
-        $ref: '#/components/requestBodies/WithdrawalRequest'
       responses:
         '204':
           description: No Content

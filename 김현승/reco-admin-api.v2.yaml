@@ -149,7 +149,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExternalUserResponse' # User 도메인의 정보를 그대로 전달
+                $ref: '#/components/schemas/UserResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -272,6 +272,7 @@ components:
     DashboardResponse: { type: object, properties: { newUserCount: { type: integer }, totalUserCount: { type: integer }, pendingContentCount: { type: integer } } }
     PendingContent: { type: object, properties: { contentType: { type: string }, contentId: { type: string, format: uuid }, author: { type: string, description: "콘텐츠 작성자 닉네임" }, snippet: { type: string, description: "콘텐츠 내용 일부 또는 URL" }, createdAt: { type: string, format: date-time } } }
     UpdateStatusResponse: { type: object, properties: { status: { type: string, enum: [APPROVED, REJECTED] }, contentId: { type: string, format: uuid }, contentType: { type: string } } }
+    UserResponse: { type: object, description: "User 도메인의 User 정보 (권한 변경 후 응답용)", properties: { id: { type: string, format: uuid }, email: { type: string, format: email }, nickname: { type: string }, role: { type: string, enum: [USER, ADMIN] }, createdAt: { type: string, format: date-time } } }
     # --- External Schemas ---
     ExternalUserProfileResponse: { type: object, description: "User 도메인이 제공하는 사용자 정보", properties: { id: { type: string, format: uuid }, nickname: { type: string }, preferredRegion: { type: string, nullable: true }, role: { type: string, enum: [USER, ADMIN] } } }
     ErrorResponse: { type: object, properties: { code: { type: string }, message: { type: string }, timestamp: { type: string, format: date-time } } }
