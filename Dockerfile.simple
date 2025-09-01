@@ -7,7 +7,7 @@ RUN groupadd -g 1001 appgroup && \
     useradd -u 1001 -g appgroup appuser
 
 # Copy pre-built JAR (from GitHub Actions artifact or local build)
-COPY build/libs/compass-backend.jar app.jar
+COPY build/libs/*.jar app.jar
 
 # Install curl for health check
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
