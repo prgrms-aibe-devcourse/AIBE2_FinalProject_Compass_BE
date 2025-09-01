@@ -100,6 +100,127 @@ docker-compose up -d
 
 ---
 
+## 👥 팀원 개발 가이드
+
+### 🚀 개발 시작하기
+
+#### 1. 프로젝트 클론 및 브랜치 생성
+```bash
+# 프로젝트 클론
+git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE.git
+cd AIBE2_FinalProject_Compass_BE
+
+# main 브랜치 최신 상태 확인
+git pull origin main
+
+# 자신의 feature 브랜치 생성 (도메인별)
+git checkout -b feature/user-auth     # USER 도메인 담당자
+git checkout -b feature/chat-core     # CHAT 도메인 담당자
+git checkout -b feature/trip-planning # TRIP 도메인 담당자
+```
+
+#### 2. 개발 환경 실행
+```bash
+# 방법 1: Docker Compose로 전체 실행 (추천)
+docker-compose up -d
+
+# 방법 2: DB/Redis만 Docker로, 앱은 IntelliJ에서
+docker-compose up -d postgres redis
+./gradlew bootRun
+
+# 방법 3: IntelliJ에서 실행
+# 1. Docker로 DB/Redis 실행 후
+# 2. IntelliJ에서 CompassApplication.java 실행
+```
+
+#### 3. 도메인별 개발 디렉토리
+각자 담당 도메인 폴더에서 작업하세요:
+- **USER 도메인**: `src/main/java/com/compass/domain/user/`
+  - 인증/인가, JWT, 프로필 관리
+- **CHAT 도메인**: `src/main/java/com/compass/domain/chat/`
+  - 채팅방, 메시지 CRUD, LLM 통합
+- **TRIP 도메인**: `src/main/java/com/compass/domain/trip/`
+  - 여행 계획, 추천, 날씨 API
+
+#### 4. Spring AI 사용 시 (필요한 팀원만)
+`build.gradle`에서 Spring AI 의존성 주석 해제:
+```gradle
+// Spring AI - 실제 개발 시 주석 해제
+implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+implementation 'org.springframework.ai:spring-ai-vertex-ai-gemini-spring-boot-starter'
+implementation 'org.springframework.ai:spring-ai-redis-spring-boot-starter'
+
+// 아래 부분도 주석 해제
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
+```
+
+#### 5. Pull Request 생성
+```bash
+# 작업 완료 후 커밋
+git add .
+git commit -m "feat: [도메인] 기능 설명"  # 예: "feat: [USER] 로그인 기능 구현"
+git push origin feature/your-branch-name
+
+# GitHub에서 Pull Request 생성
+# base: main ← compare: feature/your-branch-name
+```
+
+### 📋 개발 규칙
+
+#### 브랜치 네이밍
+- `feature/도메인-기능` 예: `feature/user-login`
+- `fix/도메인-버그` 예: `fix/chat-message-error`
+- `refactor/도메인-리팩토링` 예: `refactor/trip-service`
+
+#### 커밋 메시지 컨벤션
+- `feat:` 새로운 기능 추가
+- `fix:` 버그 수정
+- `refactor:` 코드 리팩토링
+- `docs:` 문서 수정
+- `chore:` 빌드, 설정 변경
+- `test:` 테스트 코드 추가/수정
+
+#### 코드 리뷰
+- PR은 최소 1명 이상의 리뷰 필요
+- 다른 도메인 코드 수정 시 해당 담당자 리뷰 필수
+- CI 테스트 통과 확인
+
+### ✅ 이미 준비된 환경
+- Spring Boot 3.x 프로젝트 구조
+- Docker & Docker Compose 설정
+- PostgreSQL + Redis 개발 환경
+- GitHub Actions CI/CD 파이프라인
+- 도메인별 패키지 구조
+
+### 🔍 유용한 명령어
+```bash
+# 테스트 실행
+./gradlew test
+
+# 빌드
+./gradlew build
+
+# 로그 확인
+docker-compose logs -f app
+
+# DB 접속
+docker exec -it compass-postgres psql -U compass_user -d compass
+
+# Redis 접속
+docker exec -it compass-redis redis-cli
+```
+
+### 📚 참고 문서
+- [QUICK_START.md](QUICK_START.md) - 빠른 시작 가이드
+- [도메인 개발 가이드](src/main/java/com/compass/domain/README.md)
+- [DATABASE_ERD.md](DATABASE_ERD.md) - 데이터베이스 구조
+
+---
+
 ## 📌 프로젝트 개요
 
 **Compass**는 Spring AI와 RAG(Retrieval-Augmented Generation)를 활용한 차세대 AI 여행 계획 서비스입니다. 사용자와의 대화를 통해 개인 맞춤형 여행 경험을 제공하며, 콜드 스타트 문제를 효과적으로 해결한 지능형 추천 시스템을 구축했습니다.
