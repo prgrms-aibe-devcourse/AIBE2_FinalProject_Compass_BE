@@ -1,5 +1,105 @@
 # 🧭 Compass - AI 기반 개인화 여행 계획 서비스
 
+## 🚀 빠른 시작 (Quick Start)
+
+### Prerequisites
+- Docker & Docker Compose
+- Java 17+ (로컬 개발 시)
+- Git
+
+### 1분 만에 시작하기
+
+```bash
+# 1. 프로젝트 클론
+git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE.git
+cd AIBE2_FinalProject_Compass_BE
+
+# 2. 모든 서비스 실행 (PostgreSQL + Redis + Spring Boot)
+docker-compose up -d
+
+# 3. 서버 확인
+curl http://localhost:8080/health
+# 또는 브라우저에서 http://localhost:8080/health 접속
+```
+
+✅ **성공!** 이제 `http://localhost:8080`에서 API를 사용할 수 있습니다.
+
+### 🐳 Docker Compose 사용법
+
+#### Docker Compose가 하는 일
+`docker-compose up` 명령어 하나로 개발에 필요한 모든 서비스를 자동으로 실행합니다:
+- **PostgreSQL** (5432 포트): 메인 데이터베이스, 자동으로 `compass` DB와 계정 생성
+- **Redis** (6379 포트): 캐시 및 벡터 스토어
+- **Spring Boot App** (8080 포트): 백엔드 API 서버
+
+#### 주요 명령어
+
+```bash
+# 🚀 시작 명령어
+docker-compose up -d        # 백그라운드 실행 (추천)
+docker-compose up           # 포그라운드 실행 (로그 확인용)
+
+# 📋 상태 확인
+docker-compose ps           # 실행 중인 서비스 확인
+docker-compose logs -f app  # 앱 로그 실시간 확인
+docker-compose logs postgres # DB 로그 확인
+
+# 🛑 중지 명령어
+docker-compose stop         # 일시 중지 (데이터 유지)
+docker-compose down         # 완전 중지 (컨테이너 삭제, 데이터는 유지)
+docker-compose down -v      # 완전 초기화 (데이터도 삭제)
+
+# 🔄 재시작
+docker-compose restart app  # 앱만 재시작
+docker-compose up -d --build # 코드 변경 후 재빌드
+```
+
+### 💻 개발 시나리오별 사용법
+
+#### 시나리오 1: "백엔드 개발 (IntelliJ 사용)"
+```bash
+# DB와 Redis만 실행
+docker-compose up -d postgres redis
+
+# IntelliJ에서 Spring Boot 실행
+# 또는
+./gradlew bootRun
+```
+
+#### 시나리오 2: "프론트엔드 개발 (API만 필요)"
+```bash
+# 전체 백엔드 스택 실행
+docker-compose up -d
+
+# API 사용 가능: http://localhost:8080/api/...
+```
+
+#### 시나리오 3: "처음부터 깔끔하게 시작"
+```bash
+# 기존 데이터 모두 삭제하고 새로 시작
+docker-compose down -v
+docker-compose up -d --build
+```
+
+### ⚠️ 문제 해결
+
+#### 포트 충돌 시
+```bash
+# 사용 중인 포트 확인
+lsof -i :8080  # (Mac/Linux)
+netstat -ano | findstr :8080  # (Windows)
+
+# 프로세스 종료 후 다시 실행
+docker-compose up -d
+```
+
+#### Docker가 설치되지 않은 경우
+- [Docker Desktop 다운로드](https://www.docker.com/products/docker-desktop/)
+- 설치 후 Docker Desktop 실행
+- 터미널에서 `docker-compose up -d` 실행
+
+---
+
 ## 📌 프로젝트 개요
 
 **Compass**는 Spring AI와 RAG(Retrieval-Augmented Generation)를 활용한 차세대 AI 여행 계획 서비스입니다. 사용자와의 대화를 통해 개인 맞춤형 여행 경험을 제공하며, 콜드 스타트 문제를 효과적으로 해결한 지능형 추천 시스템을 구축했습니다.
@@ -58,8 +158,8 @@
 
 ### AI/ML
 - **Spring AI 1.0.0-M5** - AI 통합 프레임워크
-- **Vertex AI Gemini 2.5 Flash** - 일반 대화 (오류 감소)
-- **OpenAI GPT-4o-mini** - 복잡한 여행 계획
+- **Gemini 2.5 Flash** - 일반 대화 (오류 감소)
+- **Gemini 2.5 pro** - 복잡한 여행 계획
 - **OpenAI Vision API** - OCR 기능
 - **Redis Vector Store** - RAG 벡터 DB
 

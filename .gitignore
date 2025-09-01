@@ -1,0 +1,56 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.vscode/
+.settings/
+.project
+.classpath
+bin/
+.claude/
+
+# Spring Boot
+*.log
+logs/
+target/
+
+# Environment
+.env
+*.env
+application-local.yml
+application-local.properties
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Package Files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Build artifacts
+release.properties
+
+# Testing
+test-results/
+test-output/
+*.orig
+
+# Docker
+docker-compose.override.yml

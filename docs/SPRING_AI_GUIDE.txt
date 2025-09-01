@@ -64,30 +64,24 @@ Spring AI는 Spring 생태계에서 AI 애플리케이션을 쉽게 개발할 �
 3. 빠른 시작 가이드
 ================================================================================
 
-### Step 1: 의존성 추가 (pom.xml)
+### Step 1: 의존성 추가 (build.gradle)
 
-<dependencies>
-    <!-- Spring AI OpenAI -->
-    <dependency>
-        <groupId>org.springframework.ai</groupId>
-        <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
-        <version>1.0.0-M5</version>
-    </dependency>
+dependencies {
+    // Spring AI OpenAI
+    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
     
-    <!-- Spring AI Vertex AI Gemini -->
-    <dependency>
-        <groupId>org.springframework.ai</groupId>
-        <artifactId>spring-ai-vertex-ai-gemini-spring-boot-starter</artifactId>
-        <version>1.0.0-M5</version>
-    </dependency>
+    // Spring AI Vertex AI Gemini
+    implementation 'org.springframework.ai:spring-ai-vertex-ai-gemini-spring-boot-starter'
     
-    <!-- Spring AI Redis Vector Store -->
-    <dependency>
-        <groupId>org.springframework.ai</groupId>
-        <artifactId>spring-ai-redis-spring-boot-starter</artifactId>
-        <version>1.0.0-M5</version>
-    </dependency>
-</dependencies>
+    // Spring AI Redis Vector Store
+    implementation 'org.springframework.ai:spring-ai-redis-spring-boot-starter'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:1.0.0-M5"
+    }
+}
 
 ### Step 2: application.yml 설정
 

@@ -1,0 +1,68 @@
+name: Deploy to AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-2
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+      continue-on-error: true
+
+    - name: Generate deployment package
+      run: |
+        zip -r deploy.zip . -x '*.git*' -x 'node_modules/*' -x '.env*'
+
+    - name: Deploy to Elastic Beanstalk
+      if: false  # Disabled until AWS is configured
+      run: |
+        echo "Deployment to AWS Elastic Beanstalk would happen here"
+        echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+        # aws elasticbeanstalk create-application-version \
+        #   --application-name compass-backend \
+        #   --version-label ${{ github.sha }} \
+        #   --source-bundle S3Bucket="elasticbeanstalk-bucket",S3Key="deploy.zip"
+        # 
+        # aws elasticbeanstalk update-environment \
+        #   --environment-name compass-${{ github.event.inputs.environment || 'production' }} \
+        #   --version-label ${{ github.sha }}
+
+    - name: Health check
+      if: false  # Disabled until deployment is active
+      run: |
+        echo "Health check would run here"
+        # sleep 60
+        # curl -f https://compass-api.example.com/health || exit 1
+
+    - name: Notify deployment status
+      if: always()
+      run: |
+        echo "Deployment status: ${{ job.status }}"
+        echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+        echo "Version: ${{ github.sha }}"

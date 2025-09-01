@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: compass-backend
+    
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:compass}
+    username: ${DB_USERNAME:compass_user}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+    
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    
+  security:
+    jwt:
+      access-secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-key-for-access-token}
+      refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-key-for-refresh-token}
+      access-expiration: 3600000  # 1 hour
+      refresh-expiration: 604800000  # 7 days
+
+server:
+  port: 8080
+  
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      
+logging:
+  level:
+    com.compass: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
