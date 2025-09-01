@@ -37,10 +37,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     
-    // Spring AI
-    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
-    implementation 'org.springframework.ai:spring-ai-vertex-ai-gemini-spring-boot-starter'
-    implementation 'org.springframework.ai:spring-ai-redis-spring-boot-starter'
+    // Spring AI - 실제 개발 시 주석 해제
+    // implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    // implementation 'org.springframework.ai:spring-ai-vertex-ai-gemini-spring-boot-starter'
+    // implementation 'org.springframework.ai:spring-ai-redis-spring-boot-starter'
     
     // Database
     runtimeOnly 'org.postgresql:postgresql'
@@ -66,11 +66,12 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
-    }
-}
+// Spring AI BOM - 실제 개발 시 주석 해제
+// dependencyManagement {
+//     imports {
+//         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+//     }
+// }
 
 tasks.named('test') {
     useJUnitPlatform()
