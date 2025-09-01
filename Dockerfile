@@ -1,15 +1,4 @@
-# Build stage
-FROM eclipse-temurin:17-jdk AS build
-WORKDIR /app
-
-# Copy all project files
-COPY . .
-
-# Make gradlew executable and build
-RUN chmod +x gradlew && \
-    ./gradlew bootJar -x test --no-daemon
-
-# Runtime stage
+# Dockerfile for Compass Backend
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 
@@ -17,8 +6,8 @@ WORKDIR /app
 RUN groupadd -g 1001 appgroup && \
     useradd -u 1001 -g appgroup appuser
 
-# Copy the jar file from build stage
-COPY --from=build /app/build/libs/compass-backend.jar app.jar
+# Copy pre-built JAR (from GitHub Actions artifact or local build)
+COPY build/libs/*.jar app.jar
 
 # Install curl for health check
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
