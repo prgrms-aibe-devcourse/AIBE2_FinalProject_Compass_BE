@@ -43,6 +43,7 @@ Thumbs.db
 *.zip
 *.tar.gz
 *.rar
+!gradle/wrapper/gradle-wrapper.jar
 
 # Build artifacts
 release.properties
