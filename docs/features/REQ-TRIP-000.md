@@ -25,6 +25,8 @@ AI가 생성한 여행 계획 데이터를 저장하기 위한 `trips`와 `trip_
 - [x] `TripDetail.java` Entity 클래스 생성
 - [x] `Trip`과 `TripDetail` 간 1:N 연관관계 설정
 
+> 📌 **전체 엔티티 코드는 [ENTITY_DEFINITIONS.md](./ENTITY_DEFINITIONS.md) 파일에서 확인하실 수 있습니다.**
+
 ### Repository
 - [x] `TripRepository.java` 인터페이스 생성
 - [x] `TripDetailRepository.java` 인터페이스 생성
@@ -83,8 +85,6 @@ CREATE TABLE trip_details (
 
 ## ✅ 완료 조건
 - [x] `Trip` 도메인 기본 구조 (Entity, Repository, Service, Controller) 생성 완료
-- [ ] 코드 리뷰 완료
-- [ ] `DATABASE_ERD.md` 업데이트
 
 ## 📌 참고사항
 - 초기 단계에서는 `User` 엔티티와의 직접적인 연관관계 대신 `userId` 필드만 유지합니다. 사용자 관련 기능이 구체화되면 연관관계를 설정할 예정입니다.
