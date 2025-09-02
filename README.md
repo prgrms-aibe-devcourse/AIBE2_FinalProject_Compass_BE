@@ -16,10 +16,14 @@
 git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE.git
 cd AIBE2_FinalProject_Compass_BE
 
-# 2. 모든 서비스 실행 (PostgreSQL + Redis + Spring Boot)
-docker-compose up -d
+# 2. .env 파일 설치
+# Discord #compass-backend 채널에서 .env 파일 다운로드 후 프로젝트 루트에 복사
 
-# 3. 서버 확인
+# 3. DB/Redis 실행 & 애플리케이션 시작
+docker-compose up -d postgres redis
+./gradlew bootRun
+
+# 4. 서버 확인
 curl http://localhost:8080/health
 # 또는 브라우저에서 http://localhost:8080/health 접속
 ```
@@ -123,16 +127,19 @@ git checkout -b feature/trip-planning # TRIP 도메인 담당자
 
 #### 2. 개발 환경 실행
 ```bash
-# 방법 1: Docker Compose로 전체 실행 (추천)
-docker-compose up -d
+# 0. .env 파일 확인 (필수!)
+# Discord #compass-backend 채널에서 .env 파일 다운로드 후 프로젝트 루트에 복사
 
-# 방법 2: DB/Redis만 Docker로, 앱은 IntelliJ에서
+# 방법 1: DB/Redis만 Docker로, 앱은 로컬에서 (추천)
 docker-compose up -d postgres redis
 ./gradlew bootRun
 
-# 방법 3: IntelliJ에서 실행
+# 방법 2: IntelliJ에서 실행
 # 1. Docker로 DB/Redis 실행 후
 # 2. IntelliJ에서 CompassApplication.java 실행
+
+# 방법 3: Docker Compose로 전체 실행
+docker-compose up -d
 ```
 
 #### 3. 도메인별 개발 디렉토리
@@ -217,7 +224,7 @@ docker exec -it compass-redis redis-cli
 ```
 
 ### 📚 참고 문서
-- [QUICK_START.md](QUICK_START.md) - 빠른 시작 가이드
+- [QUICKSTART.md](QUICKSTART.md) - 빠른 시작 가이드
 - [도메인 개발 가이드](src/main/java/com/compass/domain/README.md)
 - [DATABASE_ERD.md](DATABASE_ERD.md) - 데이터베이스 구조
 
@@ -504,29 +511,17 @@ management:
 - Gradle 7.6+
 
 ### 환경 변수 설정
-```bash
-# OpenAI API
-export OPENAI_API_KEY=your_openai_key
 
-# Google Vertex AI (Gemini)
-export GOOGLE_CLOUD_PROJECT_ID=your_project_id
-export GOOGLE_CLOUD_LOCATION=asia-northeast3
+**팀 개발자들은 Discord #compass-backend 채널에서 `.env` 파일을 다운로드하세요.**
 
-# Database
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_NAME=compass
-export DB_USERNAME=compass_user
-export DB_PASSWORD=your_password
+`.env` 파일에는 다음 항목들이 포함되어 있습니다:
+- Database 설정 (PostgreSQL)
+- Redis 설정
+- JWT 비밀키
+- OpenAI/Gemini API 키
+- 기타 필요한 설정
 
-# Redis
-export REDIS_HOST=localhost
-export REDIS_PORT=6379
-
-# JWT
-export JWT_ACCESS_SECRET=your_access_secret
-export JWT_REFRESH_SECRET=your_refresh_secret
-```
+**주의**: `.env` 파일은 절대 Git에 커밋하지 마세요!
 
 ### Spring AI 의존성 설정 (build.gradle)
 ```gradle

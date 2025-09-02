@@ -29,6 +29,12 @@ target/
 application-local.yml
 application-local.properties
 
+# Google Cloud Credentials
+gcp-key.json
+gcp-key*.json
+*-credentials.json
+travelagent-*.json
+
 # OS
 .DS_Store
 Thumbs.db

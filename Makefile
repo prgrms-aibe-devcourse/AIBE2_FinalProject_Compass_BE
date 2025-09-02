@@ -12,18 +12,18 @@ help: ## 도움말 표시
 setup: ## 개발 환경 설정
 	@echo "🚀 개발 환경을 설정합니다..."
 	@if [ ! -f .env ]; then \
-		cp .env.example .env; \
-		echo "⚠️  .env 파일이 생성되었습니다."; \
-		echo "GitHub Secrets 페이지에서 다음 값들을 복사해주세요:"; \
-		echo "https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE/settings/secrets/actions"; \
+		echo "❌ .env 파일이 없습니다!"; \
 		echo ""; \
-		echo "필요한 값:"; \
-		echo "- GOOGLE_CREDENTIALS_BASE64"; \
-		echo "- OPENAI_API_KEY"; \
+		echo "📥 .env 파일을 받는 방법:"; \
+		echo "1. Discord #compass-backend 채널 접속"; \
+		echo "2. 고정 메시지에서 .env 파일 다운로드"; \
+		echo "3. 프로젝트 루트에 복사"; \
+		exit 1; \
 	else \
-		echo "✅ .env 파일이 이미 존재합니다."; \
+		echo "✅ .env 파일이 확인되었습니다."; \
 	fi
-	@./scripts/setup-local-env.sh
+	@echo "🐳 Docker 서비스를 시작합니다..."
+	@docker-compose up -d postgres redis
 
 run: ## 애플리케이션 실행
 	@echo "🚀 애플리케이션을 시작합니다..."
