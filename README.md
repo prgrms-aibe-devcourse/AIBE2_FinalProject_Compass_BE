@@ -1,5 +1,7 @@
 # 🧭 Compass - AI 기반 개인화 여행 계획 서비스
 
+📚 **[QUICKSTART.md](QUICKSTART.md)** - 빠른 시작 가이드
+
 ## 🚀 빠른 시작 (Quick Start)
 
 ### Prerequisites

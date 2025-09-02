@@ -37,10 +37,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     
-    // Spring AI - 실제 개발 시 주석 해제
-    // implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
-    // implementation 'org.springframework.ai:spring-ai-vertex-ai-gemini-spring-boot-starter'
-    // implementation 'org.springframework.ai:spring-ai-redis-spring-boot-starter'
+    // Spring AI
+    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-vertex-ai-gemini-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-redis-store-spring-boot-starter'
     
     // Database
     runtimeOnly 'org.postgresql:postgresql'
@@ -60,18 +60,24 @@ dependencies {
     // Development Tools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     
+    // Dotenv loader
+    implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+    
+    // Swagger/OpenAPI
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+    
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-// Spring AI BOM - 실제 개발 시 주석 해제
-// dependencyManagement {
-//     imports {
-//         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
-//     }
-// }
+// Spring AI BOM
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
 
 tasks.named('test') {
     useJUnitPlatform()
