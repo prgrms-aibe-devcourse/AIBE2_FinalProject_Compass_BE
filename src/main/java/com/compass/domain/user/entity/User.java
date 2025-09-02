@@ -1,6 +1,6 @@
 package com.compass.domain.user.entity;
 
-import com.compass.common.entity.BaseEntity;
+import com.compass.domain.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -50,4 +50,8 @@ public class User extends BaseEntity {
         this.nickname = nickname;
         this.status = status;
     }
+    public void updateStatus(UserStatus status) {
+        this.status = status;
+    }
+
 }

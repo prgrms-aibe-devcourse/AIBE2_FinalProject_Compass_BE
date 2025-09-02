@@ -67,6 +67,9 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+    //mail
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
 
 }
 

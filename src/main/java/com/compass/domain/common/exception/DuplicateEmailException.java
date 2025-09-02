@@ -1,4 +1,4 @@
-package com.compass.common.exception;
+package com.compass.domain.common.exception;
 
 public class DuplicateEmailException extends RuntimeException {
     public DuplicateEmailException(String message) {

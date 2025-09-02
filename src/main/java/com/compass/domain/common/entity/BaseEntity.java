@@ -1,4 +1,4 @@
-package com.compass.common.entity;
+package com.compass.domain.common.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;

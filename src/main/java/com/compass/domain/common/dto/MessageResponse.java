@@ -1,4 +1,4 @@
-package com.compass.common.dto;
+package com.compass.domain.common.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
