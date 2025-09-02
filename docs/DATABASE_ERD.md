@@ -1,23 +1,39 @@
 # 📊 Compass 데이터베이스 ERD
 
+> **Last Updated**: 2025-01-02
+> **Based on**: TEAM_REQUIREMENTS.md (5-member team with TRIP1/TRIP2 structure)
+> **Team Structure**: USER1, USER2, CHAT1, CHAT2, TRIP (combined TRIP1+TRIP2)
+
 ## 🎯 엔티티 추출 (요구사항 기반)
 
 ### 핵심 엔티티
+
+#### USER Domain (USER1, USER2)
 1. **users** - 사용자 정보 관리
 2. **user_preferences** - 사용자 선호도 정보
-3. **chat_threads** - 채팅방 정보
-4. **messages** - 채팅 메시지
-5. **message_attachments** - 메시지 첨부파일
-6. **trips** - 여행 계획
-7. **trip_details** - 여행 일정 상세
-8. **trip_feedbacks** - 여행 평가
-9. **trip_shares** - 여행 공유 정보
-10. **trip_checklists** - 여행 체크리스트
-11. **api_usage_logs** - API 사용 로그
-12. **token_blacklist** - 토큰 블랙리스트
-13. **intent_keywords** - 의도 분류 키워드
-14. **prompt_templates** - 프롬프트 템플릿
-15. **user_favorites** - 사용자 즐겨찾기
+3. **token_blacklist** - 토큰 블랙리스트 (JWT 관리)
+4. **user_favorites** - 사용자 즐겨찾기
+
+#### CHAT Domain (CHAT1, CHAT2)
+5. **chat_threads** - 채팅방 정보
+6. **messages** - 채팅 메시지
+7. **message_attachments** - 메시지 첨부파일 (OCR 지원)
+8. **intent_keywords** - 의도 분류 키워드
+9. **prompt_templates** - 프롬프트 템플릿 (Gemini 2.0 Flash)
+10. **ai_responses** - AI 응답 캐시 (신규)
+
+#### TRIP Domain (TRIP1+TRIP2 Combined)
+11. **trips** - 여행 계획
+12. **trip_details** - 여행 일정 상세
+13. **trip_feedbacks** - 여행 평가
+14. **trip_shares** - 여행 공유 정보
+15. **trip_checklists** - 여행 체크리스트
+16. **recommendation_cache** - RAG 추천 캐시 (신규)
+17. **travel_embeddings** - 여행지 벡터 임베딩 (신규)
+18. **user_interaction_embeddings** - 사용자 상호작용 벡터 (신규)
+
+#### System Domain
+19. **api_usage_logs** - API 사용 로그 (모든 도메인)
 
 ---
 
@@ -34,11 +50,15 @@ erDiagram
     chat_threads ||--o{ messages : contains
     messages ||--o{ message_attachments : has
     messages ||--o{ api_usage_logs : triggers
+    messages ||--o| ai_responses : caches
     
     trips ||--o{ trip_details : contains
     trips ||--o{ trip_feedbacks : receives
     trips ||--o{ trip_shares : has
     trips ||--o{ trip_checklists : has
+    trips ||--o{ recommendation_cache : generates
+    trips ||--o{ travel_embeddings : has
+    users ||--o{ user_interaction_embeddings : generates
     
     users {
         bigint id PK
@@ -228,6 +248,50 @@ erDiagram
         jsonb metadata
         timestamp created_at
     }
+    
+    ai_responses {
+        bigint id PK
+        bigint message_id FK
+        varchar cache_key UK
+        text response_content
+        varchar model_version
+        jsonb response_metadata
+        timestamp expires_at
+        timestamp created_at
+    }
+    
+    recommendation_cache {
+        bigint id PK
+        bigint trip_id FK
+        varchar cache_key UK
+        jsonb recommendations
+        float relevance_score
+        varchar embedding_model
+        timestamp expires_at
+        timestamp created_at
+    }
+    
+    travel_embeddings {
+        bigint id PK
+        bigint trip_id FK
+        varchar content_type
+        text content
+        vector embedding_vector
+        varchar model_version
+        jsonb metadata
+        timestamp created_at
+    }
+    
+    user_interaction_embeddings {
+        bigint id PK
+        bigint user_id FK
+        varchar interaction_type
+        text interaction_content
+        vector embedding_vector
+        varchar model_version
+        float weight
+        timestamp created_at
+    }
 ```
 
 ---
@@ -342,7 +406,55 @@ erDiagram
 | additional_info | JSONB | | 추가 정보 |
 | display_order | INTEGER | | 표시 순서 |
 
-### 8. trip_feedbacks (여행 평가)
+### 8. ai_responses (AI 응답 캐시) - 신규
+| 컬럼명 | 타입 | 제약조건 | 설명 |
+|--------|------|----------|------|
+| id | BIGSERIAL | PK | 캐시 ID |
+| message_id | BIGINT | FK | 메시지 ID |
+| cache_key | VARCHAR(255) | UK | 캐시 키 (prompt hash) |
+| response_content | TEXT | NOT NULL | 캐시된 응답 |
+| model_version | VARCHAR(50) | | 모델 버전 (gemini-2.0-flash) |
+| response_metadata | JSONB | | 응답 메타데이터 |
+| expires_at | TIMESTAMP | | 캐시 만료 시간 |
+| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
+
+### 9. recommendation_cache (추천 캐시) - 신규
+| 컬럼명 | 타입 | 제약조건 | 설명 |
+|--------|------|----------|------|
+| id | BIGSERIAL | PK | 캐시 ID |
+| trip_id | BIGINT | FK | 여행 ID |
+| cache_key | VARCHAR(255) | UK | 캐시 키 (context hash) |
+| recommendations | JSONB | NOT NULL | RAG 추천 결과 |
+| relevance_score | FLOAT | | 관련성 점수 |
+| embedding_model | VARCHAR(50) | | 임베딩 모델 |
+| expires_at | TIMESTAMP | | 캐시 만료 시간 |
+| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
+
+### 10. travel_embeddings (여행지 벡터 임베딩) - 신규
+| 컬럼명 | 타입 | 제약조건 | 설명 |
+|--------|------|----------|------|
+| id | BIGSERIAL | PK | 임베딩 ID |
+| trip_id | BIGINT | FK | 여행 ID |
+| content_type | VARCHAR(50) | | 콘텐츠 타입 (destination/activity/restaurant) |
+| content | TEXT | NOT NULL | 원본 텍스트 콘텐츠 |
+| embedding_vector | vector(1536) | NOT NULL | 벡터 임베딩 (OpenAI/Gemini) |
+| model_version | VARCHAR(50) | | 임베딩 모델 버전 |
+| metadata | JSONB | | 추가 메타데이터 |
+| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
+
+### 11. user_interaction_embeddings (사용자 상호작용 벡터) - 신규
+| 컬럼명 | 타입 | 제약조건 | 설명 |
+|--------|------|----------|------|
+| id | BIGSERIAL | PK | 임베딩 ID |
+| user_id | BIGINT | FK, NOT NULL | 사용자 ID |
+| interaction_type | VARCHAR(50) | | 상호작용 타입 (search/click/favorite) |
+| interaction_content | TEXT | NOT NULL | 상호작용 내용 |
+| embedding_vector | vector(1536) | NOT NULL | 벡터 임베딩 |
+| model_version | VARCHAR(50) | | 임베딩 모델 버전 |
+| weight | FLOAT | DEFAULT 1.0 | 가중치 (중요도) |
+| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
+
+### 12. trip_feedbacks (여행 평가)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
 | id | BIGSERIAL | PK | 평가 ID |
@@ -354,13 +466,13 @@ erDiagram
 | disliked_activities | JSONB | | 싫었던 활동 |
 | created_at | TIMESTAMP | DEFAULT NOW() | 작성일시 |
 
-### 9. api_usage_logs (API 사용 로그)
+### 13. api_usage_logs (API 사용 로그)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
 | id | BIGSERIAL | PK | 로그 ID |
 | user_id | BIGINT | FK | 사용자 ID |
 | message_id | BIGINT | FK | 메시지 ID |
-| api_type | VARCHAR(50) | | API 타입 (OPENAI/GEMINI/TOUR/WEATHER) |
+| api_type | VARCHAR(50) | | API 타입 (GEMINI/GPT4/TOUR/WEATHER/OCR) |
 | model_name | VARCHAR(100) | | 모델명 |
 | prompt_tokens | INTEGER | | 프롬프트 토큰 |
 | completion_tokens | INTEGER | | 완성 토큰 |
@@ -417,6 +529,17 @@ CREATE INDEX idx_messages_metadata ON messages USING gin(metadata);
 CREATE INDEX idx_trips_metadata ON trips USING gin(trip_metadata);
 ```
 
+### Vector Indexes (pgvector)
+```sql
+-- 벡터 유사도 검색을 위한 인덱스
+CREATE INDEX idx_user_preferences_vector ON user_preferences USING ivfflat (preference_vector vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX idx_travel_embeddings_vector ON travel_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX idx_user_interaction_vector ON user_interaction_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists = 100);
+
+-- HNSW 인덱스 (더 높은 정확도, pgvector 0.5.0+)
+-- CREATE INDEX idx_travel_embeddings_hnsw ON travel_embeddings USING hnsw (embedding_vector vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+```
+
 ---
 
 ## 🔄 관계 설명
@@ -445,16 +568,27 @@ CREATE INDEX idx_trips_metadata ON trips USING gin(trip_metadata);
 2. **trip_participants** - 여행 참가자 관리 (N:M)
 3. **notifications** - 알림 관리
 4. **user_sessions** - 세션 관리
-5. **recommendation_history** - 추천 이력
-6. **weather_cache** - 날씨 정보 캐시
-7. **tour_cache** - 관광지 정보 캐시
-8. **hotel_cache** - 호텔 정보 캐시
+5. **weather_cache** - 날씨 정보 캐시 (외부 API)
+6. **tour_cache** - 관광지 정보 캐시 (외부 API)
+7. **hotel_cache** - 호텔 정보 캐시 (외부 API)
+8. **ocr_history** - OCR 처리 이력
 
 ### 성능 최적화 전략
 1. **파티셔닝**: messages, api_usage_logs 테이블을 날짜 기준으로 파티셔닝
-2. **캐싱**: Redis를 활용한 자주 조회되는 데이터 캐싱
+2. **캐싱**: 
+   - Redis를 활용한 자주 조회되는 데이터 캐싱
+   - AI 응답 캐싱 (ai_responses 테이블)
+   - RAG 추천 결과 캐싱 (recommendation_cache 테이블)
 3. **읽기 전용 복제본**: 조회 성능 향상을 위한 읽기 전용 DB 구성
-4. **벡터 DB**: 개인화 추천을 위한 벡터 검색 최적화 (pgvector 확장)
+4. **벡터 DB 최적화**: 
+   - PostgreSQL pgvector 확장 (유사도 검색)
+   - Redis Vector Search 병행 사용 (실시간 RAG)
+   - IVFFlat/HNSW 인덱싱 전략
+   - 1536차원 벡터 (OpenAI/Gemini 임베딩)
+5. **LLM 최적화**:
+   - Gemini 2.0 Flash for general chat (faster)
+   - Response streaming for better UX
+   - 벡터 임베딩 캐싱으로 중복 계산 방지
 
 ---
 
@@ -563,6 +697,54 @@ CREATE TABLE trip_details (
     display_order INTEGER
 );
 
+-- AI response cache table
+CREATE TABLE ai_responses (
+    id BIGSERIAL PRIMARY KEY,
+    message_id BIGINT REFERENCES messages(id),
+    cache_key VARCHAR(255) UNIQUE NOT NULL,
+    response_content TEXT NOT NULL,
+    model_version VARCHAR(50),
+    response_metadata JSONB,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Recommendation cache table
+CREATE TABLE recommendation_cache (
+    id BIGSERIAL PRIMARY KEY,
+    trip_id BIGINT REFERENCES trips(id),
+    cache_key VARCHAR(255) UNIQUE NOT NULL,
+    recommendations JSONB NOT NULL,
+    relevance_score FLOAT,
+    embedding_model VARCHAR(50),
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Travel embeddings table (Vector DB)
+CREATE TABLE travel_embeddings (
+    id BIGSERIAL PRIMARY KEY,
+    trip_id BIGINT REFERENCES trips(id),
+    content_type VARCHAR(50),
+    content TEXT NOT NULL,
+    embedding_vector vector(1536) NOT NULL,
+    model_version VARCHAR(50),
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User interaction embeddings table (Vector DB)
+CREATE TABLE user_interaction_embeddings (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    interaction_type VARCHAR(50),
+    interaction_content TEXT NOT NULL,
+    embedding_vector vector(1536) NOT NULL,
+    model_version VARCHAR(50),
+    weight FLOAT DEFAULT 1.0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- API usage logs table
 CREATE TABLE api_usage_logs (
     id BIGSERIAL PRIMARY KEY,
@@ -582,6 +764,22 @@ CREATE TABLE api_usage_logs (
 ```
 
 ---
+
+## 👥 팀 담당 영역 매핑
+
+### USER Domain (USER1, USER2)
+- **담당 테이블**: users, user_preferences, token_blacklist, user_favorites
+- **주요 기능**: JWT 인증, 프로필 관리, 선호도 설정
+
+### CHAT Domain (CHAT1, CHAT2)
+- **담당 테이블**: chat_threads, messages, message_attachments, intent_keywords, prompt_templates, ai_responses
+- **주요 기능**: 
+  - CHAT1: 대화 관리, 메시지 CRUD
+  - CHAT2: LLM 통합 (Gemini 2.0 Flash), OCR, RAG 개인화
+
+### TRIP Domain (TRIP1+TRIP2 Combined)
+- **담당 테이블**: trips, trip_details, trip_feedbacks, trip_shares, trip_checklists, recommendation_cache
+- **주요 기능**: 여행 계획 생성, 일정 관리, 외부 API 연동, 추천 시스템
 
 ## 🔐 보안 고려사항
 
