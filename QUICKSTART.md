@@ -37,11 +37,6 @@ docker-compose up -d postgres redis
 ### 옵션 2: GitHub Actions로 .env 파일 다운로드
 1. [GitHub Actions](https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE/actions) 페이지 접속
 2. **Environment Setup Helper** 워크플로우 선택
-3. **Run workflow** 클릭 → setup type 선택 (development)
-4. 실행 완료 후 Artifacts에서 `env-file-development` 다운로드
-5. 다운로드한 `.env` 파일을 프로젝트 루트에 배치
-
----
 
 ## 🎯 IntelliJ IDEA 사용자 (수동 설정)
 
