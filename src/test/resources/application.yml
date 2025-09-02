@@ -1,0 +1,31 @@
+spring:
+  # ===============================================
+  # =      TEST-ONLY DATABASE CONFIG (H2)         =
+  # ===============================================
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop # 테스트 시작 시 스키마 생성, 종료 시 삭제
+    properties:
+      hibernate:
+        format_sql: true
+    defer-datasource-initialization: true
+
+  # ===============================================
+  # =      TEST-ONLY JWT & MAIL CONFIG            =
+  # ===============================================
+  mail:
+    host: localhost # 테스트 중에는 실제 메일을 보내지 않도록 설정
+
+  security:
+    jwt:
+      access-secret: 'dummy-test-secret-key-for-unit-and-integration-tests-that-is-long-enough'
+      access-expiration: 3600000 # 1 hour
+
+app:
+  verification-url: http://localhost/api/users/verify
