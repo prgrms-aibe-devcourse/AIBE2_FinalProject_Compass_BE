@@ -1,0 +1,49 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+    
+  redis:
+    host: localhost
+    port: 6379
+    
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:test-api-key}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.7
+    
+    vertex:
+      ai:
+        gemini:
+          project-id: travelagent-468611
+          location: us-central1
+          chat:
+            options:
+              model: gemini-2.0-flash
+              temperature: 0.7
+    
+    vectorstore:
+      redis:
+        index: compass-test-embeddings
+        prefix: "compass-test:"
+
+logging:
+  level:
+    com.compass: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: INFO

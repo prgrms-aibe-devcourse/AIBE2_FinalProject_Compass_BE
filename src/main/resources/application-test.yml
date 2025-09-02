@@ -1,0 +1,50 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+      
+  datasource:
+    url: jdbc:postgresql://localhost:5432/compass_test
+    username: compass_user
+    password: compass_password
+    
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    
+  redis:
+    host: localhost
+    port: 6379
+    
+  ai:
+    # OpenAI Configuration - Add your API key here for testing
+    openai:
+      api-key: ${OPENAI_API_KEY:test-key}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.7
+          max-tokens: 1000
+    
+    # Vertex AI Configuration - Add your project ID for testing
+    vertex:
+      ai:
+        gemini:
+          project-id: ${GOOGLE_CLOUD_PROJECT_ID:test-project}
+          location: ${GOOGLE_CLOUD_LOCATION:asia-northeast3}
+          chat:
+            options:
+              model: gemini-2.0-flash
+              temperature: 0.7
+              max-output-tokens: 1000
+    
+    vectorstore:
+      redis:
+        index: compass-embeddings-test
+        prefix: "compass-test:"
+        
+logging:
+  level:
+    com.compass: INFO
+    org.springframework.ai: DEBUG
