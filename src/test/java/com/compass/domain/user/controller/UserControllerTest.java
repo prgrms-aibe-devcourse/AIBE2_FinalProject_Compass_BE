@@ -2,6 +2,7 @@ package com.compass.domain.user.controller;
 
 import com.compass.domain.common.exception.DuplicateEmailException;
 import com.compass.domain.common.exception.GlobalExceptionHandler;
+import com.compass.domain.common.jwt.JwtTokenProvider;
 import com.compass.domain.config.SecurityConfig;
 import com.compass.domain.user.dto.LoginRequest;
 import com.compass.domain.user.dto.SignUpRequest;
@@ -44,6 +45,9 @@ class UserControllerTest {
 
     @MockBean // UserService의 가짜(Mock) 객체를 생성하여 주입합니다. 실제 서비스 로직이 실행되지 않습니다.
     private UserService userService;
+
+    @MockBean // SecurityConfig가 의존하는 JwtTokenProvider를 Mock 객체로 주입합니다.
+    private JwtTokenProvider jwtTokenProvider;
 
     private SignUpRequest signUpRequest;
     private LoginRequest loginRequest;
