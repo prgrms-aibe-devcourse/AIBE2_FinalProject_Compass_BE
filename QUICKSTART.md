@@ -11,32 +11,33 @@
 
 ---
 
-## 🎯 가장 쉬운 방법 - 자동 설정 스크립트 사용! ⭐
+## 🎯 가장 쉬운 방법 - 5분 만에 시작! ⭐
 
-### 옵션 1: 로컬 설정 스크립트 (추천!)
+### 단 3단계로 개발 환경 구축:
+
 ```bash
 # 1. 프로젝트 클론
 git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE.git
 cd AIBE2_FinalProject_Compass_BE
 
-# 2. 자동 설정 스크립트 실행
-./scripts/setup-env.sh
+# 2. .env 파일 다운로드 및 설치
+# 💡 Discord #compass-backend 채널에서 .env 파일 다운로드
+# 다운로드한 .env 파일을 프로젝트 루트에 복사
 
-# 3. Docker 서비스 시작
+# 3. Docker 서비스 시작 & 애플리케이션 실행
 docker-compose up -d postgres redis
-
-# 4. 애플리케이션 실행
 ./gradlew bootRun
 ```
 
-스크립트가 자동으로:
-- `.env.example`을 복사하여 `.env` 생성
-- 필요한 API 키 입력 안내
-- 기본값 자동 설정
+**완료! 🎉** 이제 http://localhost:8080/health 접속해서 확인
 
-### 옵션 2: GitHub Actions로 .env 파일 다운로드
-1. [GitHub Actions](https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE/actions) 페이지 접속
-2. **Environment Setup Helper** 워크플로우 선택
+### 📥 .env 파일 받는 방법:
+1. **Discord #compass-backend 채널** 접속
+2. 고정 메시지에서 `.env` 파일 다운로드
+3. 다운로드한 파일을 프로젝트 루트 디렉토리에 복사
+4. **주의**: `.env` 파일은 절대 Git에 커밋하지 마세요!
+
+---
 
 ## 🎯 IntelliJ IDEA 사용자 (수동 설정)
 
@@ -46,61 +47,46 @@ git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE
 ```
 - IntelliJ IDEA 실행 → **File → Open** → 프로젝트 폴더 선택
 
-### 2️⃣ 환경 변수 자동 설정
+### 2️⃣ .env 파일 설치
 ```bash
-# IntelliJ Terminal에서 실행
-./scripts/setup-env.sh
+# Discord #compass-backend 채널에서 .env 파일 다운로드 후
+# 프로젝트 루트에 복사
 ```
 
-### 3️⃣ IntelliJ 환경 변수 설정 (선택사항)
-1. **Run → Edit Configurations...**
-2. **Spring Boot → CompassApplication** 선택
-3. **Environment variables** 클릭
-4. 아래 내용 붙여넣기:
-```properties
-GOOGLE_CREDENTIALS_BASE64=<GitHub Secrets에서 복사한 값>
-GOOGLE_CLOUD_PROJECT_ID=travelagent-468611
-GOOGLE_CLOUD_LOCATION=us-central1
-OPENAI_API_KEY=<GitHub Secrets에서 복사한 값>
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=compass
-DB_USERNAME=compass_user
-DB_PASSWORD=compass_password
-REDIS_HOST=localhost
-REDIS_PORT=6379
-```
-
-### 4️⃣ Google Cloud 인증 파일 생성
-IntelliJ Terminal에서:
-
-**Windows (PowerShell)**:
-```powershell
-$base64 = $env:GOOGLE_CREDENTIALS_BASE64
-[System.Convert]::FromBase64String($base64) | Set-Content gcp-key.json -Encoding Byte
-```
-
-**Mac/Linux**:
-```bash
-echo "$GOOGLE_CREDENTIALS_BASE64" | base64 -d > gcp-key.json
-```
-
-### 5️⃣ Docker 서비스 시작
+### 3️⃣ Docker 서비스 시작
 ```bash
 docker-compose up -d postgres redis
 ```
 
-### 6️⃣ 실행
+### 4️⃣ 실행
 - `CompassApplication.java` 파일에서 ▶️ 버튼 클릭
 - 또는 상단 툴바 Run 버튼
 
-### 7️⃣ 테스트
+### 5️⃣ 테스트
 IntelliJ에서 `/http-requests/test-api.http` 파일 열고:
 - 각 요청 옆 ▶️ 버튼 클릭하여 API 테스트
 
 ---
 
-## 💻 터미널/명령줄 사용자
+## 💻 간단 설정 - 모든 OS 공통
+
+```bash
+# 1. 프로젝트 클론
+git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE.git
+cd AIBE2_FinalProject_Compass_BE
+
+# 2. .env 파일 설치
+# Discord #compass-backend 채널에서 .env 파일 다운로드
+# 프로젝트 루트에 복사 (AIBE2_FinalProject_Compass_BE 폴더)
+
+# 3. DB 시작
+docker-compose up -d postgres redis
+
+# 4. 애플리케이션 실행
+./gradlew bootRun
+```
+
+## 💻 터미널/명령줄 사용자 (고급)
 
 ### Windows (PowerShell)
 
@@ -109,27 +95,14 @@ IntelliJ에서 `/http-requests/test-api.http` 파일 열고:
 git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE.git
 cd AIBE2_FinalProject_Compass_BE
 
-# 2. 설정 (처음 한 번만)
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+# 2. .env 파일 설치
+# Discord #compass-backend 채널에서 .env 파일 다운로드 후 프로젝트 루트에 복사
 
-# 3. 실행
-.\scripts\setup.ps1
-.\run.ps1
-```
+# 3. Docker 서비스 시작
+docker-compose up -d postgres redis
 
-### Windows (CMD)
-
-```cmd
-# 1. 클론 후
-setup.bat
-
-# 2. GitHub Secrets 값을 .env에 추가
-
-# 3. 인증 파일 생성
-setup-credentials.bat
-
-# 4. 실행
-run.bat
+# 4. 애플리케이션 실행
+.\gradlew.bat bootRun
 ```
 
 ### Mac/Linux
@@ -139,32 +112,16 @@ run.bat
 git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE.git
 cd AIBE2_FinalProject_Compass_BE
 
-# 2. 설정
-make setup
+# 2. .env 파일 설치
+# Discord #compass-backend 채널에서 .env 파일 다운로드 후 프로젝트 루트에 복사
 
-# 3. GitHub Secrets 값을 .env에 추가
-
-# 4. 실행
-make run
+# 3. Docker 서비스 시작 & 실행
+make setup  # Docker 시작
+make run    # 애플리케이션 실행
 ```
 
 ---
 
-## 🔑 GitHub Secrets 접근 방법
-
-### 옵션 1: 웹에서 직접 복사
-1. [GitHub Secrets 페이지](https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE/settings/secrets/actions) 접속
-2. Repository 접근 권한 필요 (없으면 팀 리더에게 요청)
-
-### 옵션 2: 팀 리더에게 요청
-Slack/Discord로 다음 메시지 전송:
-```
-Compass 프로젝트 GitHub Secrets 값 요청:
-- GOOGLE_CREDENTIALS_BASE64
-- OPENAI_API_KEY
-```
-
----
 
 ## 🧪 API 테스트
 
@@ -195,16 +152,18 @@ curl -X POST http://localhost:8080/api/test/gemini \
 
 ### "GOOGLE_APPLICATION_CREDENTIALS not found" 오류
 
-**IntelliJ 사용자**:
-Run Configuration 환경 변수에 추가:
-```
-GOOGLE_APPLICATION_CREDENTIALS=${PROJECT_DIR}/gcp-key.json
+**.env 파일 확인**:
+```bash
+# .env 파일이 프로젝트 루트에 있는지 확인
+ls -la .env
+
+# .env 파일에 GOOGLE_CREDENTIALS_BASE64가 있는지 확인
+grep GOOGLE_CREDENTIALS_BASE64 .env
 ```
 
-**터미널 사용자**:
-```bash
-export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json
-```
+**해결 방법**:
+- Discord에서 최신 .env 파일 다시 다운로드
+- 프로젝트 루트에 정확히 복사되었는지 확인
 
 ### "Connection refused" DB 연결 오류
 
@@ -308,8 +267,8 @@ git push origin branch     # 푸시
 - [ ] Java 17 설치 확인
 - [ ] Docker Desktop 실행
 - [ ] 프로젝트 클론
-- [ ] GitHub Secrets 값 설정
-- [ ] Google Cloud 인증 파일 생성
+- [ ] Discord에서 .env 파일 다운로드
+- [ ] .env 파일을 프로젝트 루트에 복사
 - [ ] DB/Redis 시작
 - [ ] Spring Boot 실행
 - [ ] API 테스트 성공
