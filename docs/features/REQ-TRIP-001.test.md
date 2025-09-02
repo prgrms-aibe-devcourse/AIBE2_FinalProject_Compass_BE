@@ -41,6 +41,10 @@ assignees: 'TRIP1'
 
 ## 🔧 테스트 환경 설정
 
+### 새로 추가된 설정 파일
+- **`src/main/resources/application-h2.yml`**: H2 데이터베이스 프로필 설정
+- **`src/main/java/com/compass/config/TestSecurityConfig.java`**: H2 프로필용 Security 비활성화 설정
+
 ### 의존성
 ```gradle
 // build.gradle
@@ -48,6 +52,9 @@ dependencies {
     // ...
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'com.h2database:h2'
+    
+    // H2 for development/testing (also available at runtime)
+    runtimeOnly 'com.h2database:h2'
 }
 
 // 테스트 실행 시 성공한 테스트도 표시
@@ -75,12 +82,12 @@ TripCreate.Request.Activity activity = new TripCreate.Request.Activity(
 );
 
 TripCreate.Request.DailyPlan dailyPlan = new TripCreate.Request.DailyPlan(
-        1, LocalDate.of(2024, 9, 1), List.of(activity)
+        1, LocalDate.of(2025, 9, 10), List.of(activity)
 );
 
 TripCreate.Request request = new TripCreate.Request(
         1L, 101L, "서울 3박 4일 여행", "서울",
-        LocalDate.of(2024, 9, 1), LocalDate.of(2024, 9, 4),
+        LocalDate.of(2025, 9, 10), LocalDate.of(2025, 9, 13),
         2, 1000000, List.of(dailyPlan)
 );
 ```
@@ -153,7 +160,16 @@ class TripControllerTest {
 
 ### 테스트 실행
 ```bash
-./gradlew test --tests "com.compass.domain.trip.controller.TripControllerTest"
+./gradlew test --tests "com.compass.domain.trip.controller.TripControllerTest" --rerun-tasks
+```
+
+### Swagger UI 테스트
+```bash
+# 애플리케이션 실행 (H2 프로필)
+./gradlew bootRun --args='--spring.profiles.active=h2'
+
+# Swagger UI 접속
+# http://localhost:8080/swagger-ui.html
 ```
 
 ---
@@ -161,12 +177,38 @@ class TripControllerTest {
 ## 📊 테스트 결과
 
 ### ✅ 성공한 테스트
+
+#### JUnit 통합 테스트
 - **`createTrip()`**: 유효한 데이터로 여행 계획 생성 테스트 **성공**
   - HTTP 응답: `201 Created` 
   - 데이터베이스에 `Trip`과 `TripDetail` 정상 저장 확인
 - **`createTripWithInvalidRequest()`**: 유효성 검증 테스트 **성공**
   - HTTP 응답: `400 Bad Request`
   - 필수값 누락 시 적절한 오류 응답 확인
+
+#### Swagger UI 수동 테스트
+- **✅ Swagger UI 접속**: http://localhost:8080/swagger-ui.html 정상 접근
+- **✅ API 문서화**: `POST /api/trips` 엔드포인트 완벽 표시
+- **✅ Request Schema**: 모든 필드 및 검증 규칙 정확히 표시
+- **✅ 유효성 검증**: 과거 날짜 입력 시 `400 Bad Request` 정상 응답
+  ```json
+  {
+    "message": "Validation failed for object='request'. Error count: 2",
+    "errors": [
+      {
+        "field": "startDate",
+        "defaultMessage": "현재 또는 미래의 날짜여야 합니다",
+        "rejectedValue": "2024-09-01"
+      },
+      {
+        "field": "endDate", 
+        "defaultMessage": "현재 또는 미래의 날짜여야 합니다",
+        "rejectedValue": "2024-09-04"
+      }
+    ]
+  }
+  ```
+- **✅ API 기능**: 미래 날짜 입력 시 정상 동작 확인
 
 ### ⚠️ 발견된 문제점과 해결책
 
@@ -205,10 +247,11 @@ spring:
 ```
 
 ### 🎯 최종 결과
-- **✅ 성공**: 2개 테스트 모두 성공
+- **✅ JUnit 테스트**: 2개 테스트 모두 성공
+- **✅ Swagger UI 테스트**: API 문서화 및 수동 테스트 성공
 - **🔄 반복 실행**: 안정적으로 성공 (상태 공유 문제 해결됨)
 - **⏱️ 실행 시간**: 약 8-11초 (첫 실행), 약 38초 (재컴파일 시)
-- **📅 최종 검증**: 2025-09-02 17:01 - BUILD SUCCESSFUL
+- **📅 최종 검증**: 2025-09-02 17:45 - Swagger UI 테스트 완료
 
 ### 📺 테스트 실행 결과
 ```

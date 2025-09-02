@@ -71,6 +71,9 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'com.h2database:h2'
+    
+    // H2 for development/testing (also available at runtime)
+    runtimeOnly 'com.h2database:h2'
 }
 
 // Spring AI BOM - 실제 개발 시 주석 해제
