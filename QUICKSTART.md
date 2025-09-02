@@ -11,7 +11,42 @@
 
 ---
 
-## 🎯 IntelliJ IDEA 사용자 (Windows/Mac 공통) - 가장 쉬움! ⭐
+## 🎯 가장 쉬운 방법 - 자동 설정 스크립트 사용! ⭐
+
+### 옵션 1: 로컬 설정 스크립트 (추천!)
+```bash
+# 1. 프로젝트 클론
+git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE.git
+cd AIBE2_FinalProject_Compass_BE
+
+# 2. 자동 설정 스크립트 실행
+./scripts/setup-env.sh
+
+# 3. Docker 서비스 시작
+docker-compose up -d postgres redis
+
+# 4. 애플리케이션 실행
+./gradlew bootRun
+```
+
+스크립트가 자동으로:
+- `.env.example`을 복사하여 `.env` 생성
+- 필요한 API 키 입력 안내
+- 기본값 자동 설정
+
+### 옵션 2: GitHub Actions로 .env 파일 다운로드
+1. [GitHub Actions](https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE/actions) 페이지 접속
+2. **Environment Setup Helper** 워크플로우 선택
+3. **Run workflow** 클릭 → Branch: `develop` 선택 → setup type: `development` 선택
+4. 실행 완료 후 Artifacts에서 `env-file-development` 다운로드
+5. 다운로드한 `.env` 파일을 프로젝트 루트에 배치
+
+**주의**: 이 워크플로우는 GitHub Secrets에 설정된 값들을 사용합니다.
+실제 운영 환경의 민감한 정보는 별도로 관리해야 합니다.
+
+---
+
+## 🎯 IntelliJ IDEA 사용자 (수동 설정)
 
 ### 1️⃣ 프로젝트 열기
 ```bash
@@ -19,13 +54,13 @@ git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE
 ```
 - IntelliJ IDEA 실행 → **File → Open** → 프로젝트 폴더 선택
 
-### 2️⃣ GitHub Secrets 값 가져오기
-1. 브라우저에서 [GitHub Secrets 페이지](https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE/settings/secrets/actions) 열기
-2. 다음 값들 복사:
-   - `GOOGLE_CREDENTIALS_BASE64` 
-   - `OPENAI_API_KEY`
+### 2️⃣ 환경 변수 자동 설정
+```bash
+# IntelliJ Terminal에서 실행
+./scripts/setup-env.sh
+```
 
-### 3️⃣ IntelliJ 환경 변수 설정
+### 3️⃣ IntelliJ 환경 변수 설정 (선택사항)
 1. **Run → Edit Configurations...**
 2. **Spring Boot → CompassApplication** 선택
 3. **Environment variables** 클릭
