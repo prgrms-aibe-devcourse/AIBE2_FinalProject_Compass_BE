@@ -72,7 +72,7 @@ jobs:
         echo "✅ .env file generated successfully"
     
     - name: Upload .env as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: env-file-${{ github.event.inputs.setup_type }}
         path: .env
