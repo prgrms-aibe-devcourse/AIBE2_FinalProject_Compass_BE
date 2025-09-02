@@ -17,13 +17,10 @@ import static org.junit.jupiter.api.Assertions.*;
  * These tests make actual API calls to Gemini and OpenAI
  * Run with actual API keys set in environment variables
  */
-@SpringBootTest(properties = {
-    "spring.datasource.url=",
-    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration"
-})
+@SpringBootTest
 @ActiveProfiles("test")
 @DisplayName("실제 API 통합 테스트")
+@EnabledIfEnvironmentVariable(named = "RUN_INTEGRATION_TESTS", matches = "true")
 public class RealApiIntegrationTest {
 
     @Autowired(required = false)
@@ -34,6 +31,7 @@ public class RealApiIntegrationTest {
 
     @Test
     @DisplayName("Gemini API 실제 호출 테스트 - 간단한 질문")
+    @EnabledIfEnvironmentVariable(named = "GOOGLE_APPLICATION_CREDENTIALS", matches = ".+")
     void testGeminiApiCall_SimpleQuestion() {
         // Given
         assertNotNull(geminiChatService, "GeminiChatService should be available");
