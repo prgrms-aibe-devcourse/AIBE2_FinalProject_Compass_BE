@@ -66,6 +66,18 @@ jwt:
   access-expiration: 3600000
   refresh-expiration: 604800000
 
+# AI 모델 테스트 설정
+  ai:
+    openai:
+      api-key: test-openai-api-key-for-testing
+      chat:
+        api-key: test-openai-chat-api-key-for-testing
+    vertex:
+      ai:
+        gemini:
+          project-id: test-project
+          location: asia-northeast3
+
 logging:
   level:
     org:

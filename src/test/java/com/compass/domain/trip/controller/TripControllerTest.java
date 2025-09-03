@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -26,6 +27,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@TestPropertySource(properties = {
+    "spring.ai.openai.api-key=test-openai-api-key-for-testing",
+    "spring.ai.openai.chat.api-key=test-openai-chat-api-key-for-testing",
+    "spring.ai.vertex.ai.gemini.project-id=test-project",
+    "spring.ai.vertex.ai.gemini.location=asia-northeast3",
+    "jwt.access-secret=test-access-secret-key-for-trip-controller-test-256-bit",
+    "jwt.refresh-secret=test-refresh-secret-key-for-trip-controller-test-256-bit",
+    "jwt.access-expiration=3600000",
+    "jwt.refresh-expiration=604800000"
+})
 class TripControllerTest {
 
     @Autowired
