@@ -1,14 +1,9 @@
-package com.compass.domain.chat.parser;
+package com.compass.domain.chat.parser.impl;
 
 import com.compass.domain.chat.dto.TripPlanningRequest;
-import lombok.RequiredArgsConstructor;
+import com.compass.domain.chat.parser.core.TripPlanningParser;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -16,30 +11,23 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Service for parsing natural language chat input to extract trip planning information
- * Uses NER (Named Entity Recognition) and pattern matching for entity extraction
- * Part of CHAT domain - handles user input parsing for chat conversations
+ * Pattern-based implementation of TripPlanningParser.
+ * Uses regex patterns to extract trip information from natural language.
+ * This implementation has NO external dependencies and can run without AI services.
  * 
- * @deprecated Use {@link com.compass.domain.chat.parser.core.TripPlanningParser} interface
- *             and its implementations instead. This class will be removed in future versions.
- *             For pattern-based parsing: use {@link com.compass.domain.chat.parser.impl.PatternBasedParser}
- *             For AI-enhanced parsing: use {@link com.compass.domain.chat.parser.impl.AiEnhancedParser}
+ * Perfect for:
+ * - Unit testing without external dependencies
+ * - Offline operation
+ * - Fast processing of common patterns
+ * - Fallback when AI services are unavailable
  */
-@Deprecated
 @Slf4j
-@Service
-public class ChatInputParser {
-
-    private final ChatModel chatModel;
-    
-    public ChatInputParser(@Qualifier("vertexAiGeminiChat") ChatModel chatModel) {
-        this.chatModel = chatModel;
-    }
+@Component("patternBasedParser")
+public class PatternBasedParser implements TripPlanningParser {
     
     // Date patterns
     private static final Pattern DATE_PATTERN = Pattern.compile(
@@ -68,14 +56,10 @@ public class ChatInputParser {
         "(서울|부산|제주도|제주|경주|강릉|전주|여수|춘천|속초|대구|대전|광주|인천)|" +
         "([가-힣]+시)|([가-힣]+도)"
     );
-
-    /**
-     * Parse natural language input to extract trip planning information
-     * @param userInput Natural language input from user
-     * @return TripPlanningRequest with extracted information
-     */
-    public TripPlanningRequest parseUserInput(String userInput) {
-        log.info("Parsing user input: {}", userInput);
+    
+    @Override
+    public TripPlanningRequest parse(String userInput) {
+        log.info("Pattern-based parsing for input: {}", userInput);
         
         TripPlanningRequest request = new TripPlanningRequest();
         
@@ -87,16 +71,16 @@ public class ChatInputParser {
         extractTravelStyle(userInput, request);
         extractInterests(userInput, request);
         
-        // Use AI for complex extraction if needed
-        if (needsAIExtraction(request)) {
-            enhanceWithAI(userInput, request);
-        }
-        
         // Set defaults for missing values
         setDefaults(request);
         
-        log.info("Parsed request: {}", request);
+        log.info("Pattern-based parsing complete: {}", request);
         return request;
+    }
+    
+    @Override
+    public String getStrategyName() {
+        return "pattern";
     }
     
     /**
@@ -359,57 +343,6 @@ public class ChatInputParser {
             request.setInterests(interests.toArray(new String[0]));
             log.debug("Extracted interests: {}", interests);
         }
-    }
-    
-    /**
-     * Check if AI extraction is needed for complex cases
-     */
-    private boolean needsAIExtraction(TripPlanningRequest request) {
-        return request.getDestination() == null || 
-               request.getStartDate() == null ||
-               (request.getInterests() == null || request.getInterests().length == 0);
-    }
-    
-    /**
-     * Enhance extraction using AI model for complex cases
-     */
-    private void enhanceWithAI(String userInput, TripPlanningRequest request) {
-        String promptText = """
-            Extract travel information from the following text and return in JSON format:
-            Text: "%s"
-            
-            Extract:
-            - destination (여행지)
-            - startDate (시작일, format: yyyy-MM-dd)
-            - endDate (종료일, format: yyyy-MM-dd)
-            - numberOfTravelers (인원수)
-            - budgetPerPerson (1인당 예산, KRW)
-            - travelStyle (budget/moderate/luxury)
-            - interests (culture/food/adventure/shopping/nature)
-            
-            If dates are relative (like "next week"), calculate from today's date: %s
-            Return only valid JSON without any explanation.
-            """.formatted(userInput, LocalDate.now());
-        
-        try {
-            Prompt prompt = new Prompt(promptText);
-            ChatResponse chatResponse = chatModel.call(prompt);
-            String response = chatResponse.getResult().getOutput().getContent();
-            
-            // Parse AI response and update request
-            parseAIResponse(response, request);
-        } catch (Exception e) {
-            log.error("Failed to enhance with AI: {}", e.getMessage());
-        }
-    }
-    
-    /**
-     * Parse AI response and update request
-     */
-    private void parseAIResponse(String response, TripPlanningRequest request) {
-        // This would parse the JSON response from AI
-        // Implementation depends on the AI model's response format
-        log.debug("AI response: {}", response);
     }
     
     /**

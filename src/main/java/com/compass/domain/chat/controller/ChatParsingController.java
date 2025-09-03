@@ -2,7 +2,7 @@ package com.compass.domain.chat.controller;
 
 import com.compass.domain.chat.dto.TripPlanningRequest;
 import com.compass.domain.chat.dto.TripPlanningResponse;
-import com.compass.domain.chat.parser.ChatInputParser;
+import com.compass.domain.chat.parser.core.TripPlanningParser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,7 +33,7 @@ import java.util.UUID;
 @Tag(name = "Chat Parsing", description = "Natural language parsing for chat messages")
 public class ChatParsingController {
 
-    private final ChatInputParser chatInputParser;
+    private final TripPlanningParser tripPlanningParser;
 
     @Data
     @NoArgsConstructor
@@ -57,7 +57,7 @@ public class ChatParsingController {
         log.info("Parsing chat input: {}", request.getText());
         
         // Parse the user input
-        TripPlanningRequest parsedRequest = chatInputParser.parseUserInput(request.getText());
+        TripPlanningRequest parsedRequest = tripPlanningParser.parse(request.getText());
         
         // Create response with parsed information
         TripPlanningResponse response = createResponseFromParsedRequest(parsedRequest);
@@ -79,7 +79,7 @@ public class ChatParsingController {
             @Valid @RequestBody ParseRequest request) {
         
         log.debug("Raw parsing request: {}", request.getText());
-        TripPlanningRequest parsed = chatInputParser.parseUserInput(request.getText());
+        TripPlanningRequest parsed = tripPlanningParser.parse(request.getText());
         
         return ResponseEntity.ok(parsed);
     }
@@ -95,15 +95,15 @@ public class ChatParsingController {
         
         // Example 1: Complete input
         String example1 = "다음달 15일부터 3박4일로 제주도 여행을 가려고 해요. 예산은 100만원입니다.";
-        examples.put(example1, chatInputParser.parseUserInput(example1));
+        examples.put(example1, tripPlanningParser.parse(example1));
         
         // Example 2: Minimal input
         String example2 = "부산 맛집 탐방하고 싶어요";
-        examples.put(example2, chatInputParser.parseUserInput(example2));
+        examples.put(example2, tripPlanningParser.parse(example2));
         
         // Example 3: Complex input
         String example3 = "2명이서 이번 주말에 강릉 바다 보러 가려고 하는데 1박2일로 저렴하게";
-        examples.put(example3, chatInputParser.parseUserInput(example3));
+        examples.put(example3, tripPlanningParser.parse(example3));
         
         return ResponseEntity.ok(examples);
     }
