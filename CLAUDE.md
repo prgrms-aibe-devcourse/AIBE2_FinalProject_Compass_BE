@@ -72,7 +72,7 @@ The codebase is organized into three main domains, each developed independently:
 ### Technology Stack
 - **Framework**: Spring Boot 3.x with Java 17
 - **Databases**: PostgreSQL 15 (main), Redis 7 (vector store & cache)
-- **AI/ML**: Spring AI 1.0.0-M5 with Gemini 2.5 Flash/Pro, GPT-4o-mini
+- **AI/ML**: Spring AI 1.0.0-M5 with Gemini 2.0 Flash, GPT-4o-mini
 - **Security**: JWT-based authentication
 - **Monitoring**: Prometheus + Grafana with Micrometer
 - **Deployment**: Docker, AWS Elastic Beanstalk, AWS Lambda (MCP servers)
@@ -176,9 +176,10 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
    - OCR functionality
    - RAG personalization
 8. **CHAT Domain LLM Configuration**:
-   - Primary Agent: Gemini 2.5 Flash (for general chat operations)
-   - Advanced Agent: Gemini 2.5 Pro (for complex reasoning tasks)
+   - Primary Agent: Gemini 2.0 Flash (for general chat operations and function calling)
+   - Secondary Agent: GPT-4o-mini (for OpenAI compatibility)
    - Framework: Spring AI (use Spring AI abstractions, not direct API calls)
+   - Function Calling: Enabled with travel-related functions (flights, hotels, weather, attractions)
 
 ## Development Methodology
 
