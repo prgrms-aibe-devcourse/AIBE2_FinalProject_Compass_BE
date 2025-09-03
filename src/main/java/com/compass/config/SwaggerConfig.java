@@ -16,6 +16,7 @@ import java.util.List;
 
 /**
  * Swagger/OpenAPI Configuration
+ * 여행 계획 생성 및 관리 API 문서화
  */
 @Configuration
 public class SwaggerConfig {
@@ -24,8 +25,8 @@ public class SwaggerConfig {
     private String applicationName;
     
     @Bean
-    public OpenAPI openAPI() {
-        // JWT Security Scheme
+    public OpenAPI customOpenAPI() {
+        // JWT Security Scheme - 기존 feature/trip1 방식 유지하면서 개선
         SecurityScheme securityScheme = new SecurityScheme()
                 .type(SecurityScheme.Type.HTTP)
                 .scheme("bearer")
@@ -37,7 +38,7 @@ public class SwaggerConfig {
         SecurityRequirement securityRequirement = new SecurityRequirement()
                 .addList("bearerAuth");
         
-        // Server Configuration
+        // Server Configuration - develop 브랜치에서 추가
         Server localServer = new Server()
                 .url("http://localhost:8080")
                 .description("Local Development Server");
@@ -49,11 +50,11 @@ public class SwaggerConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title(applicationName + " API")
-                        .description("AI-powered personalized travel planning service API")
+                        .description("AI 기반 개인화된 여행 계획 생성 및 관리 API - Updated")
                         .version("1.0.0")
                         .contact(new Contact()
                                 .name("Compass Team")
-                                .email("team@compass.com"))
+                                .email("contact@compass.com"))
                         .license(new License()
                                 .name("Apache 2.0")
                                 .url("http://www.apache.org/licenses/LICENSE-2.0")))
