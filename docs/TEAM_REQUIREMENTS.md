@@ -183,8 +183,8 @@
 |  |  | → build.gradle 의존성 추가, application.yml AI 설정, 빈 초기화 및 테스트 |  |  |  |
 | REQ-LLM-002 | Gemini 연동 | Vertex AI Gemini 2.0 Flash 모델 연결, us-central1 리전 | 1 | 독립 | ✅ 완료 |
 |  |  | → Google Cloud 인증 설정, Vertex AI 클라이언트 초기화, 연결 테스트 |  |  |  |
-| REQ-AI-003 | 기본 일정 템플릿 | 2박3일, 3박4일 JSON 템플릿, 시간대별 기본 일정 | 1 | 독립 | |
-|  |  | → 여행 기간별 표준 템플릿 JSON 파일 생성, 시간대별 활동 매핑, 로드 로직 |  |  |  |
+| REQ-AI-003 | 기본 일정 템플릿 | 당일치기, 1박2일, 2박3일, 3박4일 JSON 템플릿, 시간대별 기본 일정 | 1 | 독립 | |
+|  |  | → 여행 기간별 표준 템플릿 JSON 파일 생성 (당일치기 포함), 시간대별 활동 매핑, 로드 로직 |  |  |  |
 | REQ-LLM-005 | Function Calling 설정 | Spring AI FunctionCallback 프레임워크, 자동 함수 탐색 | 1 | 독립 | |
 |  |  | → @Bean으로 함수 등록, LLM에 함수 스키마 전달, 자동 호출 체인 구성 |  |  |  |
 | REQ-AI-001 | AI 여행 계획 Function | createTravelPlan() 함수 구현, 템플릿 기반 일정 보강 | 1 | 독립 | |

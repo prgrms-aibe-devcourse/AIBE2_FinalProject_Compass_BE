@@ -209,4 +209,124 @@ class PatternBasedParserTest {
         // Then
         assertThat(strategy).isEqualTo("pattern");
     }
+    
+    @Test
+    @DisplayName("당일치기 여행 파싱 테스트")
+    void testDayTripParsing() {
+        // Given
+        String input1 = "성수로 당일치기 여행";
+        String input2 = "제주도 당일 여행 가고 싶어";
+        String input3 = "부산으로 하루 여행";
+        
+        // When
+        TripPlanningRequest result1 = parser.parse(input1);
+        TripPlanningRequest result2 = parser.parse(input2);
+        TripPlanningRequest result3 = parser.parse(input3);
+        
+        // Then
+        assertThat(result1.getDestination()).isEqualTo("성수");
+        assertThat(result1.getStartDate()).isNotNull();
+        assertThat(result1.getEndDate()).isEqualTo(result1.getStartDate()); // Same day
+        assertThat(result1.getPreferences()).containsEntry("trip_type", "당일치기");
+        
+        assertThat(result2.getDestination()).isEqualTo("제주도");
+        assertThat(result2.getStartDate()).isNotNull();
+        assertThat(result2.getEndDate()).isEqualTo(result2.getStartDate());
+        assertThat(result2.getPreferences()).containsEntry("trip_type", "당일치기");
+        
+        assertThat(result3.getDestination()).isEqualTo("부산");
+        assertThat(result3.getStartDate()).isNotNull();
+        assertThat(result3.getEndDate()).isEqualTo(result3.getStartDate());
+        assertThat(result3.getPreferences()).containsEntry("trip_type", "당일치기");
+    }
+    
+    @Test
+    @DisplayName("한국어 기간 표현 파싱 테스트")
+    void testKoreanDurationParsing() {
+        // Given
+        String input1 = "제주도로 이틀동안 여행";
+        String input2 = "사흘간 부산 여행";
+        String input3 = "나흘 정도 강릉 여행";
+        
+        // When
+        TripPlanningRequest result1 = parser.parse(input1);
+        TripPlanningRequest result2 = parser.parse(input2);
+        TripPlanningRequest result3 = parser.parse(input3);
+        
+        // Then
+        assertThat(result1.getDestination()).isEqualTo("제주도");
+        assertThat(result1.getEndDate()).isEqualTo(result1.getStartDate().plusDays(1)); // 이틀 = 2 days
+        
+        assertThat(result2.getDestination()).isEqualTo("부산");
+        assertThat(result2.getEndDate()).isEqualTo(result2.getStartDate().plusDays(2)); // 사흘 = 3 days
+        
+        assertThat(result3.getDestination()).isEqualTo("강릉");
+        assertThat(result3.getEndDate()).isEqualTo(result3.getStartDate().plusDays(3)); // 나흘 = 4 days
+    }
+    
+    @Test
+    @DisplayName("날짜 범위 표현 파싱 테스트")
+    void testDateRangeParsing() {
+        // Given
+        String input1 = "12월 28일부터 30일까지 제주도 여행";
+        String input2 = "28일~29일 부산 여행";
+        int currentYear = LocalDate.now().getYear();
+        
+        // When
+        TripPlanningRequest result1 = parser.parse(input1);
+        TripPlanningRequest result2 = parser.parse(input2);
+        
+        // Then
+        assertThat(result1.getDestination()).isEqualTo("제주도");
+        assertThat(result1.getStartDate()).isEqualTo(LocalDate.of(currentYear, 12, 28));
+        assertThat(result1.getEndDate()).isEqualTo(LocalDate.of(currentYear, 12, 30));
+        
+        assertThat(result2.getDestination()).isEqualTo("부산");
+        // Month should be current or next month based on current date
+        assertThat(result2.getStartDate().getDayOfMonth()).isEqualTo(28);
+        assertThat(result2.getEndDate().getDayOfMonth()).isEqualTo(29);
+    }
+    
+    @Test
+    @DisplayName("다양한 기간 표현 파싱 테스트")
+    void testVariousDurationExpressions() {
+        // Given
+        String input1 = "2일동안 제주도 여행";
+        String input2 = "3일간 부산 여행";
+        String input3 = "오늘 하루 강릉 여행";
+        
+        // When
+        TripPlanningRequest result1 = parser.parse(input1);
+        TripPlanningRequest result2 = parser.parse(input2);
+        TripPlanningRequest result3 = parser.parse(input3);
+        
+        // Then
+        assertThat(result1.getDestination()).isEqualTo("제주도");
+        assertThat(result1.getEndDate()).isEqualTo(result1.getStartDate().plusDays(1)); // 2일동안 = 2 days
+        
+        assertThat(result2.getDestination()).isEqualTo("부산");
+        assertThat(result2.getEndDate()).isEqualTo(result2.getStartDate().plusDays(2)); // 3일간 = 3 days
+        
+        assertThat(result3.getDestination()).isEqualTo("강릉");
+        assertThat(result3.getStartDate()).isEqualTo(LocalDate.now()); // 오늘
+        assertThat(result3.getEndDate()).isEqualTo(LocalDate.now()); // 하루 = same day
+        assertThat(result3.getPreferences()).containsEntry("trip_type", "당일치기");
+    }
+    
+    @Test
+    @DisplayName("복합 날짜 정보 파싱 테스트")
+    void testComplexDateParsing() {
+        // Given
+        String input = "다음주 금요일부터 일요일까지 제주도 2박3일 여행";
+        
+        // When
+        TripPlanningRequest result = parser.parse(input);
+        
+        // Then
+        assertThat(result.getDestination()).isEqualTo("제주도");
+        assertThat(result.getStartDate()).isNotNull();
+        assertThat(result.getEndDate()).isNotNull();
+        // Should be 2 nights difference
+        assertThat(result.getEndDate()).isEqualTo(result.getStartDate().plusDays(2));
+    }
 }

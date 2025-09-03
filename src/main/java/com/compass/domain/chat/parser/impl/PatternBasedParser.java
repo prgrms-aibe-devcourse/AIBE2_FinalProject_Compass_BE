@@ -29,13 +29,22 @@ import java.util.regex.Pattern;
 @Component("patternBasedParser")
 public class PatternBasedParser implements TripPlanningParser {
     
-    // Date patterns
+    // Date patterns - expanded to support various expressions
     private static final Pattern DATE_PATTERN = Pattern.compile(
         "(\\d{4}[-/년]\\s?\\d{1,2}[-/월]\\s?\\d{1,2}[일]?)|" +
         "(\\d{4}\\.\\d{1,2}\\.\\d{1,2})|" +
         "(\\d{1,2}월\\s?\\d{1,2}일)|" +
-        "(다음주|이번주|다음달|이번달|내일|모레)|" +
-        "(\\d{1,2}박\\s?\\d{1,2}일)"
+        "(다음주|이번주|다음달|이번달|내일|모레|오늘)|" +
+        "(\\d{1,2}박\\s?\\d{1,2}일)|" +
+        "(당일치기|당일)|" +  // Day trip patterns
+        "(하루|이틀|사흘|나흘)|" +  // Korean day expressions
+        "([0-9]+일\\s?(동안|간))"  // "2일동안", "3일간"
+    );
+    
+    // Date range patterns - for expressions like "28일~29일"
+    private static final Pattern DATE_RANGE_PATTERN = Pattern.compile(
+        "([0-9]+)일\\s?[~\\-]\\s?([0-9]+)일|" +
+        "([0-9]+월\\s?[0-9]+일)\\s?[~\\-부터]\\s?([0-9]+월\\s?[0-9]+일)"
     );
     
     // Budget patterns
@@ -51,9 +60,9 @@ public class PatternBasedParser implements TripPlanningParser {
         "(혼자|둘이|가족|친구|커플|단체)"
     );
     
-    // Location patterns
+    // Location patterns - enhanced to handle particles (로, 에, 을, 를, etc.)
     private static final Pattern LOCATION_PATTERN = Pattern.compile(
-        "(서울|부산|제주도|제주|경주|강릉|전주|여수|춘천|속초|대구|대전|광주|인천)|" +
+        "(성수|서울|부산|제주도|제주|경주|강릉|전주|여수|춘천|속초|대구|대전|광주|인천)|" +
         "([가-힣]+시)|([가-힣]+도)"
     );
     
@@ -87,7 +96,10 @@ public class PatternBasedParser implements TripPlanningParser {
      * Extract destination from user input
      */
     private void extractDestination(String input, TripPlanningRequest request) {
-        Matcher matcher = LOCATION_PATTERN.matcher(input);
+        // Remove common non-location words first
+        String cleanInput = input.replaceAll("정도|약|까지|부터|에서|으로|로|에|을|를", " ");
+        
+        Matcher matcher = LOCATION_PATTERN.matcher(cleanInput);
         if (matcher.find()) {
             String destination = matcher.group(0);
             request.setDestination(destination);
@@ -99,6 +111,37 @@ public class PatternBasedParser implements TripPlanningParser {
      * Extract and parse dates from user input
      */
     private void extractDates(String input, TripPlanningRequest request) {
+        // Check for day trip patterns first
+        if (input.contains("당일치기") || input.contains("당일") || 
+            (input.contains("하루") && (input.contains("여행") || input.contains("놀러")))) {
+            LocalDate today = LocalDate.now();
+            request.setStartDate(today);
+            request.setEndDate(today);
+            request.setPreferences(request.getPreferences() != null ? 
+                request.getPreferences() : new HashMap<>());
+            request.getPreferences().put("trip_type", "당일치기");
+            return;
+        }
+        
+        // Check for date range patterns (e.g., "28일~29일")
+        Matcher rangeMatcher = DATE_RANGE_PATTERN.matcher(input);
+        if (rangeMatcher.find()) {
+            extractDateRange(rangeMatcher, request);
+            return;
+        }
+        
+        // Check for duration in days (e.g., "2일동안", "이틀간")
+        Pattern durationDaysPattern = Pattern.compile("(하루|이틀|사흘|나흘|[0-9]+일)\\s?(동안|간)");
+        Matcher daysMatcher = durationDaysPattern.matcher(input);
+        if (daysMatcher.find()) {
+            int days = parseDaysFromKorean(daysMatcher.group(1));
+            LocalDate today = LocalDate.now();
+            request.setStartDate(today);
+            request.setEndDate(today.plusDays(days - 1));
+            return;
+        }
+        
+        // Original pattern matching
         Matcher matcher = DATE_PATTERN.matcher(input);
         List<String> dateStrings = new ArrayList<>();
         Integer durationNights = null;
@@ -112,6 +155,13 @@ public class PatternBasedParser implements TripPlanningParser {
                 if (durationMatcher.find()) {
                     durationNights = Integer.parseInt(durationMatcher.group(1));
                 }
+            } else if (matched.equals("하루") || matched.equals("이틀") || 
+                       matched.equals("사흘") || matched.equals("나흘")) {
+                int days = parseDaysFromKorean(matched);
+                LocalDate today = LocalDate.now();
+                request.setStartDate(today);
+                request.setEndDate(today.plusDays(days - 1));
+                return;
             } else {
                 dateStrings.add(matched);
             }
@@ -342,6 +392,67 @@ public class PatternBasedParser implements TripPlanningParser {
         if (!interests.isEmpty()) {
             request.setInterests(interests.toArray(new String[0]));
             log.debug("Extracted interests: {}", interests);
+        }
+    }
+    
+    /**
+     * Parse Korean day expressions to number
+     */
+    private int parseDaysFromKorean(String dayString) {
+        if (dayString.equals("하루")) return 1;
+        if (dayString.equals("이틀")) return 2;
+        if (dayString.equals("사흘")) return 3;
+        if (dayString.equals("나흘")) return 4;
+        
+        // Handle numeric days like "3일"
+        Pattern numericPattern = Pattern.compile("([0-9]+)일");
+        Matcher matcher = numericPattern.matcher(dayString);
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(1));
+        }
+        
+        return 1; // Default to 1 day if parsing fails
+    }
+    
+    /**
+     * Extract date range from pattern matcher
+     */
+    private void extractDateRange(Matcher rangeMatcher, TripPlanningRequest request) {
+        String fullMatch = rangeMatcher.group(0);
+        LocalDate today = LocalDate.now();
+        int currentYear = today.getYear();
+        int currentMonth = today.getMonthValue();
+        
+        // Simple day range in current month (e.g., "28일~29일")
+        Pattern simpleDayRange = Pattern.compile("([0-9]+)일\\s?[~\\-]\\s?([0-9]+)일");
+        Matcher dayMatcher = simpleDayRange.matcher(fullMatch);
+        if (dayMatcher.find()) {
+            int startDay = Integer.parseInt(dayMatcher.group(1));
+            int endDay = Integer.parseInt(dayMatcher.group(2));
+            
+            LocalDate startDate = LocalDate.of(currentYear, currentMonth, startDay);
+            LocalDate endDate = LocalDate.of(currentYear, currentMonth, endDay);
+            
+            // If the dates are in the past, assume next month
+            if (startDate.isBefore(today)) {
+                startDate = startDate.plusMonths(1);
+                endDate = endDate.plusMonths(1);
+            }
+            
+            request.setStartDate(startDate);
+            request.setEndDate(endDate);
+            return;
+        }
+        
+        // Full date range (e.g., "12월 28일~12월 30일")
+        Pattern fullDateRange = Pattern.compile("([0-9]+월\\s?[0-9]+일)\\s?[~\\-부터]\\s?([0-9]+월\\s?[0-9]+일)");
+        Matcher fullMatcher = fullDateRange.matcher(fullMatch);
+        if (fullMatcher.find()) {
+            LocalDate startDate = parseDateString(fullMatcher.group(1));
+            LocalDate endDate = parseDateString(fullMatcher.group(2));
+            
+            if (startDate != null) request.setStartDate(startDate);
+            if (endDate != null) request.setEndDate(endDate);
         }
     }
     
