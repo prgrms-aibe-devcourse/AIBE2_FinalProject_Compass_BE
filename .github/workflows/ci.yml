@@ -68,6 +68,8 @@ jobs:
         DB_PASSWORD: test_password
         REDIS_HOST: localhost
         REDIS_PORT: 6379
+        JWT_ACCESS_SECRET: test-access-secret-key-for-ci-testing-purposes-256-bit
+        JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci-testing-purposes-256-bit
       run: ./gradlew test
 
     - name: Build application

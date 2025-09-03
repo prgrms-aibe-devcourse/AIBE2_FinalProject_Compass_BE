@@ -3,12 +3,13 @@ package com.compass.domain.trip;
 import com.compass.domain.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
@@ -22,12 +23,10 @@ import java.util.UUID;
 @Table(name = "trips")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SQLDelete(sql = "UPDATE trips SET deleted_at = NOW() WHERE id = ?")
-@Where(clause = "deleted_at IS NULL")
+@SQLRestriction("deleted_at IS NULL")
 public class Trip extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+
 
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID tripUuid = UUID.randomUUID();
@@ -64,8 +63,11 @@ public class Trip extends BaseEntity {
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TripDetail> details = new ArrayList<>();
 
-    @Builder
+    // Lombok @Builder가 자동으로 생성하므로 수동 생성자 제거
+
+    // Constructor for DTO usage
     public Trip(Long userId, Long threadId, String title, String destination, LocalDate startDate, LocalDate endDate, Integer numberOfPeople, Integer totalBudget, String status, String tripMetadata) {
+        this.tripUuid = UUID.randomUUID(); // Initialize final field
         this.userId = userId;
         this.threadId = threadId;
         this.title = title;
@@ -74,8 +76,9 @@ public class Trip extends BaseEntity {
         this.endDate = endDate;
         this.numberOfPeople = numberOfPeople;
         this.totalBudget = totalBudget;
-        this.status = (status != null) ? status : "PLANNING";
+        this.status = status;
         this.tripMetadata = tripMetadata;
+        this.details = new ArrayList<>();
     }
 
     public void addDetail(TripDetail detail) {

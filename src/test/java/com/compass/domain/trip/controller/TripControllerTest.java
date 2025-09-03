@@ -20,7 +20,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.springframework.transaction.annotation.Transactional;
 
 import com.compass.domain.trip.dto.TripCreate;
-import com.compass.domain.trip.repository.TripRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest
@@ -35,8 +34,9 @@ class TripControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Autowired
-    private TripRepository tripRepository;
+    // Repository removed as it's not used in current tests
+    // @Autowired
+    // private TripRepository tripRepository;
 
     @DisplayName("새로운 여행 계획을 생성한다.")
     @Test

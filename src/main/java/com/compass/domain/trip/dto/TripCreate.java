@@ -32,34 +32,26 @@ public class TripCreate {
             @Valid List<DailyPlan> dailyPlans
     ) {
         public Trip toTripEntity() {
-            Trip trip = Trip.builder()
-                    .userId(userId)
-                    .threadId(threadId)
-                    .title(title)
-                    .destination(destination)
-                    .startDate(startDate)
-                    .endDate(endDate)
-                    .numberOfPeople(numberOfPeople)
-                    .totalBudget(totalBudget)
-                    .build();
+            Trip trip = new Trip(userId, threadId, title, destination, startDate, endDate, numberOfPeople, totalBudget, "PLANNING", "");
 
             if (this.dailyPlans != null) {
                 List<TripDetail> tripDetails = this.dailyPlans.stream()
                         .flatMap(dailyPlan -> dailyPlan.activities().stream()
-                                .map(activity -> TripDetail.builder()
-                                        .dayNumber(dailyPlan.dayNumber())
-                                        .activityDate(dailyPlan.activityDate())
-                                        .activityTime(activity.activityTime())
-                                        .placeName(activity.placeName())
-                                        .category(activity.category())
-                                        .description(activity.description())
-                                        .estimatedCost(activity.estimatedCost())
-                                        .address(activity.address())
-                                        .latitude(activity.latitude())
-                                        .longitude(activity.longitude())
-                                        .tips(activity.tips())
-                                        .displayOrder(activity.displayOrder())
-                                        .build()))
+                                .map(activity -> new TripDetail(
+                                        dailyPlan.dayNumber(),
+                                        dailyPlan.activityDate(),
+                                        activity.activityTime(),
+                                        activity.placeName(),
+                                        activity.category(),
+                                        activity.description(),
+                                        activity.estimatedCost(),
+                                        activity.address(),
+                                        activity.latitude(),
+                                        activity.longitude(),
+                                        activity.tips(),
+                                        "",  // additionalInfo
+                                        activity.displayOrder()
+                                )))
                         .collect(Collectors.toList());
                 tripDetails.forEach(trip::addDetail);
             }
