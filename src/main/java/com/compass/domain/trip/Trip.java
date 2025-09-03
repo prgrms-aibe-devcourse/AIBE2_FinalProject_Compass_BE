@@ -1,6 +1,7 @@
 package com.compass.domain.trip;
 
 import com.compass.domain.common.BaseEntity;
+import com.compass.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -32,12 +33,13 @@ public class Trip extends BaseEntity {
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID tripUuid = UUID.randomUUID();
 
-    // TODO: 추후 User 엔티티와 연관관계 설정
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     // TODO: 추후 ChatThread 엔티티와 연관관계 설정
     private Long threadId;
-    
+
     private String title;
 
     private String destination;
@@ -50,7 +52,9 @@ public class Trip extends BaseEntity {
 
     private Integer totalBudget;
 
-    private String status = "PLANNING";
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TripStatus status;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
@@ -65,8 +69,8 @@ public class Trip extends BaseEntity {
     private List<TripDetail> details = new ArrayList<>();
 
     @Builder
-    public Trip(Long userId, Long threadId, String title, String destination, LocalDate startDate, LocalDate endDate, Integer numberOfPeople, Integer totalBudget, String status, String tripMetadata) {
-        this.userId = userId;
+    public Trip(User user, Long threadId, String title, String destination, LocalDate startDate, LocalDate endDate, Integer numberOfPeople, Integer totalBudget, TripStatus status, String tripMetadata) {
+        this.user = user;
         this.threadId = threadId;
         this.title = title;
         this.destination = destination;
@@ -74,7 +78,7 @@ public class Trip extends BaseEntity {
         this.endDate = endDate;
         this.numberOfPeople = numberOfPeople;
         this.totalBudget = totalBudget;
-        this.status = (status != null) ? status : "PLANNING";
+        this.status = (status != null) ? status : TripStatus.PLANNING;
         this.tripMetadata = tripMetadata;
     }
 

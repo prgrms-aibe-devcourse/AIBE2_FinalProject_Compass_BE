@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,8 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @TestPropertySource(properties = {
     "spring.ai.vertex.ai.gemini.project-id=test-project",
     "spring.ai.vertex.ai.gemini.location=asia-northeast3",
-    "spring.ai.openai.api-key=test-key"
+    "spring.ai.openai.api-key=test-key",
+    "jwt.access-secret=test-access-secret-key-for-chat-model-service-test-1234567890",
+    "jwt.refresh-secret=test-refresh-secret-key-for-chat-model-service-test-1234567890",
+    "jwt.access-expiration=3600000",
+    "jwt.refresh-expiration=604800000"
 })
+@ActiveProfiles("test")
 @DisplayName("ChatModelService 통합 테스트")
 class ChatModelServiceTest {
 

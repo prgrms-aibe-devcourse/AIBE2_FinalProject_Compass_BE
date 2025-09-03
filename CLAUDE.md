@@ -104,27 +104,14 @@ Spring AI dependencies are commented out by default in `build.gradle`. To enable
 ## Configuration
 
 ### Environment Variables
-```bash
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=compass
-DB_USERNAME=compass_user
-DB_PASSWORD=compass_password
+The `.env` file is required for local development. Team members can get it from:
+- **Discord #compass-backend channel** (pinned message)
+- **Team leader** via direct message
 
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# JWT (use secure keys in production)
-JWT_ACCESS_SECRET=your-256-bit-secret-key-for-access-token
-JWT_REFRESH_SECRET=your-256-bit-secret-key-for-refresh-token
-
-# AI Services (when Spring AI is enabled)
-OPENAI_API_KEY=your-openai-key
-GOOGLE_CLOUD_PROJECT_ID=your-project-id
-GOOGLE_CLOUD_LOCATION=asia-northeast3
-```
+**Important**: 
+- Never commit `.env` file to Git (it's already in `.gitignore`)
+- The `.env` file contains all necessary API keys and configurations
+- Just place it in the project root directory and it will work
 
 ### Spring Profiles
 - **default**: Local development with local DB/Redis
