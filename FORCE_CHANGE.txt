@@ -1,0 +1,2 @@
+This file is created to force a change for PR
+GitHub Desktop should definitely detect this change!
