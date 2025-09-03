@@ -121,8 +121,8 @@ class ChatInputParserTest {
         String inputBudget = "저렴하게 여행하려고 해요";
         
         // When
-        TripPlanningRequest resultLuxury = tripRequestParser.parseUserInput(inputLuxury);
-        TripPlanningRequest resultBudget = tripRequestParser.parseUserInput(inputBudget);
+        TripPlanningRequest resultLuxury = chatInputParser.parseUserInput(inputLuxury);
+        TripPlanningRequest resultBudget = chatInputParser.parseUserInput(inputBudget);
         
         // Then
         assertThat(resultLuxury.getTravelStyle()).isEqualTo("luxury");
@@ -152,9 +152,9 @@ class ChatInputParserTest {
         String inputSolo = "혼자 제주도 여행";
         
         // When
-        TripPlanningRequest resultCouple = tripRequestParser.parseUserInput(inputCouple);
-        TripPlanningRequest resultFamily = tripRequestParser.parseUserInput(inputFamily);
-        TripPlanningRequest resultSolo = tripRequestParser.parseUserInput(inputSolo);
+        TripPlanningRequest resultCouple = chatInputParser.parseUserInput(inputCouple);
+        TripPlanningRequest resultFamily = chatInputParser.parseUserInput(inputFamily);
+        TripPlanningRequest resultSolo = chatInputParser.parseUserInput(inputSolo);
         
         // Then
         assertThat(resultCouple.getNumberOfTravelers()).isEqualTo(2);
@@ -239,9 +239,9 @@ class ChatInputParserTest {
         String input3 = "예산 1000달러";
         
         // When
-        TripPlanningRequest result1 = tripRequestParser.parseUserInput(input1);
-        TripPlanningRequest result2 = tripRequestParser.parseUserInput(input2);
-        TripPlanningRequest result3 = tripRequestParser.parseUserInput(input3);
+        TripPlanningRequest result1 = chatInputParser.parseUserInput(input1);
+        TripPlanningRequest result2 = chatInputParser.parseUserInput(input2);
+        TripPlanningRequest result3 = chatInputParser.parseUserInput(input3);
         
         // Then
         assertThat(result1.getBudgetPerPerson()).isEqualTo(5000000);
