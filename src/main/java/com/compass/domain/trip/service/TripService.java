@@ -1,5 +1,7 @@
 package com.compass.domain.trip.service;
 
+import com.compass.domain.trip.Trip;
+import com.compass.domain.trip.dto.TripCreate;
 import com.compass.domain.trip.repository.TripDetailRepository;
 import com.compass.domain.trip.repository.TripRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,5 +16,10 @@ public class TripService {
     private final TripRepository tripRepository;
     private final TripDetailRepository tripDetailRepository;
 
-    // TODO: 여행 계획 생성/조회/수정/삭제 등 비즈니스 로직 구현
+    @Transactional
+    public TripCreate.Response createTrip(TripCreate.Request request) {
+        Trip trip = request.toTripEntity();
+        Trip savedTrip = tripRepository.save(trip);
+        return TripCreate.Response.from(savedTrip);
+    }
 }
