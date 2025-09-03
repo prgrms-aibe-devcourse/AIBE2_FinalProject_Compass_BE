@@ -32,7 +32,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "jwt.access-secret=test-access-secret-key-for-user-controller-test-12345678901234567890",
         "jwt.refresh-secret=test-refresh-secret-key-for-user-controller-test-12345678901234567890",
         "jwt.access-expiration=3600000",
-        "jwt.refresh-expiration=604800000"
+        "jwt.refresh-expiration=604800000",
+        // Embedded Redis 설정을 위한 포트 번호 추가
+        "spring.data.redis.port=6379"
 })
 class UserControllerTest {
 
@@ -94,7 +96,7 @@ class UserControllerTest {
         // then
         resultActions
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Email already exists."))
+                .andExpect(jsonPath("$.message").value("이미 존재하는 이메일입니다.")) // UserService의 예외 메시지와 일치시킵니다.
                 .andDo(print());
     }
 
@@ -113,7 +115,7 @@ class UserControllerTest {
         // then
         resultActions
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Invalid email format."))
+                .andExpect(jsonPath("$.message").value("잘못된 이메일 형식입니다.")) // @Valid의 기본 메시지 또는 커스텀 메시지와 일치시킵니다.
                 .andDo(print());
     }
 
@@ -139,6 +141,7 @@ class UserControllerTest {
         resultActions
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").exists())
+                .andExpect(jsonPath("$.refreshToken").exists()) // refreshToken 존재 여부도 검증합니다.
                 .andDo(print());
     }
 
@@ -152,7 +155,7 @@ class UserControllerTest {
         // when & then
         mockMvc.perform(post("/api/users/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("User not found."));
+                .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 일치하지 않습니다.")); // 보안을 위해 통합된 메시지를 검증합니다.
     }
 
     @Test
@@ -171,6 +174,6 @@ class UserControllerTest {
         // when & then
         mockMvc.perform(post("/api/users/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Invalid password."));
+                .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 일치하지 않습니다.")); // 보안을 위해 통합된 메시지를 검증합니다.
     }
 }

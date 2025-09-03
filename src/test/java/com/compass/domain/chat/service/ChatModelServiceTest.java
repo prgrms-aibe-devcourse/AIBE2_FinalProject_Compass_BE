@@ -19,13 +19,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 @SpringBootTest
 @TestPropertySource(properties = {
-    "spring.ai.vertex.ai.gemini.project-id=test-project",
-    "spring.ai.vertex.ai.gemini.location=asia-northeast3",
-    "spring.ai.openai.api-key=test-key",
-    "jwt.access-secret=test-access-secret-key-for-chat-model-service-test-1234567890",
-    "jwt.refresh-secret=test-refresh-secret-key-for-chat-model-service-test-1234567890",
-    "jwt.access-expiration=3600000",
-    "jwt.refresh-expiration=604800000"
+   "spring.ai.vertex.ai.gemini.project-id=test-project",
+   "spring.ai.vertex.ai.gemini.location=asia-northeast3",
+   "spring.ai.openai.api-key=test-key",
+   "jwt.access-secret=test-access-secret-key-for-chat-model-service-test-1234567890", "jwt.refresh-secret=test-refresh-secret-key-for-chat-model-service-test-1234567890", "jwt.access-expiration=3600000", "jwt.refresh-expiration=604800000",
+   "spring.data.redis.port=63790" // 테스트용 Redis 포트 설정
+
+
 })
 @ActiveProfiles("test")
 @DisplayName("ChatModelService 통합 테스트")
