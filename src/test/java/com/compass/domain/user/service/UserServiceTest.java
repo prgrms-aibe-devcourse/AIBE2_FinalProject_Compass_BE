@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
@@ -40,12 +41,12 @@ class UserServiceTest {
         // given
         UserDto.SignUpRequest signUpRequest = new UserDto.SignUpRequest("test@example.com", "password123", "testuser");
 
-        User user = User.builder()
-                .id(1L)
+        User user = User.builder() // ID가 없는 User 객체 생성
                 .email(signUpRequest.getEmail())
                 .password("encodedPassword")
                 .nickname(signUpRequest.getNickname())
                 .build();
+        ReflectionTestUtils.setField(user, "id", 1L); // 테스트를 위해 리플렉션으로 ID 설정
 
         when(userRepository.existsByEmail(signUpRequest.getEmail())).thenReturn(false);
         when(passwordEncoder.encode(signUpRequest.getPassword())).thenReturn("encodedPassword");
@@ -84,7 +85,7 @@ class UserServiceTest {
 
         when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())).thenReturn(true);
-        when(jwtTokenProvider.createToken(user.getEmail())).thenReturn("test.access.token");
+        when(jwtTokenProvider.createAccessToken(user.getEmail())).thenReturn("test.access.token");
 
         // when
         UserDto.LoginResponse response = userService.login(loginRequest);
