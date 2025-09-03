@@ -32,7 +32,7 @@ public class TripCreate {
             @Valid List<DailyPlan> dailyPlans
     ) {
         public Trip toTripEntity() {
-            Trip trip = new Trip(userId, threadId, title, destination, startDate, endDate, numberOfPeople, totalBudget, "PLANNING", "");
+            Trip trip = new Trip(threadId, title, destination, startDate, endDate, numberOfPeople, totalBudget, "PLANNING", "");
 
             if (this.dailyPlans != null) {
                 List<TripDetail> tripDetails = this.dailyPlans.stream()

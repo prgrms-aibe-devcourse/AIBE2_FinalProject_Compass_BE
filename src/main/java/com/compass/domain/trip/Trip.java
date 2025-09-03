@@ -1,12 +1,14 @@
 package com.compass.domain.trip;
 
 import com.compass.domain.common.BaseEntity;
+import com.compass.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
@@ -22,6 +24,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "trips")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @SQLDelete(sql = "UPDATE trips SET deleted_at = NOW() WHERE id = ?")
 @SQLRestriction("deleted_at IS NULL")
 public class Trip extends BaseEntity {
@@ -29,10 +33,14 @@ public class Trip extends BaseEntity {
 
 
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
+    @Builder.Default
     private UUID tripUuid = UUID.randomUUID();
 
-    // TODO: 추후 User 엔티티와 연관관계 설정
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    // userId는 user.getId()로 대체됨 - 중복 매핑 제거
 
     // TODO: 추후 ChatThread 엔티티와 연관관계 설정
     private Long threadId;
@@ -49,7 +57,10 @@ public class Trip extends BaseEntity {
 
     private Integer totalBudget;
 
-    private String status = "PLANNING";
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Setter
+    private TripStatus status = TripStatus.PLANNING;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
@@ -61,13 +72,13 @@ public class Trip extends BaseEntity {
     private LocalDateTime deletedAt;
 
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<TripDetail> details = new ArrayList<>();
 
     // Lombok @Builder가 자동으로 생성하므로 수동 생성자 제거
 
-    // Constructor for DTO usage
-    public Trip(Long userId, Long threadId, String title, String destination, LocalDate startDate, LocalDate endDate, Integer numberOfPeople, Integer totalBudget, String status, String tripMetadata) {
-        this.userId = userId;
+    // Constructor for DTO usage - userId 제거됨
+    public Trip(Long threadId, String title, String destination, LocalDate startDate, LocalDate endDate, Integer numberOfPeople, Integer totalBudget, String status, String tripMetadata) {
         this.threadId = threadId;
         this.title = title;
         this.destination = destination;
@@ -75,7 +86,16 @@ public class Trip extends BaseEntity {
         this.endDate = endDate;
         this.numberOfPeople = numberOfPeople;
         this.totalBudget = totalBudget;
-        this.status = (status != null) ? status : "PLANNING";
+        // Convert String status to TripStatus enum
+        if (status != null) {
+            try {
+                this.status = TripStatus.valueOf(status);
+            } catch (IllegalArgumentException e) {
+                this.status = TripStatus.PLANNING;
+            }
+        } else {
+            this.status = TripStatus.PLANNING;
+        }
         this.tripMetadata = tripMetadata;
         this.details = new ArrayList<>();
     }
@@ -84,4 +104,6 @@ public class Trip extends BaseEntity {
         details.add(detail);
         detail.setTrip(this);
     }
+
+
 }
