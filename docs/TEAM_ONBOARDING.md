@@ -8,48 +8,23 @@ git clone https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE
 cd AIBE2_FinalProject_Compass_BE
 ```
 
-### 2단계: 환경 변수 설정
-```bash
-# .env 파일 생성
-cp .env.example .env
-```
+### 2단계: .env 파일 설치
 
-### 3단계: GitHub Secrets 값 가져오기
+#### Discord에서 .env 파일 다운로드
+1. **Discord #compass-backend 채널** 접속
+2. **고정 메시지**에서 `.env` 파일 다운로드
+3. 다운로드한 파일을 **프로젝트 루트**에 복사
 
-#### 방법 A: GitHub 웹사이트에서 직접 복사
-1. [GitHub Secrets 페이지](https://github.com/prgrms-aibe-devcourse/AIBE2_FinalProject_Compass_BE/settings/secrets/actions) 접속
-2. 다음 값들을 `.env` 파일에 복사:
-   - `OPENAI_API_KEY` → `.env`의 OPENAI_API_KEY
-   - `GOOGLE_CREDENTIALS_BASE64` → `.env`의 GOOGLE_CREDENTIALS_BASE64
+**주의**: `.env` 파일은 절대 Git에 커밋하지 마세요!
 
-#### 방법 B: 팀 리더에게 요청
-Slack/Discord로 다음 메시지 전송:
-```
-안녕하세요! Compass 프로젝트 개발 환경 설정 중입니다.
-GitHub Secrets 값을 공유해주실 수 있을까요?
-- OPENAI_API_KEY
-- GOOGLE_CREDENTIALS_BASE64
-```
-
-### 4단계: 로컬에서 Google Cloud 인증 설정
-
-`.env` 파일에 GitHub Secrets 값을 추가한 후:
+### 3단계: Docker 서비스 시작
 
 ```bash
-# Base64 디코딩하여 JSON 파일 생성
-echo "$GOOGLE_CREDENTIALS_BASE64" | base64 -d > gcp-key.json
-
-# 환경 변수 설정
-export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/gcp-key.json"
+# PostgreSQL과 Redis 시작
+docker-compose up -d postgres redis
 ```
 
-또는 스크립트 사용:
-```bash
-# 자동 설정 스크립트 실행
-./scripts/setup-local-env.sh
-```
-
-### 5단계: 애플리케이션 실행
+### 4단계: 애플리케이션 실행
 
 #### Docker를 사용하는 경우:
 ```bash
@@ -66,7 +41,7 @@ source .env
 docker-compose up -d
 ```
 
-### 6단계: 동작 확인
+### 5단계: 동작 확인
 ```bash
 # Health Check
 curl http://localhost:8080/health
@@ -110,8 +85,7 @@ echo "$GOOGLE_CREDENTIALS_BASE64" | base64 -d > gcp-key.json
 
 - [ ] GitHub Repository 접근 권한 확인
 - [ ] `.env` 파일 생성
-- [ ] GitHub Secrets 값 복사
-- [ ] Google Cloud 인증 파일 생성
+- [ ] Discord에서 .env 파일 다운로드
 - [ ] Docker/Docker Compose 설치
 - [ ] Java 17 설치
 - [ ] 애플리케이션 실행 확인
