@@ -67,7 +67,6 @@ public class Trip extends BaseEntity {
 
     // Constructor for DTO usage
     public Trip(Long userId, Long threadId, String title, String destination, LocalDate startDate, LocalDate endDate, Integer numberOfPeople, Integer totalBudget, String status, String tripMetadata) {
-        this.tripUuid = UUID.randomUUID(); // Initialize final field
         this.userId = userId;
         this.threadId = threadId;
         this.title = title;
@@ -76,7 +75,7 @@ public class Trip extends BaseEntity {
         this.endDate = endDate;
         this.numberOfPeople = numberOfPeople;
         this.totalBudget = totalBudget;
-        this.status = status;
+        this.status = (status != null) ? status : "PLANNING";
         this.tripMetadata = tripMetadata;
         this.details = new ArrayList<>();
     }

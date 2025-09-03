@@ -51,6 +51,14 @@ services:
       DB_PASSWORD: compass_password
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # AI Services
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-test-key}
+      GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID:-test-project}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/credentials.json
+    volumes:
+      - ./travelagent-468611-1ae0c9d4e187.json:/app/credentials.json:ro
+      - ./logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy

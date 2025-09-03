@@ -8,6 +8,15 @@ spring:
     host: redis
     port: 6379
     
+  ai:
+    vertex:
+      ai:
+        gemini:
+          location: us-central1
+          chat:
+            options:
+              model: gemini-2.0-flash
+    
 logging:
   level:
     com.compass: INFO

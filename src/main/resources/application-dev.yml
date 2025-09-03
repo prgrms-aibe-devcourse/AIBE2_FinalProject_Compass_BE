@@ -1,0 +1,86 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+      
+  datasource:
+    url: jdbc:postgresql://localhost:5432/compass_dev
+    username: compass_user
+    password: compass_password
+    
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        
+  redis:
+    host: localhost
+    port: 6379
+    
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.7
+          max-tokens: 2000
+    
+    vertex:
+      ai:
+        gemini:
+          project-id: ${GOOGLE_CLOUD_PROJECT_ID}
+          location: asia-northeast3
+          chat:
+            options:
+              model: gemini-2.0-flash
+              temperature: 0.7
+              max-output-tokens: 2048
+              top-p: 0.95
+              top-k: 40
+    
+    # Redis Vector Store Configuration for Development
+    vectorstore:
+      redis:
+        index: compass-embeddings-dev
+        prefix: "compass-dev:"
+        
+logging:
+  level:
+    com.compass: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.ai: DEBUG
+    
+# Development-specific settings
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: always
+    include-exception: true
+    
+# Actuator endpoints for development
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+      
+# Swagger/OpenAPI for development
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    try-it-out-enabled: true
+    operations-sorter: method
+    tags-sorter: alpha

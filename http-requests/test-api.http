@@ -1,0 +1,76 @@
+### Compass Backend API Tests
+### IntelliJ HTTP Client로 테스트하세요!
+
+### 1. Health Check
+GET http://localhost:8080/health
+
+### 2. API Configuration Check
+GET http://localhost:8080/api/test/config
+
+### 3. Simple Hello Test
+GET http://localhost:8080/api/test/hello
+
+### 4. Test Gemini API - Simple
+POST http://localhost:8080/api/test/gemini
+Content-Type: application/json
+
+{
+  "prompt": "안녕하세요"
+}
+
+### 5. Test Gemini API - Travel Question
+POST http://localhost:8080/api/test/gemini
+Content-Type: application/json
+
+{
+  "prompt": "제주도 2박 3일 여행 일정을 간단히 추천해주세요."
+}
+
+### 6. Test OpenAI API (if configured)
+POST http://localhost:8080/api/test/openai
+Content-Type: application/json
+
+{
+  "prompt": "Hello, how are you?"
+}
+
+### ===== Authentication Tests (나중에 구현) =====
+
+### Register User (TODO)
+# POST http://localhost:8080/api/auth/signup
+# Content-Type: application/json
+#
+# {
+#   "email": "test@example.com",
+#   "password": "password123",
+#   "name": "Test User"
+# }
+
+### Login (TODO)
+# POST http://localhost:8080/api/auth/login
+# Content-Type: application/json
+#
+# {
+#   "email": "test@example.com",
+#   "password": "password123"
+# }
+
+### ===== Chat Tests (나중에 구현) =====
+
+### Create Chat Thread (TODO)
+# POST http://localhost:8080/api/chat/threads
+# Authorization: Bearer {{auth_token}}
+# Content-Type: application/json
+#
+# {
+#   "title": "여행 계획"
+# }
+
+### Send Message (TODO)
+# POST http://localhost:8080/api/chat/threads/1/messages
+# Authorization: Bearer {{auth_token}}
+# Content-Type: application/json
+#
+# {
+#   "content": "제주도 여행 추천해주세요"
+# }
