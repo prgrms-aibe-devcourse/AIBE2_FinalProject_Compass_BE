@@ -1,6 +1,7 @@
 package com.compass.domain.trip;
 
 import com.compass.domain.common.BaseEntity;
+import com.compass.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -34,7 +35,11 @@ public class Trip extends BaseEntity {
     @Builder.Default
     private UUID tripUuid = UUID.randomUUID();
 
-    // TODO: 추후 User 엔티티와 연관관계 설정
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    // 호환성을 위한 userId (추후 제거 예정)
     private Long userId;
 
     // TODO: 추후 ChatThread 엔티티와 연관관계 설정
