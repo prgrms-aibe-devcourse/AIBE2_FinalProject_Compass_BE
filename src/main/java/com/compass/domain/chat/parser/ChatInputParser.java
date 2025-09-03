@@ -3,6 +3,7 @@ package com.compass.domain.chat.parser;
 import com.compass.domain.chat.dto.TripPlanningRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -26,10 +27,13 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ChatInputParser {
 
     private final ChatModel chatModel;
+    
+    public ChatInputParser(@Qualifier("vertexAiGeminiChat") ChatModel chatModel) {
+        this.chatModel = chatModel;
+    }
     
     // Date patterns
     private static final Pattern DATE_PATTERN = Pattern.compile(
