@@ -62,8 +62,7 @@ public class Trip extends BaseEntity {
     @Setter
     private TripStatus status = TripStatus.PLANNING;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "TEXT")
     private String tripMetadata;
 
     @Version
@@ -79,6 +78,7 @@ public class Trip extends BaseEntity {
 
     // Constructor for DTO usage - userId 제거됨
     public Trip(Long threadId, String title, String destination, LocalDate startDate, LocalDate endDate, Integer numberOfPeople, Integer totalBudget, String status, String tripMetadata) {
+        this.tripUuid = UUID.randomUUID(); // UUID 초기화 추가
         this.threadId = threadId;
         this.title = title;
         this.destination = destination;
@@ -96,13 +96,17 @@ public class Trip extends BaseEntity {
         } else {
             this.status = TripStatus.PLANNING;
         }
-        this.tripMetadata = tripMetadata;
+        this.tripMetadata = (tripMetadata != null && !tripMetadata.isEmpty()) ? tripMetadata : null;
         this.details = new ArrayList<>();
     }
 
     public void addDetail(TripDetail detail) {
         details.add(detail);
         detail.setTrip(this);
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
 
