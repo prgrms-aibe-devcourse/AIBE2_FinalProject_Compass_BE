@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:compass}
     username: ${DB_USERNAME:compass_user}
-    password: ${DB_PASSWORD:password}
+    password: ${DB_PASSWORD:compass_password}
     driver-class-name: org.postgresql.Driver
     
   jpa:
@@ -22,11 +22,64 @@ spring:
     port: ${REDIS_PORT:6379}
     
   security:
+    user:
+      name: user
+      password: password
     jwt:
       access-secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-key-for-access-token}
       refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-key-for-refresh-token}
       access-expiration: 3600000  # 1 hour
       refresh-expiration: 604800000  # 7 days
+
+
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - profile
+              - email
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET} # 시크릿 키를 사용하는 경우에만 추가
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - profile_nickname
+              - account_email
+            client-name: Kakao
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+      
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.7
+    
+    vertex:
+      ai:
+        gemini:
+          project-id: ${GOOGLE_CLOUD_PROJECT_ID}
+          location: ${GOOGLE_CLOUD_LOCATION:us-central1}
+          chat:
+            options:
+              model: gemini-2.0-flash
+              temperature: 0.7
+    
+    vectorstore:
+      redis:
+        index: compass-embeddings
+        prefix: "compass:"
 
 server:
   port: 8080

@@ -1,0 +1,66 @@
+# application.yml (in src/test/resources)
+
+# ===============================================
+# 1. JWT 설정 추가 (가장 중요한 수정)
+# ===============================================
+jwt:
+  secret: your-super-secret-key-for-testing-purpose-which-is-long-enough
+
+spring:
+  datasource:
+    # ===============================================
+    # 2. H2를 PostgreSQL 호환 모드로 변경 (두 번째로 중요한 수정)
+    # ===============================================
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        # ========================================================
+        # [핵심 수정] H2 데이터베이스를 사용하므로 H2 Dialect로 변경
+        # ========================================================
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+    show-sql: false
+    # database-platform은 dialect와 중복되므로 제거하거나 H2Dialect를 유지해도 괜찮습니다.
+    # 보통은 dialect 설정만으로 충분합니다.
+
+  redis:
+    host: localhost
+    port: 6379
+
+  # AI 관련 설정은 테스트 시에 필요 없다면 주석 처리해도 좋습니다.
+  # 이렇게 하면 외부 API 호출 시도를 막아 테스트가 더 빨라지고 안정적이 됩니다.
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:test-api-key}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.7
+
+    vertex:
+      ai:
+        gemini:
+          project-id: travelagent-468611
+          location: us-central1
+          chat:
+            options:
+              model: gemini-2.0-flash
+              temperature: 0.7
+
+    vectorstore:
+      redis:
+        index: compass-test-embeddings
+        prefix: "compass-test:"
+
+logging:
+  level:
+    com.compass: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: INFO
