@@ -15,13 +15,18 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.compass.domain.trip.dto.TripCreate;
+import com.compass.domain.user.entity.User;
+import com.compass.domain.user.enums.Role;
+import com.compass.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.junit.jupiter.api.BeforeEach;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -45,9 +50,22 @@ class TripControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    // Repository removed as it's not used in current tests
-    // @Autowired
-    // private TripRepository tripRepository;
+    @Autowired
+    private UserRepository userRepository;
+
+    private User testUser;
+
+    @BeforeEach
+    void setUp() {
+        // 테스트용 사용자 생성
+        testUser = User.builder()
+                .email("test@example.com")
+                .password("password")
+                .nickname("테스트유저")
+                .role(Role.USER)
+                .build();
+        testUser = userRepository.save(testUser);
+    }
 
     @DisplayName("새로운 여행 계획을 생성한다.")
     @Test
@@ -61,12 +79,12 @@ class TripControllerTest {
         );
 
         TripCreate.DailyPlan dailyPlan = new TripCreate.DailyPlan(
-                1, LocalDate.of(2024, 9, 1), List.of(activity)
+                1, LocalDate.of(2025, 12, 1), List.of(activity)
         );
 
         TripCreate.Request request = new TripCreate.Request(
-                1L, 101L, "서울 3박 4일 여행", "서울",
-                LocalDate.of(2024, 9, 1), LocalDate.of(2024, 9, 4),
+                testUser.getId(), 101L, "서울 3박 4일 여행", "서울",
+                LocalDate.of(2025, 12, 1), LocalDate.of(2025, 12, 4),
                 2, 1000000, List.of(dailyPlan)
         );
 
@@ -121,6 +139,136 @@ class TripControllerTest {
                 )
                 .andDo(print())
                 .andExpect(status().isBadRequest());
+    }
+
+    @DisplayName("존재하는 여행 계획을 조회한다.")
+    @Test
+    @WithMockUser
+    void getTripById() throws Exception {
+        // given - 먼저 여행 계획을 생성
+        TripCreate.Activity activity = new TripCreate.Activity(
+                LocalTime.of(9, 0), "경복궁", "관광지", "조선 왕조의 법궁",
+                3000, "서울특별시 종로구 사직로 161", 37.579617, 126.977041,
+                "한복을 입으면 무료 입장", 1
+        );
+
+        TripCreate.DailyPlan dailyPlan = new TripCreate.DailyPlan(
+                1, LocalDate.of(2025, 12, 1), List.of(activity)
+        );
+
+        TripCreate.Request request = new TripCreate.Request(
+                testUser.getId(), 101L, "서울 3박 4일 여행", "서울",
+                LocalDate.of(2025, 12, 1), LocalDate.of(2025, 12, 4),
+                2, 1000000, List.of(dailyPlan)
+        );
+
+        // 여행 계획 생성
+        var createResult = mockMvc.perform(post("/api/trips")
+                        .content(objectMapper.writeValueAsString(request))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf())
+                )
+                .andDo(print()) // 응답 내용 출력
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        // 생성된 여행 계획의 ID를 응답에서 추출
+        String responseContent = createResult.getResponse().getContentAsString();
+        var responseJson = objectMapper.readTree(responseContent);
+        Long tripId = responseJson.get("id").asLong();
+
+        // when & then - 여행 계획 조회
+        mockMvc.perform(get("/api/trips/{tripId}", tripId)
+                        .with(csrf())
+                )
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(tripId))
+                .andExpect(jsonPath("$.title").value("서울 3박 4일 여행"))
+                .andExpect(jsonPath("$.destination").value("서울"))
+                .andExpect(jsonPath("$.dailyPlans").isArray())
+                .andExpect(jsonPath("$.dailyPlans[0].activities[0].placeName").value("경복궁"));
+    }
+
+    @DisplayName("존재하지 않는 여행 계획을 조회하면 404 에러가 발생한다.")
+    @Test
+    @WithMockUser
+    void getTripByIdNotFound() throws Exception {
+        // given
+        Long nonExistentTripId = 999L;
+
+        // when & then
+        mockMvc.perform(get("/api/trips/{tripId}", nonExistentTripId)
+                        .with(csrf())
+                )
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("TRIP_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").exists());
+    }
+
+    @DisplayName("사용자의 여행 계획 목록을 조회한다.")
+    @Test
+    @WithMockUser
+    void getTripsByUserId() throws Exception {
+        // given - 먼저 여행 계획을 생성
+        TripCreate.Activity activity = new TripCreate.Activity(
+                LocalTime.of(9, 0), "경복궁", "관광지", "조선 왕조의 법궁",
+                3000, "서울특별시 종로구 사직로 161", 37.579617, 126.977041,
+                "한복을 입으면 무료 입장", 1
+        );
+
+        TripCreate.DailyPlan dailyPlan = new TripCreate.DailyPlan(
+                1, LocalDate.of(2025, 12, 1), List.of(activity)
+        );
+
+        TripCreate.Request request = new TripCreate.Request(
+                testUser.getId(), 101L, "서울 3박 4일 여행", "서울",
+                LocalDate.of(2025, 12, 1), LocalDate.of(2025, 12, 4),
+                2, 1000000, List.of(dailyPlan)
+        );
+
+        // 여행 계획 생성
+        mockMvc.perform(post("/api/trips")
+                        .content(objectMapper.writeValueAsString(request))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf())
+                );
+
+        // when & then - 사용자의 여행 계획 목록 조회
+        mockMvc.perform(get("/api/trips")
+                        .param("userId", testUser.getId().toString())
+                        .param("page", "0")
+                        .param("size", "10")
+                        .with(csrf())
+                )
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].title").value("서울 3박 4일 여행"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @DisplayName("잘못된 사용자 ID로 여행 계획 목록을 조회하면 빈 목록을 반환한다.")
+    @Test
+    @WithMockUser
+    void getTripsByUserIdEmpty() throws Exception {
+        // given
+        Long nonExistentUserId = 999L;
+
+        // when & then
+        mockMvc.perform(get("/api/trips")
+                        .param("userId", nonExistentUserId.toString())
+                        .param("page", "0")
+                        .param("size", "10")
+                        .with(csrf())
+                )
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 }
 
