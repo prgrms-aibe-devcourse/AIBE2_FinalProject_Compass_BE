@@ -3,6 +3,7 @@ package com.compass.domain.user.service;
 import com.compass.config.jwt.JwtTokenProvider;
 import com.compass.domain.user.dto.UserDto;
 import com.compass.domain.user.entity.User;
+import com.compass.domain.user.enums.Role;
 import com.compass.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,6 +28,7 @@ public class UserService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname())
+                .role(Role.USER) // 신규 가입자에게 USER 권한부여
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -47,7 +49,7 @@ public class UserService {
             throw new IllegalArgumentException("Invalid password.");
         }
 
-        String accessToken = jwtTokenProvider.createToken(user.getEmail());
+        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail());
 
         return UserDto.LoginResponse.builder()
                 .accessToken(accessToken)

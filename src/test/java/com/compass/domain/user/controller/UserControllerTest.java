@@ -1,6 +1,7 @@
 package com.compass.domain.user.controller;
 
 import com.compass.domain.user.dto.UserDto;
+import com.compass.domain.user.enums.Role;
 import com.compass.domain.user.entity.User;
 import com.compass.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 @ActiveProfiles("test") // 테스트 시 'test' 프로필을 활성화하여 application-test.yml을 사용하도록 설정
+@TestPropertySource(properties = {
+        "jwt.access-secret=test-access-secret-key-for-user-controller-test-12345678901234567890",
+        "jwt.refresh-secret=test-refresh-secret-key-for-user-controller-test-12345678901234567890",
+        "jwt.access-expiration=3600000",
+        "jwt.refresh-expiration=604800000"
+})
 class UserControllerTest {
 
     @Autowired
@@ -69,7 +77,12 @@ class UserControllerTest {
     @DisplayName("회원가입 API 실패 - 중복된 이메일")
     void signUp_api_fail_duplicateEmail() throws Exception {
         // given
-        userRepository.save(User.builder().email("test@example.com").password("any").nickname("any").build());
+        userRepository.save(User.builder()
+                .email("test@example.com")
+                .password("any")
+                .nickname("any")
+                .role(Role.USER)
+                .build());
         UserDto.SignUpRequest request = new UserDto.SignUpRequest("test@example.com", "password123", "testuser");
         String requestBody = objectMapper.writeValueAsString(request);
 
@@ -108,7 +121,12 @@ class UserControllerTest {
     @DisplayName("로그인 API 성공")
     void login_api_success() throws Exception {
         // given
-        userRepository.save(User.builder().email("test@example.com").password(passwordEncoder.encode("password123")).nickname("testuser").build());
+        userRepository.save(User.builder()
+                .email("test@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("testuser")
+                .role(Role.USER)
+                .build());
         UserDto.LoginRequest request = new UserDto.LoginRequest("test@example.com", "password123");
         String requestBody = objectMapper.writeValueAsString(request);
 
@@ -141,7 +159,12 @@ class UserControllerTest {
     @DisplayName("로그인 API 실패 - 비밀번호 불일치")
     void login_api_fail_invalidPassword() throws Exception {
         // given
-        userRepository.save(User.builder().email("test@example.com").password(passwordEncoder.encode("password123")).nickname("testuser").build());
+        userRepository.save(User.builder()
+                .email("test@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("testuser")
+                .role(Role.USER)
+                .build());
         UserDto.LoginRequest request = new UserDto.LoginRequest("test@example.com", "wrongpassword");
         String requestBody = objectMapper.writeValueAsString(request);
 
