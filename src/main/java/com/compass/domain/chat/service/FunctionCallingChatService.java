@@ -1,18 +1,13 @@
 package com.compass.domain.chat.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.function.FunctionCallback;
-import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel;
 import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -30,17 +25,21 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "spring.ai", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class FunctionCallingChatService {
 
     private final List<FunctionCallback> functionCallbacks;
-    
-    @Qualifier("openAiChatModel")
     private final ChatModel openAiChatModel;
-    
-    @Qualifier("vertexAiGeminiChatModel")
     private final ChatModel geminiChatModel;
+    
+    public FunctionCallingChatService(
+            List<FunctionCallback> functionCallbacks,
+            @Qualifier("openAiChatModel") ChatModel openAiChatModel,
+            @Qualifier("vertexAiGeminiChat") ChatModel geminiChatModel) {
+        this.functionCallbacks = functionCallbacks;
+        this.openAiChatModel = openAiChatModel;
+        this.geminiChatModel = geminiChatModel;
+    }
 
     /**
      * Process a chat message with function calling capabilities using OpenAI
