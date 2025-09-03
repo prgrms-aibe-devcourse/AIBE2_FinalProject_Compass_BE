@@ -83,3 +83,89 @@ public class Trip extends BaseEntity {
         detail.setTrip(this);
     }
 }
+[1mdiff --git a/src/main/java/com/compass/config/SwaggerConfig.java b/src/main/java/com/compass/config/SwaggerConfig.java[m
+[1mindex 190799e..d0724a3 100644[m
+[1m--- a/src/main/java/com/compass/config/SwaggerConfig.java[m
+[1m+++ b/src/main/java/com/compass/config/SwaggerConfig.java[m
+[36m@@ -1,65 +1,33 @@[m
+ package com.compass.config;[m
+ [m
+[31m-import io.swagger.v3.oas.models.Components;[m
+ import io.swagger.v3.oas.models.OpenAPI;[m
+[31m-import io.swagger.v3.oas.models.info.Contact;[m
+ import io.swagger.v3.oas.models.info.Info;[m
+[31m-import io.swagger.v3.oas.models.info.License;[m
+[31m-import io.swagger.v3.oas.models.security.SecurityRequirement;[m
+[32m+[m[32mimport io.swagger.v3.oas.models.info.Contact;[m
+[32m+[m[32mimport io.swagger.v3.oas.models.Components;[m
+ import io.swagger.v3.oas.models.security.SecurityScheme;[m
+[31m-import io.swagger.v3.oas.models.servers.Server;[m
+[31m-import org.springframework.beans.factory.annotation.Value;[m
+[32m+[m[32mimport io.swagger.v3.oas.models.security.SecurityRequirement;[m
+ import org.springframework.context.annotation.Bean;[m
+ import org.springframework.context.annotation.Configuration;[m
+ [m
+[31m-import java.util.List;[m
+[31m-[m
+[31m-/**[m
+[31m- * Swagger/OpenAPI Configuration[m
+[31m- */[m
+ @Configuration[m
+ public class SwaggerConfig {[m
+[31m-    [m
+[31m-    @Value("${spring.application.name:Compass}")[m
+[31m-    private String applicationName;[m
+[31m-    [m
+[32m+[m
+     @Bean[m
+[31m-    public OpenAPI openAPI() {[m
+[31m-        // JWT Security Scheme[m
+[31m-        SecurityScheme securityScheme = new SecurityScheme()[m
+[31m-                .type(SecurityScheme.Type.HTTP)[m
+[31m-                .scheme("bearer")[m
+[31m-                .bearerFormat("JWT")[m
+[31m-                .in(SecurityScheme.In.HEADER)[m
+[31m-                .name("Authorization");[m
+[31m-        [m
+[31m-        // Security Requirement[m
+[31m-        SecurityRequirement securityRequirement = new SecurityRequirement()[m
+[31m-                .addList("bearerAuth");[m
+[31m-        [m
+[31m-        // Server Configuration[m
+[31m-        Server localServer = new Server()[m
+[31m-                .url("http://localhost:8080")[m
+[31m-                .description("Local Development Server");[m
+[31m-        [m
+[31m-        Server prodServer = new Server()[m
+[31m-                .url("https://api.compass.com")[m
+[31m-                .description("Production Server");[m
+[31m-        [m
+[32m+[m[32m    public OpenAPI customOpenAPI() {[m
+         return new OpenAPI()[m
+                 .info(new Info()[m
+[31m-                        .title(applicationName + " API")[m
+[31m-                        .description("AI-powered personalized travel planning service API")[m
+[32m+[m[32m                        .title("Compass API")[m
+[32m+[m[32m                        .description("여행 계획 생성 및 관리 API - Updated")[m
+                         .version("1.0.0")[m
+                         .contact(new Contact()[m
+                                 .name("Compass Team")[m
+[31m-                                .email("team@compass.com"))[m
+[31m-                        .license(new License()[m
+[31m-                                .name("Apache 2.0")[m
+[31m-                                .url("http://www.apache.org/licenses/LICENSE-2.0")))[m
+[31m-                .servers(List.of(localServer, prodServer))[m
+[32m+[m[32m                                .email("contact@compass.com")))[m
+                 .components(new Components()[m
+[31m-                        .addSecuritySchemes("bearerAuth", securityScheme))[m
+[31m-                .security(List.of(securityRequirement));[m
+[32m+[m[32m                        .addSecuritySchemes("bearerAuth",[m
+[32m+[m[32m                                new SecurityScheme()[m
+[32m+[m[32m                                        .type(SecurityScheme.Type.HTTP)[m
+[32m+[m[32m                                        .scheme("bearer")[m
+[32m+[m[32m                                        .bearerFormat("JWT")))[m
+[32m+[m[32m                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"));[m
+     }[m
+[31m-}[m
+\ No newline at end of file[m
+[32m+[m[32m}[m
