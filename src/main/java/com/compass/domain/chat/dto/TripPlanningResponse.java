@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * Response DTO for comprehensive trip planning with function calling
@@ -19,11 +20,29 @@ public class TripPlanningResponse {
     
     private String tripId;
     
+    private String planId;
+    
     private String destination;
+    
+    private String origin;
     
     private LocalDate startDate;
     
     private LocalDate endDate;
+    
+    private Integer numberOfTravelers;
+    
+    private String travelStyle;
+    
+    private String[] interests;
+    
+    private Map<String, Object> budget;
+    
+    private Map<String, Object> preferences;
+    
+    private String summary;
+    
+    private Map<String, Object> metadata;
     
     private String itinerary;
     

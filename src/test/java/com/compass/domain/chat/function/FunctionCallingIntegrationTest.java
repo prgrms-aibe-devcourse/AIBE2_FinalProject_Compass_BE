@@ -1,5 +1,6 @@
 package com.compass.domain.chat.function;
 
+import com.compass.config.IntegrationTest;
 import com.compass.domain.chat.function.model.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -19,8 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Note: This test validates that functions are properly registered as beans.
  * Actual LLM integration requires API keys and network access.
  */
-@SpringBootTest
-@ActiveProfiles("test")
+@IntegrationTest
 public class FunctionCallingIntegrationTest {
 
     @Autowired

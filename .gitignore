@@ -61,3 +61,6 @@ test-output/
 
 # Docker
 docker-compose.override.yml
+
+# Project Documentation
+CLAUDE.md

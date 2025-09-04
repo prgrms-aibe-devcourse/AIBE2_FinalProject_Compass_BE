@@ -8,8 +8,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -22,12 +24,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.anonymous;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(MediaController.class)
+@SpringBootTest
+@AutoConfigureMockMvc
+@TestPropertySource(properties = {
+    "spring.ai.openai.api-key=test-key",
+    "spring.ai.vertex.ai.gemini.project-id=test-project",
+    "spring.ai.vertex.ai.gemini.location=test-location"
+})
 class MediaControllerTest {
     
     @Autowired
@@ -35,6 +44,13 @@ class MediaControllerTest {
     
     @MockBean
     private MediaService mediaService;
+
+    // AI 서비스 빈들 모킹 (API 키가 필요하지 않도록)
+    @MockBean
+    private org.springframework.ai.openai.OpenAiChatModel openAiChatModel;
+
+    @MockBean
+    private org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel vertexAiGeminiChatModel;
     
     @Autowired
     private ObjectMapper objectMapper;
@@ -72,9 +88,9 @@ class MediaControllerTest {
             .andDo(print())
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(1L))
-            .andExpected(jsonPath("$.originalFilename").value("test.jpg"))
+            .andExpect(jsonPath("$.originalFilename").value("test.jpg"))
             .andExpect(jsonPath("$.mimeType").value("image/jpeg"))
-            .andExpected(jsonPath("$.status").value("UPLOADED"));
+            .andExpect(jsonPath("$.status").value("UPLOADED"));
     }
     
     @Test
@@ -97,9 +113,9 @@ class MediaControllerTest {
                 .file(file)
                 .with(csrf()))
             .andDo(print())
-            .andExpected(status().isBadRequest())
+            .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("File Validation Error"))
-            .andExpected(jsonPath("$.message").value("허용되지 않는 파일 형식입니다."));
+            .andExpect(jsonPath("$.message").value("허용되지 않는 파일 형식입니다."));
     }
     
     @Test
@@ -116,9 +132,10 @@ class MediaControllerTest {
         // When & Then
         mockMvc.perform(multipart("/api/media/upload")
                 .file(file)
-                .with(csrf()))
+                .with(csrf())
+                .with(anonymous()))
             .andDo(print())
-            .andExpected(status().isUnauthorized());
+            .andExpect(status().isUnauthorized());
     }
     
     @Test
@@ -127,7 +144,7 @@ class MediaControllerTest {
         // When & Then
         mockMvc.perform(get("/api/media/health"))
             .andDo(print())
-            .andExpected(status().isOk())
-            .andExpected(content().string("Media service is running"));
+            .andExpect(status().isOk())
+            .andExpect(content().string("Media service is running"));
     }
 }

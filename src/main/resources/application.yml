@@ -58,13 +58,6 @@ spring:
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
       
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 50MB
-      enabled: true
-      file-size-threshold: 2KB
-      
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}

@@ -1,6 +1,7 @@
 package com.compass.domain.media.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice(basePackages = "com.compass.domain.media")
+@Order(1)
 public class MediaExceptionHandler {
     
     @ExceptionHandler(FileValidationException.class)

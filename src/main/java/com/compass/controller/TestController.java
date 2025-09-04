@@ -5,6 +5,7 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,9 +17,11 @@ import java.util.Map;
 
 /**
  * Test controller to verify Spring AI configuration
+ * Only loaded in non-test profiles
  */
 @RestController
 @RequestMapping("/api/test")
+@Profile("!test")
 public class TestController {
 
     @Value("${spring.ai.openai.api-key:not-set}")
