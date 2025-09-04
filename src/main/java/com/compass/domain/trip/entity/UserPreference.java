@@ -23,6 +23,13 @@ import java.math.BigDecimal;
 public class UserPreference extends BaseEntity {
 
     /**
+     * 기본 키
+     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    /**
      * 사용자 ID (추후 User 엔티티와 연관관계 설정 예정)
      */
     @Column(name = "user_id", nullable = false)
