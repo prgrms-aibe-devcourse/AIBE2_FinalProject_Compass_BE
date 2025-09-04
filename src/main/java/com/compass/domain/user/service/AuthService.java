@@ -6,6 +6,7 @@ import com.compass.domain.user.dto.LoginRequestDto;
 import com.compass.domain.user.dto.SignupRequestDto;
 import com.compass.domain.user.dto.UserDto;
 import com.compass.domain.user.entity.User;
+import com.compass.domain.user.enums.Role;
 import com.compass.domain.user.exception.DuplicateEmailException;
 import com.compass.domain.user.exception.InvalidCredentialsException;
 import com.compass.domain.user.repository.UserRepository;
@@ -40,11 +41,9 @@ public class AuthService {
                 .email(signupRequest.getEmail())
                 .password(passwordEncoder.encode(signupRequest.getPassword()))
                 .nickname(signupRequest.getNickname())
-                .roles(Collections.singletonList("ROLE_USER"))
-                .provider("local")
-                .providerId(signupRequest.getEmail())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .role(Role.USER)
+                .socialType(null) // local registration doesn't have social type
+                .socialId(null)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -72,7 +71,7 @@ public class AuthService {
         }
 
         // Generate tokens
-        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getRoles());
+        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), Collections.singletonList(user.getRole().name()));
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
 
         log.info("User logged in successfully: {}", user.getEmail());
@@ -81,25 +80,25 @@ public class AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .expiresIn(jwtTokenProvider.getAccessTokenValidityInSeconds())
+                .expiresIn(jwtTokenProvider.getExpiration(accessToken))
                 .build();
     }
 
     public JwtDto refreshToken(String refreshToken) {
         // Validate refresh token
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
+        if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
             throw new BadCredentialsException("Invalid refresh token");
         }
 
         // Extract email from refresh token
-        String email = jwtTokenProvider.getUserEmail(refreshToken);
+        String email = jwtTokenProvider.getUsername(refreshToken);
 
         // Find user
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
 
         // Generate new tokens
-        String newAccessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getRoles());
+        String newAccessToken = jwtTokenProvider.createAccessToken(user.getEmail(), Collections.singletonList(user.getRole().name()));
         String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
 
         log.info("Token refreshed for user: {}", user.getEmail());
@@ -108,7 +107,7 @@ public class AuthService {
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
-                .expiresIn(jwtTokenProvider.getAccessTokenValidityInSeconds())
+                .expiresIn(jwtTokenProvider.getExpiration(newAccessToken))
                 .build();
     }
 }

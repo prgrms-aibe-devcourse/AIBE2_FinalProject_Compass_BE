@@ -39,6 +39,25 @@ public class User {
 
     private String socialId; // 소셜 로그인 ID
 
+    private String profileImageUrl;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
     @Builder
     public User(String email, String password, String nickname, Role role, SocialType socialType, String socialId) {
         this.email = email;
@@ -47,6 +66,10 @@ public class User {
         this.role = role != null ? role : Role.USER;
         this.socialType = socialType;
         this.socialId = socialId;
+    }
+
+    public String getProvider() {
+        return socialType != null ? socialType.name() : null;
     }
 
 
