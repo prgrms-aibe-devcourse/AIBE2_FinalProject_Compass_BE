@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+@Import(EmbeddedRedisConfig.class)
 @TestPropertySource(properties = {
         // Redis 설정 (CI 환경 호환)
         "spring.data.redis.host=localhost",

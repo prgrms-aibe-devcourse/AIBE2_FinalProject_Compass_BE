@@ -8,4 +8,5 @@ class CompassApplicationTests extends BaseIntegrationTest {
     @Test
     void contextLoads() {
     }
+
 }
