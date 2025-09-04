@@ -22,14 +22,8 @@ public class ExtendedFunctionCallingUnitTest {
         TravelFunctions.SearchCafes searchCafes = new TravelFunctions.SearchCafes();
         CafeSearchRequest request = new CafeSearchRequest(
             "Seoul",
-            "coffee_shop",
-            List.of("quiet", "modern"),
-            List.of("wifi", "power_outlets"),
-            "moderate",
-            5.0,
-            4.0,
-            10,
-            "rating"
+            "coffee",  // cafeType: 'coffee', 'dessert', 'brunch', 'study'
+            "moderate" // priceRange: 'budget', 'moderate', 'premium'
         );
         
         // When
@@ -56,18 +50,9 @@ public class ExtendedFunctionCallingUnitTest {
         TravelFunctions.SearchRestaurants searchRestaurants = new TravelFunctions.SearchRestaurants();
         RestaurantSearchRequest request = new RestaurantSearchRequest(
             "Seoul",
-            List.of("korean", "modern"),
-            "dinner",
-            "fine_dining",
-            null,
-            List.of("view", "private_room"),
-            List.of("elegant"),
-            2,
-            5.0,
-            4.5,
-            true,
-            10,
-            "rating"
+            "korean",  // cuisineType
+            "fine_dining",  // priceRange
+            "dinner"  // mealType
         );
         
         // When
@@ -94,20 +79,8 @@ public class ExtendedFunctionCallingUnitTest {
         TravelFunctions.SearchLeisureActivities searchActivities = new TravelFunctions.SearchLeisureActivities();
         LeisureActivityRequest request = new LeisureActivityRequest(
             "Seoul",
-            List.of("sports", "wellness"),
-            List.of("cycling", "spa"),
-            "all_levels",
-            "3_6",
-            "adults",
-            "couple",
-            "both",
-            "moderate",
-            true,
-            true,
-            10.0,
-            4.0,
-            10,
-            "rating"
+            "sports",  // activityType
+            "moderate"  // priceRange
         );
         
         // When
@@ -138,22 +111,9 @@ public class ExtendedFunctionCallingUnitTest {
         TravelFunctions.SearchCulturalExperiences searchExperiences = new TravelFunctions.SearchCulturalExperiences();
         CulturalExperienceRequest request = new CulturalExperienceRequest(
             "Seoul",
-            List.of("traditional", "culinary"),
-            List.of("tea_ceremony", "cooking_class"),
-            List.of("traditions", "cuisine"),
-            "1_3_hours",
-            "hands_on",
-            List.of("english", "korean"),
-            "small_group",
-            "authentic",
-            true,
-            true,
-            "moderate",
-            false,
-            5.0,
-            4.5,
-            10,
-            "rating"
+            "traditional",  // experienceType
+            "half-day",  // duration
+            "moderate"  // priceRange
         );
         
         // When
@@ -185,24 +145,8 @@ public class ExtendedFunctionCallingUnitTest {
         TravelFunctions.SearchExhibitions searchExhibitions = new TravelFunctions.SearchExhibitions();
         ExhibitionSearchRequest request = new ExhibitionSearchRequest(
             "Seoul",
-            List.of("art", "history"),
-            List.of("digital", "traditional"),
-            List.of("temporary", "permanent"),
-            LocalDate.now(),
-            LocalDate.now().plusMonths(3),
-            List.of("museum", "gallery"),
-            "general",
-            List.of("Monet"),
-            List.of("english", "korean"),
-            List.of("wheelchair_access"),
-            true,
-            true,
-            "moderate",
-            false,
-            10.0,
-            4.0,
-            10,
-            "popularity"
+            "art",  // exhibitionType
+            "moderate"  // entryFeeRange
         );
         
         // When
@@ -232,44 +176,41 @@ public class ExtendedFunctionCallingUnitTest {
     void testRequestModelDefaults() {
         // Given & When
         CafeSearchRequest cafeRequest = new CafeSearchRequest(
-            "Seoul", null, null, null, null, null, null, null, null
+            "Seoul", null, null
         );
         
         RestaurantSearchRequest restaurantRequest = new RestaurantSearchRequest(
-            "Seoul", null, null, null, null, null, null, null, null, null, null, null, null
+            "Seoul", null, null, null
         );
         
         LeisureActivityRequest activityRequest = new LeisureActivityRequest(
-            "Seoul", null, null, null, null, null, null, null, null, null, null, null, null, null, null
+            "Seoul", null, null
         );
         
         CulturalExperienceRequest experienceRequest = new CulturalExperienceRequest(
-            "Seoul", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+            "Seoul", null, null, null
         );
         
         ExhibitionSearchRequest exhibitionRequest = new ExhibitionSearchRequest(
-            "Seoul", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+            "Seoul", null, null
         );
         
         // Then
-        assertThat(cafeRequest.cafeType()).isEqualTo("coffee_shop");
+        assertThat(cafeRequest.cafeType()).isEqualTo("coffee");
         assertThat(cafeRequest.priceRange()).isEqualTo("moderate");
-        assertThat(cafeRequest.maxResults()).isEqualTo(10);
-        assertThat(cafeRequest.sortBy()).isEqualTo("rating");
         
+        assertThat(restaurantRequest.cuisineType()).isEqualTo("all");
         assertThat(restaurantRequest.priceRange()).isEqualTo("moderate");
-        assertThat(restaurantRequest.maxResults()).isEqualTo(10);
-        assertThat(restaurantRequest.sortBy()).isEqualTo("rating");
+        assertThat(restaurantRequest.mealType()).isEqualTo("all");
         
-        assertThat(activityRequest.difficultyLevel()).isEqualTo("all_levels");
-        assertThat(activityRequest.ageGroup()).isEqualTo("adults");
-        assertThat(activityRequest.environment()).isEqualTo("both");
+        assertThat(activityRequest.activityType()).isEqualTo("all");
+        assertThat(activityRequest.priceRange()).isEqualTo("moderate");
         
-        assertThat(experienceRequest.duration()).isEqualTo("1_3_hours");
-        assertThat(experienceRequest.participationLevel()).isEqualTo("hands_on");
-        assertThat(experienceRequest.authenticityLevel()).isEqualTo("authentic");
+        assertThat(experienceRequest.experienceType()).isEqualTo("traditional");
+        assertThat(experienceRequest.duration()).isEqualTo("half-day");
+        assertThat(experienceRequest.priceRange()).isEqualTo("moderate");
         
+        assertThat(exhibitionRequest.exhibitionType()).isEqualTo("all");
         assertThat(exhibitionRequest.entryFeeRange()).isEqualTo("moderate");
-        assertThat(exhibitionRequest.sortBy()).isEqualTo("popularity");
     }
 }

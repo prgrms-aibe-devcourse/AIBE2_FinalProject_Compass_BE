@@ -227,7 +227,7 @@ public class TravelFunctions {
         @Override
         public RestaurantSearchResponse apply(RestaurantSearchRequest request) {
             log.info("Searching restaurants in {} with cuisine: {}", 
-                request.location(), request.cuisineTypes());
+                request.location(), request.cuisineType());
             
             // Mock implementation - replace with actual restaurant API integration
             return RestaurantSearchResponse.builder()
@@ -280,8 +280,8 @@ public class TravelFunctions {
         
         @Override
         public LeisureActivityResponse apply(LeisureActivityRequest request) {
-            log.info("Searching leisure activities in {} with types: {}", 
-                request.location(), request.activityTypes());
+            log.info("Searching leisure activities in {} with type: {}", 
+                request.location(), request.activityType());
             
             // Mock implementation - replace with actual activity API integration
             return LeisureActivityResponse.builder()
@@ -334,8 +334,8 @@ public class TravelFunctions {
         
         @Override
         public CulturalExperienceResponse apply(CulturalExperienceRequest request) {
-            log.info("Searching cultural experiences in {} with focus: {}", 
-                request.location(), request.culturalFocus());
+            log.info("Searching cultural experiences in {} with type: {}", 
+                request.location(), request.experienceType());
             
             // Mock implementation - replace with actual cultural experience API integration
             return CulturalExperienceResponse.builder()
@@ -397,8 +397,8 @@ public class TravelFunctions {
         
         @Override
         public ExhibitionSearchResponse apply(ExhibitionSearchRequest request) {
-            log.info("Searching exhibitions in {} with types: {}", 
-                request.location(), request.exhibitionTypes());
+            log.info("Searching exhibitions in {} with type: {}", 
+                request.location(), request.exhibitionType());
             
             // Mock implementation - replace with actual exhibition API integration
             return ExhibitionSearchResponse.builder()
