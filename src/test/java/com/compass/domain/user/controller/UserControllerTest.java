@@ -26,7 +26,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.assertj.core.api.Assertions.assertThat;
 
 @AutoConfigureMockMvc
-@Transactional
 class UserControllerTest extends BaseIntegrationTest {
 
     @Autowired
@@ -49,7 +48,6 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
         redisTemplate.getConnectionFactory().getConnection().flushAll(); // Clear Redis before each test
     }
 
