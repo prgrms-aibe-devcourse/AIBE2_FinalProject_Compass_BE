@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
     "spring.ai.vertex.ai.gemini.location=asia-northeast3",
     "spring.ai.openai.api-key=test-key"
 })
+@ActiveProfiles("test")
 @DisplayName("ChatModelService 통합 테스트")
 class ChatModelServiceTest {
 
