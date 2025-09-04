@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -37,6 +38,7 @@ class UserPreferenceControllerTest extends BaseIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Test
+    @WithMockUser
     @DisplayName("여행 스타일 설정 API - 성공")
     void setTravelStylePreferences_Success() throws Exception {
         // Given
@@ -89,6 +91,7 @@ class UserPreferenceControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    @WithMockUser
     @DisplayName("여행 스타일 조회 API - 성공")
     void getTravelStylePreferences_Success() throws Exception {
         // Given
@@ -119,6 +122,7 @@ class UserPreferenceControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    @WithMockUser
     @DisplayName("여행 스타일 조회 API - 선호도 미설정")
     void getTravelStylePreferences_NotFound() throws Exception {
         // Given
@@ -143,6 +147,7 @@ class UserPreferenceControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    @WithMockUser
     @DisplayName("여행 스타일 수정 API - 성공")
     void updateTravelStylePreferences_Success() throws Exception {
         // Given
@@ -195,6 +200,7 @@ class UserPreferenceControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    @WithMockUser
     @DisplayName("여행 스타일 설정 API - 유효성 검증 실패")
     void setTravelStylePreferences_ValidationFailed() throws Exception {
         // Given
