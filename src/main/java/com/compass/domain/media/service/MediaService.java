@@ -1,5 +1,6 @@
 package com.compass.domain.media.service;
 
+import com.compass.domain.media.dto.MediaGetResponse;
 import com.compass.domain.media.dto.MediaUploadResponse;
 import com.compass.domain.media.entity.FileStatus;
 import com.compass.domain.media.entity.Media;
@@ -126,5 +127,43 @@ public class MediaService {
         }
         
         return metadata;
+    }
+    
+    /**
+     * 파일 정보를 조회합니다 (서명된 URL 포함)
+     */
+    @Transactional(readOnly = true)
+    public MediaGetResponse getMediaById(Long mediaId, String userId) {
+        log.info("파일 조회 시작 - ID: {}, 사용자: {}", mediaId, userId);
+        
+        // 파일 존재 여부 확인
+        Media media = mediaRepository.findById(mediaId)
+                .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
+        
+        // 권한 체크 (본인 파일인지 확인)
+        if (!media.getUserId().equals(userId)) {
+            throw new FileValidationException("파일 조회 권한이 없습니다.");
+        }
+        
+        // 삭제된 파일인지 확인
+        if (media.getDeleted() || media.getStatus() == FileStatus.DELETED) {
+            throw new FileValidationException("삭제된 파일입니다.");
+        }
+        
+        // Presigned URL 생성 (15분 만료)
+        String presignedUrl = s3Service.generatePresignedUrl(media.getS3Url(), 15);
+        
+        log.info("파일 조회 완료 - ID: {}, 사용자: {}", mediaId, userId);
+        
+        return MediaGetResponse.from(
+                media.getId(),
+                media.getOriginalFilename(),
+                media.getMimeType(),
+                media.getFileSize(),
+                presignedUrl,
+                media.getMetadata(),
+                media.getCreatedAt(),
+                media.getUpdatedAt()
+        );
     }
 }

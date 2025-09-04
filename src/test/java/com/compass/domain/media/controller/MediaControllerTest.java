@@ -1,5 +1,6 @@
 package com.compass.domain.media.controller;
 
+import com.compass.domain.media.dto.MediaGetResponse;
 import com.compass.domain.media.dto.MediaUploadResponse;
 import com.compass.domain.media.entity.FileStatus;
 import com.compass.domain.media.exception.FileValidationException;
@@ -151,5 +152,109 @@ class MediaControllerTest {
             .andDo(print())
             .andExpect(status().isOk())
             .andExpect(content().string("Media service is running"));
+    }
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("미디어 조회 성공")
+    void getMedia_Success() throws Exception {
+        // Given
+        Long mediaId = 1L;
+        MediaGetResponse mockResponse = MediaGetResponse.builder()
+            .id(mediaId)
+            .originalFilename("test.jpg")
+            .mimeType("image/jpeg")
+            .fileSize(12345L)
+            .presignedUrl("https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com/media/testuser/2023/12/01/test.jpg?X-Amz-Signature=test")
+            .metadata(new HashMap<>())
+            .createdAt(LocalDateTime.now())
+            .updatedAt(LocalDateTime.now())
+            .build();
+        
+        when(mediaService.getMediaById(eq(mediaId), eq("testuser"))).thenReturn(mockResponse);
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(mediaId))
+            .andExpect(jsonPath("$.originalFilename").value("test.jpg"))
+            .andExpect(jsonPath("$.mimeType").value("image/jpeg"))
+            .andExpect(jsonPath("$.fileSize").value(12345L))
+            .andExpect(jsonPath("$.presignedUrl").exists())
+            .andExpect(header().exists("Cache-Control"))
+            .andExpect(header().exists("ETag"));
+    }
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("미디어 조회 실패 - 존재하지 않는 ID")
+    void getMedia_NotFound() throws Exception {
+        // Given
+        Long mediaId = 999L;
+        
+        when(mediaService.getMediaById(eq(mediaId), eq("testuser")))
+            .thenThrow(new FileValidationException("파일을 찾을 수 없습니다."));
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("File Validation Error"))
+            .andExpect(jsonPath("$.message").value("파일을 찾을 수 없습니다."));
+    }
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("미디어 조회 실패 - 권한 없음")
+    void getMedia_Forbidden() throws Exception {
+        // Given
+        Long mediaId = 1L;
+        
+        when(mediaService.getMediaById(eq(mediaId), eq("testuser")))
+            .thenThrow(new FileValidationException("파일 조회 권한이 없습니다."));
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("File Validation Error"))
+            .andExpect(jsonPath("$.message").value("파일 조회 권한이 없습니다."));
+    }
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("미디어 조회 실패 - 삭제된 파일")
+    void getMedia_DeletedFile() throws Exception {
+        // Given
+        Long mediaId = 1L;
+        
+        when(mediaService.getMediaById(eq(mediaId), eq("testuser")))
+            .thenThrow(new FileValidationException("삭제된 파일입니다."));
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("File Validation Error"))
+            .andExpect(jsonPath("$.message").value("삭제된 파일입니다."));
+    }
+    
+    @Test
+    @DisplayName("미디어 조회 실패 - 인증되지 않은 사용자")
+    void getMedia_Unauthorized() throws Exception {
+        // Given
+        Long mediaId = 1L;
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf())
+                .with(anonymous()))
+            .andDo(print())
+            .andExpect(status().isUnauthorized());
     }
 }

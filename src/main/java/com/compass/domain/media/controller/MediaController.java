@@ -1,5 +1,6 @@
 package com.compass.domain.media.controller;
 
+import com.compass.domain.media.dto.MediaGetResponse;
 import com.compass.domain.media.dto.MediaUploadResponse;
 import com.compass.domain.media.service.MediaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,11 +12,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.Duration;
+import java.time.ZoneOffset;
 
 @Slf4j
 @RestController
@@ -53,6 +59,53 @@ public class MediaController {
         MediaUploadResponse response = mediaService.uploadFile(file, userId);
         
         return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/{id}")
+    @Operation(
+        summary = "파일 조회",
+        description = "업로드된 이미지 파일의 정보를 조회하고 서명된 URL을 반환합니다. (15분 만료)"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200", 
+            description = "파일 조회 성공",
+            content = @Content(schema = @Schema(implementation = MediaGetResponse.class))
+        ),
+        @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+        @ApiResponse(responseCode = "403", description = "파일 접근 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<MediaGetResponse> getMedia(
+            @Parameter(description = "조회할 미디어 ID", required = true)
+            @PathVariable Long id,
+            Authentication authentication) {
+        
+        log.info("파일 조회 요청 - 사용자: {}, 미디어 ID: {}", authentication.getName(), id);
+        
+        String userId = authentication.getName();
+        MediaGetResponse response = mediaService.getMediaById(id, userId);
+        
+        // 캐싱 헤더 설정
+        HttpHeaders headers = new HttpHeaders();
+        CacheControl cacheControl = CacheControl.maxAge(Duration.ofMinutes(15))
+                .cachePrivate()
+                .mustRevalidate();
+        headers.setCacheControl(cacheControl);
+        
+        // ETag 생성 (mediaId + updatedAt)
+        String etag = String.format("\"%d-%s\"", 
+                response.getId(), 
+                response.getUpdatedAt().toString());
+        headers.setETag(etag);
+        
+        // Last-Modified 설정 (LocalDateTime을 Instant로 변환)
+        headers.setLastModified(response.getUpdatedAt().atZone(ZoneOffset.UTC).toInstant());
+        
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(response);
     }
     
     @GetMapping("/health")
