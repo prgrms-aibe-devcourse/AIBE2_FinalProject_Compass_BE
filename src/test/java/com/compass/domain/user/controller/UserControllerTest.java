@@ -1,5 +1,6 @@
 package com.compass.domain.user.controller;
 
+import com.compass.config.BaseIntegrationTest;
 import com.compass.domain.user.dto.UserDto;
 import com.compass.domain.user.enums.Role;
 import com.compass.domain.user.entity.User;
@@ -10,11 +11,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,17 +22,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-@ActiveProfiles("test") // 테스트 시 'test' 프로필을 활성화하여 application-test.yml을 사용하도록 설정
-@TestPropertySource(properties = {
-        "jwt.access-secret=test-access-secret-key-for-user-controller-test-12345678901234567890",
-        "jwt.refresh-secret=test-refresh-secret-key-for-user-controller-test-12345678901234567890",
-        "jwt.access-expiration=3600000",
-        "jwt.refresh-expiration=604800000"
-})
-class UserControllerTest {
+class UserControllerTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
