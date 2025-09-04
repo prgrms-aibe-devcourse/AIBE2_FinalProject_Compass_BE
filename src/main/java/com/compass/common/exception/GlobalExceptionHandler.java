@@ -1,5 +1,8 @@
 package com.compass.common.exception;
 
+import com.compass.domain.trip.exception.DuplicateTravelStyleException;
+import com.compass.domain.trip.exception.InvalidWeightRangeException;
+import com.compass.domain.trip.exception.InvalidWeightSumException;
 import com.compass.domain.trip.exception.TripNotFoundException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -20,6 +23,33 @@ public class GlobalExceptionHandler {
     public ResponseEntity<TripErrorResponse> handleTripNotFoundException(TripNotFoundException ex) {
         TripErrorResponse response = new TripErrorResponse("TRIP_NOT_FOUND", ex.getMessage(), LocalDateTime.now());
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(InvalidWeightSumException.class)
+    public ResponseEntity<PreferenceErrorResponse> handleInvalidWeightSumException(InvalidWeightSumException ex) {
+        PreferenceErrorResponse response = new PreferenceErrorResponse(
+            "INVALID_WEIGHT_SUM", 
+            ex.getMessage(), 
+            LocalDateTime.now()
+        );
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidWeightRangeException.class)
+    public ResponseEntity<WeightRangeErrorResponse> handleInvalidWeightRangeException(InvalidWeightRangeException ex) {
+        WeightRangeErrorResponse response = new WeightRangeErrorResponse(
+            "INVALID_WEIGHT_RANGE", 
+            ex.getMessage(), 
+            ex.getInvalidWeights(),
+            LocalDateTime.now()
+        );
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(DuplicateTravelStyleException.class)
+    public ResponseEntity<TripErrorResponse> handleDuplicateTravelStyleException(DuplicateTravelStyleException ex) {
+        TripErrorResponse response = new TripErrorResponse("DUPLICATE_TRAVEL_STYLE", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -58,6 +88,23 @@ public class GlobalExceptionHandler {
     public static class TripErrorResponse {
         private String error;
         private String message;
+        private LocalDateTime timestamp;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class PreferenceErrorResponse {
+        private String error;
+        private String message;
+        private LocalDateTime timestamp;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class WeightRangeErrorResponse {
+        private String error;
+        private String message;
+        private java.util.List<InvalidWeightRangeException.InvalidWeight> invalidWeights;
         private LocalDateTime timestamp;
     }
 }
