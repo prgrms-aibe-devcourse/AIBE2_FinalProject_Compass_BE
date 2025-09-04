@@ -1,5 +1,6 @@
 package com.compass.domain.user.controller;
 
+import com.compass.config.IntegrationTest;
 import com.compass.config.jwt.JwtTokenProvider;
 import com.compass.domain.user.dto.UserDto;
 import com.compass.domain.user.enums.Role;
@@ -27,18 +28,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.assertj.core.api.Assertions.assertThat;
-@SpringBootTest
+
 @AutoConfigureMockMvc
-@Transactional
-@ActiveProfiles("test") // 테스트 시 'test' 프로필을 활성화하여 application-test.yml을 사용하도록 설정
-@TestPropertySource(properties = {
-        "jwt.access-secret=test-access-secret-key-for-user-controller-test-12345678901234567890",
-        "jwt.refresh-secret=test-refresh-secret-key-for-user-controller-test-12345678901234567890",
-        "jwt.access-expiration=3600000",
-        "jwt.refresh-expiration=604800000",
-        // Embedded Redis 설정을 위한 포트 번호 추가
-        "spring.data.redis.port=6379"
-})
+@IntegrationTest
 class UserControllerTest {
 
     @Autowired

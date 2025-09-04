@@ -14,14 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Spring Boot 애플리케이션 컨텍스트가 테스트 환경에서
  * 필요한 모든 설정을 포함하여 정상적으로 로드되는지 검증하는 테스트.
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@TestPropertySource(properties = {
-        "jwt.access-secret=test-access-secret-key-for-config-tests-12345678901234567890",
-        "jwt.refresh-secret=test-refresh-secret-key-for-config-tests-12345678901234567890",
-        "jwt.access-expiration=3600000",
-        "jwt.refresh-expiration=604800000"
-})
+@IntegrationTest
 @DisplayName("Configuration Tests")
 public class ConfigurationTest {
 
