@@ -1,5 +1,6 @@
 package com.compass.domain.user.controller;
 
+import com.compass.config.jwt.JwtTokenProvider;
 import com.compass.domain.user.dto.UserDto;
 import com.compass.domain.user.enums.Role;
 import com.compass.domain.user.entity.User;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -19,11 +21,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -50,9 +53,16 @@ class UserControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     @BeforeEach
     void setUp() {
         userRepository.deleteAll();
+        redisTemplate.getConnectionFactory().getConnection().flushAll(); // Clear Redis before each test
     }
 
     @Test
@@ -175,5 +185,45 @@ class UserControllerTest {
         mockMvc.perform(post("/api/users/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 일치하지 않습니다.")); // 보안을 위해 통합된 메시지를 검증합니다.
+    }
+
+    @Test
+    @DisplayName("로그아웃 API 성공")
+    void logout_api_success() throws Exception {
+        // given
+        // 테스트를 위한 사용자 및 토큰 생성
+        String userEmail = "logout@example.com";
+        userRepository.save(User.builder()
+                .email(userEmail)
+                .password(passwordEncoder.encode("password123"))
+                .nickname("logoutuser")
+                .role(Role.USER)
+                .build());
+
+        String accessToken = jwtTokenProvider.createAccessToken(userEmail);
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/users/logout")
+                .header("Authorization", "Bearer " + accessToken));
+
+        // then
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("로그아웃 되었습니다."));
+
+        // Redis에 토큰이 블랙리스트로 등록되었는지 확인
+        String blacklisted = redisTemplate.opsForValue().get("blacklist:" + accessToken);
+        assertThat(blacklisted).isEqualTo("logout");
+    }
+
+    @Test
+    @DisplayName("로그아웃 API 실패 - 잘못된 헤더 형식")
+    void logout_api_fail_badHeader() throws Exception {
+        // given & when
+        ResultActions resultActions = mockMvc.perform(post("/api/users/logout")
+                .header("Authorization", "invalid-token-format"));
+
+        // then
+        resultActions.andExpect(status().isBadRequest());
     }
 }

@@ -143,4 +143,42 @@ class UserServiceTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> userService.login(loginRequest));
         assertThat(exception.getMessage()).isEqualTo("이메일 또는 비밀번호가 일치하지 않습니다.");
     }
+
+    @Test
+    @DisplayName("로그아웃 성공")
+    void logout_success() {
+        // given
+        String accessToken = "valid.access.token";
+        long expiration = 3600000L; // 1 hour
+
+        when(jwtTokenProvider.validateAccessToken(accessToken)).thenReturn(true);
+        when(jwtTokenProvider.getExpiration(accessToken)).thenReturn(expiration);
+
+        // RedisTemplate Mocking
+        ValueOperations<String, Object> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        // when
+        userService.logout(accessToken);
+
+        // then
+        // Redis에 "blacklist:{token}" 키로 "logout"이 저장되었는지, 그리고 만료 시간이 올바르게 설정되었는지 검증
+        verify(redisTemplate.opsForValue(), times(1)).set("blacklist:" + accessToken, "logout", expiration, TimeUnit.MILLISECONDS);
+    }
+
+    @Test
+    @DisplayName("로그아웃 실패 - 유효하지 않은 토큰")
+    void logout_fail_invalidToken() {
+        // given
+        String invalidToken = "invalid.access.token";
+        when(jwtTokenProvider.validateAccessToken(invalidToken)).thenReturn(false);
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> userService.logout(invalidToken));
+        assertThat(exception.getMessage()).isEqualTo("유효하지 않은 토큰입니다.");
+        verify(redisTemplate, never()).opsForValue();
+    }
+
+
+
 }

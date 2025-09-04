@@ -45,7 +45,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        .requestMatchers("/api/users/signup", "/api/users/login").permitAll()
+                        .requestMatchers("/api/users/signup", "/api/users/login", "/api/users/logout").permitAll()
                         .requestMatchers("/api/test/**").permitAll()
                         .requestMatchers("/api/chat/**").permitAll()  // Chat endpoints for testing
                         .requestMatchers("/health").permitAll()
