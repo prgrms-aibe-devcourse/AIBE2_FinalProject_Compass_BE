@@ -1,5 +1,6 @@
 package com.compass.integration;
 
+import com.compass.config.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -20,8 +21,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 이 테스트는 실제 Google Cloud 인증이 필요합니다.
  * 환경 변수가 설정된 경우에만 실행됩니다.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
+@IntegrationTest
+@DisplayName("실제 API 통합 테스트")
 @EnabledIfEnvironmentVariable(named = "RUN_INTEGRATION_TESTS", matches = "true")
 public class RealApiIntegrationTest {
 

@@ -34,24 +34,17 @@ public class User {
     private SocialType socialType; // KAKAO, GOOGLE
 
     private String socialId; // 소셜 로그인 ID
-    private String refreshToken; // 리프레시 토큰
+
 
     @Builder
-    public User(String email, String password, String nickname, Role role, SocialType socialType, String socialId, String refreshToken) {
+    public User(String email, String password, String nickname, Role role, SocialType socialType, String socialId) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
         this.role = role;
         this.socialType = socialType;
         this.socialId = socialId;
-        this.refreshToken = refreshToken;
     }
 
-    // 추가 정보 입력을 받은 후 GUEST -> USER로 권한을 업데이트하는 메서드
-    public void authorizeUser() {
-        this.role = Role.USER;
-    }
-    public void updateRefreshToken(String refreshToken) {
-        this.refreshToken = refreshToken;
-    }
+
 }

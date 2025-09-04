@@ -62,6 +62,7 @@ The codebase is organized into three main domains, each developed independently:
    - Message CRUD operations
    - LLM integration (Gemini, GPT-4)
    - OCR functionality
+   - Function Calling with Spring AI
 
 3. **TRIP Domain** (`src/main/java/com/compass/domain/trip/`)
    - Travel planning
@@ -78,10 +79,10 @@ The codebase is organized into three main domains, each developed independently:
 - **Deployment**: Docker, AWS Elastic Beanstalk, AWS Lambda (MCP servers)
 
 ### Spring AI Integration
-Spring AI dependencies are commented out by default in `build.gradle`. To enable:
-1. Uncomment Spring AI dependencies (lines 41-43)
-2. Uncomment dependency management block (lines 70-74)
-3. Set required environment variables for OpenAI/Google Cloud
+Spring AI is currently active in `build.gradle`:
+- Lines 42-44: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
+- Lines 88-92: Dependency management for Spring AI BOM
+- Environment variables required for OpenAI/Google Cloud are loaded from `.env` file
 
 ### Key API Endpoints
 
@@ -95,6 +96,7 @@ Spring AI dependencies are commented out by default in `build.gradle`. To enable
 - GET `/api/chat/threads` - List chat threads
 - POST `/api/chat/threads/{id}/messages` - Send message
 - GET `/api/chat/threads/{id}/messages` - Get messages
+- POST `/api/chat/function` - Function calling with AI
 
 **Trip** (`/api/trips/*`):
 - POST `/api/trips` - Create trip plan
@@ -122,7 +124,7 @@ The `.env` file is required for local development. Team members can get it from:
 
 ### Branch Strategy
 - Main branch: `main`
-- Feature branches: `feature/domain-feature` (e.g., `feature/user-auth`)
+- Feature branches: `feature/domain-feature` (e.g., `feature/user-auth`, `feature/chat-function`)
 - Fix branches: `fix/domain-issue` (e.g., `fix/chat-message-error`)
 
 ### Commit Convention
@@ -138,15 +140,19 @@ The `.env` file is required for local development. Team members can get it from:
 - Integration tests for API endpoints
 - Use test containers when needed for database testing
 - Performance testing with k6 scripts
+- Test files located in `src/test/java/com/compass/`
 
 ### Code Structure Patterns
-- Each domain follows a layered architecture:
-  - `controller/` - REST API endpoints
-  - `service/` - Business logic
-  - `repository/` - Data access
-  - `entity/` - JPA entities
-  - `dto/` - Data transfer objects
-  - `exception/` - Domain-specific exceptions
+Each domain follows a layered architecture:
+- `controller/` - REST API endpoints
+- `service/` - Business logic
+- `repository/` - Data access
+- `entity/` - JPA entities
+- `dto/` - Data transfer objects
+- `exception/` - Domain-specific exceptions
+- `function/` - Spring AI function calling implementations (CHAT domain)
+- `prompt/` - Prompt templates for AI interactions (CHAT domain)
+- `parser/` - Input/output parsers for AI responses (CHAT domain)
 
 ### Database Schema
 - Users table with authentication details
@@ -165,14 +171,15 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 ## Important Notes
 
-1. **Spring AI**: Currently commented out in build.gradle - uncomment when implementing AI features
+1. **Spring AI**: Currently active and configured for Gemini 2.0 Flash and GPT-4o-mini
 2. **Docker Development**: Use `docker-compose up -d postgres redis` for DB only when developing with IDE
 3. **Health Check**: Available at `http://localhost:8080/health`
 4. **Actuator Endpoints**: Prometheus metrics at `/actuator/prometheus`
-5. **Swagger UI**: Will be available at `/swagger-ui.html` when configured
+5. **Swagger UI**: Available at `/swagger-ui.html` when running locally
 6. **Git Operations**: Do NOT perform any git commits or pushes - developer will handle all git operations manually
 7. **Developer Role**: Current developer is CHAT2 team member responsible for:
    - LLM integration (Gemini, GPT-4)
+   - Function Calling implementation
    - OCR functionality
    - RAG personalization
 8. **CHAT Domain LLM Configuration**:
@@ -199,13 +206,52 @@ Follow this strict development sequence for implementing features:
 - Update both the Mermaid diagram and table specifications
 - Keep DDL scripts synchronized with entity changes
 
+## Function Calling Architecture
+
+The CHAT domain implements Spring AI Function Calling with the following structure:
+
+### Key Components
+- **FunctionCallingConfiguration** (`chat/config/`): Bean definitions for travel functions
+- **TravelFunctions** (`chat/function/`): Implementation of travel-related functions
+- **FunctionCallingChatService** (`chat/service/`): Orchestrates AI conversations with function calls
+- **Model classes** (`chat/function/model/`): Request/Response DTOs for each function
+
+### Available Functions
+- Flight search
+- Hotel search
+- Restaurant search
+- Attraction search
+- Weather information
+- Cultural experiences
+- Leisure activities
+- Cafe search
+- Exhibition search
+
+### Prompt Templates
+The system uses a hierarchical prompt template structure:
+- **AbstractPromptTemplate**: Base template with common functionality
+- **Travel-specific templates**: 
+  - TravelPlanningPrompt
+  - TravelRecommendationPrompt
+  - DailyItineraryPrompt
+  - BudgetOptimizationPrompt
+  - DestinationDiscoveryPrompt
+  - LocalExperiencePrompt
+
 ## Project Status
 
-This is a new Spring Boot project in initial setup phase. The base structure is ready with:
-- Spring Boot application configured
+The project has evolved from initial setup to a functional AI travel assistant with:
+- Spring Boot application configured with Spring AI
 - Docker Compose for local development
 - PostgreSQL and Redis integration
-- Basic health endpoint
+- JWT authentication system
+- Function Calling implementation for travel services
+- Prompt template system for various travel scenarios
+- Integration tests for AI functionalities
 - CI/CD pipeline setup
 
-Domain implementations (USER, CHAT, TRIP) are to be developed by team members.
+Current focus areas:
+- Enhancing Function Calling capabilities
+- Implementing RAG-based personalization
+- Optimizing prompt templates for better responses
+- Expanding travel-related functions
