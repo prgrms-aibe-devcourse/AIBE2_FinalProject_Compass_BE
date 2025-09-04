@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.5'
+    id 'org.springframework.boot' version '3.3.13'
     id 'io.spring.dependency-management' version '1.1.6'
 }
 
@@ -17,7 +17,7 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
-    // 전역적으로 특정 의존성을 제외하여 로깅 라이브러리 충돌을 방지합니다.
+    // 전역적으로 충돌하는 로깅 라이브러리를 제외하여 모든 테스트 오류를 해결합니다.
     all {
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
@@ -41,44 +41,48 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    
+
     // Spring AI
     implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
     implementation 'org.springframework.ai:spring-ai-vertex-ai-gemini-spring-boot-starter'
     implementation 'org.springframework.ai:spring-ai-redis-store-spring-boot-starter'
-    
+
     // Database
     runtimeOnly 'org.postgresql:postgresql'
-    testImplementation 'com.h2database:h2'
-    
+    runtimeOnly 'com.h2database:h2' // 개발 및 테스트 환경에서 모두 사용
+
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-    
+
+    // Java 8 Date/Time support for Jackson
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
     // Monitoring
     implementation 'io.micrometer:micrometer-registry-prometheus'
-    
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-    
+
     // Development Tools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    
+
     // Dotenv loader
     implementation 'io.github.cdimascio:dotenv-java:3.0.0'
-    
+
     // Swagger/OpenAPI
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
-    
+
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
-    testImplementation 'it.ozimov:embedded-redis:0.7.3'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'com.h2database:h2'
 
-
+    // Embedded Redis for testing
+    testImplementation 'it.ozimov:embedded-redis:0.7.3'
 }
 
 // Spring AI BOM
@@ -90,6 +94,13 @@ dependencyManagement {
 
 tasks.named('test') {
     useJUnitPlatform()
+
+    // 테스트 실행 시 성공한 테스트도 표시
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = false
+        exceptionFormat = "full"
+    }
 }
 
 // JAR 파일 이름 설정
