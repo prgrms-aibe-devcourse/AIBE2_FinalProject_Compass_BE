@@ -58,6 +58,13 @@ spring:
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
       
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+      enabled: true
+      file-size-threshold: 2KB
+      
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}
@@ -80,40 +87,6 @@ spring:
       redis:
         index: compass-embeddings
         prefix: "compass:"
-
-# AWS S3 Configuration
-aws:
-  s3:
-    bucket-name: ${AWS_S3_BUCKET_NAME:compass-media-bucket}
-    region: ${AWS_S3_REGION:ap-northeast-2}
-    access-key: ${AWS_ACCESS_KEY_ID}
-    secret-key: ${AWS_SECRET_ACCESS_KEY}
-    url-expiration-minutes: ${AWS_S3_URL_EXPIRATION:60}
-
-# File Upload Configuration
-spring.servlet.multipart:
-  max-file-size: 50MB
-  max-request-size: 50MB
-  enabled: true
-
-# Application Specific Configuration
-app:
-  file:
-    max-size: 52428800  # 50MB in bytes
-    max-width: 4096     # Maximum image width in pixels
-    max-height: 4096    # Maximum image height in pixels
-    allowed-extensions: jpg,jpeg,png,gif,bmp,webp,tiff,svg
-    temp-dir: ${java.io.tmpdir}/compass-media
-  
-  ocr:
-    enabled: ${OCR_ENABLED:true}
-    tesseract:
-      path: ${TESSERACT_PATH:/usr/bin/tesseract}  # Path to tesseract executable
-      language: ${OCR_LANGUAGE:kor+eng}           # OCR languages (Korean + English)
-      timeout-seconds: ${OCR_TIMEOUT:30}          # OCR processing timeout
-    async:
-      enabled: ${OCR_ASYNC_ENABLED:true}
-      thread-pool-size: ${OCR_THREAD_POOL_SIZE:5}
 
 server:
   port: 8080

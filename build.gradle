@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.5'
+    id 'org.springframework.boot' version '3.3.13'
     id 'io.spring.dependency-management' version '1.1.6'
 }
 
@@ -26,7 +26,6 @@ repositories {
 
 ext {
     set('springAiVersion', "1.0.0-M5")
-    set('awsSdkVersion', "2.21.29")
 }
 
 dependencies {
@@ -52,9 +51,15 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    // Java 8 Date/Time support for Jackson
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     
     // Monitoring
     implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // Swagger
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
     
     // Lombok
     compileOnly 'org.projectlombok:lombok'
@@ -66,11 +71,6 @@ dependencies {
     // Dotenv loader
     implementation 'io.github.cdimascio:dotenv-java:3.0.0'
     
-    // AWS SDK for S3
-    implementation 'software.amazon.awssdk:s3'
-    implementation 'software.amazon.awssdk:auth'
-    implementation 'software.amazon.awssdk:regions'
-    
     // Swagger/OpenAPI
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
     
@@ -78,18 +78,28 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'com.h2database:h2'
+    
+    // H2 for development/testing (also available at runtime)
+    runtimeOnly 'com.h2database:h2'
 }
 
-// Spring AI BOM and AWS SDK BOM
+// Spring AI BOM
 dependencyManagement {
     imports {
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
-        mavenBom "software.amazon.awssdk:bom:${awsSdkVersion}"
     }
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    
+    // 테스트 실행 시 성공한 테스트도 표시
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = false
+        exceptionFormat = "full"
+    }
 }
 
 // JAR 파일 이름 설정

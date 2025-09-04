@@ -1,4 +1,4 @@
-# application-test.yml (in src/test/resources)
+# application.yml (in src/test/resources)
 
 # ===============================================
 # 1. JWT 설정 추가 (가장 중요한 수정)
@@ -27,6 +27,8 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
     show-sql: false
+    # database-platform은 dialect와 중복되므로 제거하거나 H2Dialect를 유지해도 괜찮습니다.
+    # 보통은 dialect 설정만으로 충분합니다.
 
   redis:
     host: localhost
@@ -56,36 +58,6 @@ spring:
       redis:
         index: compass-test-embeddings
         prefix: "compass-test:"
-
-# ===============================================
-# 3. AWS S3 테스트 설정 추가
-# ===============================================
-aws:
-  access-key-id: ${AWS_ACCESS_KEY_ID:test-access-key}
-  secret-access-key: ${AWS_SECRET_ACCESS_KEY:test-secret-key}
-  region: ${AWS_REGION:ap-northeast-2}
-  s3:
-    bucket-name: ${AWS_S3_BUCKET_NAME:test-bucket}
-
-# ===============================================
-# 4. 파일 업로드 테스트 설정
-# ===============================================
-file:
-  upload:
-    max-size: 10MB
-    allowed-extensions: jpg,jpeg,png,gif,pdf,txt,doc,docx
-    temp-dir: ${java.io.tmpdir}/compass-test
-
-# ===============================================
-# 5. OCR 테스트 설정
-# ===============================================
-ocr:
-  tesseract:
-    path: ${TESSERACT_PATH:tesseract}
-    language: ${TESSERACT_LANGUAGE:kor+eng}
-    timeout: ${OCR_TIMEOUT:30}
-  async:
-    enabled: ${OCR_ASYNC_ENABLED:false}
 
 logging:
   level:

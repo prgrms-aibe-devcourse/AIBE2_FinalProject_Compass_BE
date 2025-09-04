@@ -47,56 +47,13 @@ spring:
       redis:
         index: compass-embeddings-dev
         prefix: "compass-dev:"
-
-  # File Upload Configuration for Development
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
-      enabled: true
-        
-# AWS S3 Configuration for Development
-aws:
-  s3:
-    bucket-name: compass-media-dev-bucket
-    region: ap-northeast-2
-    # Development에서는 LocalStack 또는 MinIO 사용 가능
-    endpoint: ${AWS_S3_ENDPOINT:}  # LocalStack: http://localhost:4566
-    path-style-access: ${AWS_S3_PATH_STYLE:false}  # LocalStack: true
-    access-key: ${AWS_ACCESS_KEY_ID:test}
-    secret-key: ${AWS_SECRET_ACCESS_KEY:test}
-    url-expiration-minutes: 30
-
-# Application Specific Configuration for Development
-app:
-  file:
-    max-size: 10485760  # 10MB in bytes for development
-    max-width: 2048     # Smaller limits for development
-    max-height: 2048
-    allowed-extensions: jpg,jpeg,png,gif,bmp,webp,tiff,svg
-    temp-dir: ./temp/compass-media  # Local temp directory
-  
-  ocr:
-    enabled: true
-    tesseract:
-      path: ${TESSERACT_PATH:/usr/bin/tesseract}  # Adjust based on your development environment
-      language: kor+eng
-      timeout-seconds: 15  # Shorter timeout for development
-    async:
-      enabled: true
-      thread-pool-size: 2  # Smaller thread pool for development
         
 logging:
   level:
     com.compass: DEBUG
-    com.compass.domain.media: DEBUG
     org.springframework.web: DEBUG
-    org.springframework.web.multipart: DEBUG
     org.springframework.security: DEBUG
     org.springframework.ai: DEBUG
-    software.amazon.awssdk: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     
 # Development-specific settings
 server:

@@ -1,261 +1,84 @@
 package com.compass.domain.media.entity;
 
+import com.compass.domain.common.BaseEntity;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
+import lombok.AccessLevel;
 import lombok.Builder;
-import lombok.Builder.Default;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.Type;
+import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Map;
 
-/**
- * Media Entity - 미디어 파일 정보를 저장하는 엔티티
- * REQ-MEDIA-001~005 요구사항에 따른 파일 메타데이터 관리
- */
 @Entity
-@Table(name = "media_files")
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class Media {
+@Table(name = "media")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Media extends BaseEntity {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "file_uuid", unique = true, nullable = false)
-    private UUID fileUuid;
-    
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private String userId;
     
-    @Column(name = "original_filename", nullable = false)
+    @Column(name = "original_filename", nullable = false, length = 500)
     private String originalFilename;
     
-    @Column(name = "stored_filename", nullable = false)
+    @Column(name = "stored_filename", nullable = false, length = 500)
     private String storedFilename;
     
-    @Column(name = "file_path", nullable = false)
-    private String filePath;
+    @Column(name = "s3_url", length = 1000)
+    private String s3Url;
     
     @Column(name = "file_size", nullable = false)
     private Long fileSize;
     
-    @Column(name = "mime_type", nullable = false)
+    @Column(name = "mime_type", nullable = false, length = 100)
     private String mimeType;
     
-    @Column(name = "s3_bucket")
-    private String s3Bucket;
-    
-    @Column(name = "s3_key")
-    private String s3Key;
-    
-    @Column(name = "s3_url")
-    private String s3Url;
-    
-    @Column(name = "file_status")
     @Enumerated(EnumType.STRING)
-    private FileStatus fileStatus;
+    @Column(name = "status", nullable = false)
+    private FileStatus status;
     
-    @Column(name = "ocr_text", columnDefinition = "TEXT")
-    private String ocrText;
+    @Type(JsonBinaryType.class)
+    @Column(name = "metadata", columnDefinition = "jsonb")
+    private Map<String, Object> metadata;
     
-    @Column(name = "ocr_processed")
-    @Default
-    private Boolean ocrProcessed = false;
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
     
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-    
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-    
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
-    
-
-    
-    // 생성자
-    public Media(Long userId, String originalFilename, String storedFilename, 
-                String filePath, Long fileSize, String mimeType) {
-        this();
+    @Builder
+    public Media(String userId, String originalFilename, String storedFilename, 
+                String s3Url, Long fileSize, String mimeType, FileStatus status, 
+                Map<String, Object> metadata) {
         this.userId = userId;
         this.originalFilename = originalFilename;
         this.storedFilename = storedFilename;
-        this.filePath = filePath;
+        this.s3Url = s3Url;
         this.fileSize = fileSize;
         this.mimeType = mimeType;
+        this.status = status != null ? status : FileStatus.UPLOADED;
+        this.metadata = metadata;
+        this.deleted = false;
     }
     
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-    
-    public void setId(Long id) {
-        this.id = id;
-    }
-    
-    public UUID getFileUuid() {
-        return fileUuid;
-    }
-    
-    public void setFileUuid(UUID fileUuid) {
-        this.fileUuid = fileUuid;
-    }
-    
-    public Long getUserId() {
-        return userId;
-    }
-    
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-    
-    public String getOriginalFilename() {
-        return originalFilename;
-    }
-    
-    public void setOriginalFilename(String originalFilename) {
-        this.originalFilename = originalFilename;
-    }
-    
-    public String getStoredFilename() {
-        return storedFilename;
-    }
-    
-    public void setStoredFilename(String storedFilename) {
-        this.storedFilename = storedFilename;
-    }
-    
-    public String getFilePath() {
-        return filePath;
-    }
-    
-    public void setFilePath(String filePath) {
-        this.filePath = filePath;
-    }
-    
-    public Long getFileSize() {
-        return fileSize;
-    }
-    
-    public void setFileSize(Long fileSize) {
-        this.fileSize = fileSize;
-    }
-    
-    public String getMimeType() {
-        return mimeType;
-    }
-    
-    public void setMimeType(String mimeType) {
-        this.mimeType = mimeType;
-    }
-    
-    public String getS3Bucket() {
-        return s3Bucket;
-    }
-    
-    public void setS3Bucket(String s3Bucket) {
-        this.s3Bucket = s3Bucket;
-    }
-    
-    public String getS3Key() {
-        return s3Key;
-    }
-    
-    public void setS3Key(String s3Key) {
-        this.s3Key = s3Key;
-    }
-    
-    public String getS3Url() {
-        return s3Url;
-    }
-    
-    public void setS3Url(String s3Url) {
+    public void updateS3Url(String s3Url) {
         this.s3Url = s3Url;
     }
     
-    public FileStatus getFileStatus() {
-        return fileStatus;
+    public void updateStatus(FileStatus status) {
+        this.status = status;
     }
     
-    public void setFileStatus(FileStatus fileStatus) {
-        this.fileStatus = fileStatus;
-    }
-    
-    public String getOcrText() {
-        return ocrText;
-    }
-    
-    public void setOcrText(String ocrText) {
-        this.ocrText = ocrText;
-    }
-    
-    public Boolean getOcrProcessed() {
-        return ocrProcessed;
-    }
-    
-    public void setOcrProcessed(Boolean ocrProcessed) {
-        this.ocrProcessed = ocrProcessed;
-    }
-    
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-    
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-    
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-    
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-    
-    public LocalDateTime getDeletedAt() {
-        return deletedAt;
-    }
-    
-    public void setDeletedAt(LocalDateTime deletedAt) {
-        this.deletedAt = deletedAt;
-    }
-    
-    // 비즈니스 메서드
-    public void markAsUploaded(String s3Bucket, String s3Key, String s3Url) {
-        this.s3Bucket = s3Bucket;
-        this.s3Key = s3Key;
-        this.s3Url = s3Url;
-        this.fileStatus = FileStatus.UPLOADED;
-    }
-    
-    public void markAsProcessed() {
-        this.fileStatus = FileStatus.PROCESSED;
+    public void updateMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
     }
     
     public void markAsDeleted() {
-        this.fileStatus = FileStatus.DELETED;
-        this.deletedAt = LocalDateTime.now();
-    }
-    
-    public void updateOcrText(String ocrText) {
-        this.ocrText = ocrText;
-        this.ocrProcessed = true;
-    }
-    
-    public boolean isImage() {
-        return mimeType != null && mimeType.startsWith("image/");
-    }
-    
-    public boolean isDeleted() {
-        return FileStatus.DELETED.equals(fileStatus) || deletedAt != null;
+        this.deleted = true;
+        this.status = FileStatus.DELETED;
     }
 }

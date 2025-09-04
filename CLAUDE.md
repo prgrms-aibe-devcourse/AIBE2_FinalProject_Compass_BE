@@ -10,8 +10,11 @@ Compass is an AI-powered personalized travel planning service built with Spring 
 
 ### Development & Build
 ```bash
-# Run tests
+# Run tests (uses H2 in-memory database)
 ./gradlew test
+
+# Run specific test class
+./gradlew test --tests "com.compass.domain.trip.controller.TripControllerTest"
 
 # Build the application
 ./gradlew clean build
@@ -19,7 +22,10 @@ Compass is an AI-powered personalized travel planning service built with Spring 
 # Run application locally (ensure DB/Redis are running first)
 ./gradlew bootRun
 
-# Run only PostgreSQL and Redis (for local development with IDE)
+# Run with specific profile
+./gradlew bootRun --args='--spring.profiles.active=h2'
+
+# Run only PostgreSQL and Redis (recommended for local development)
 docker-compose up -d postgres redis
 
 # Run complete stack (PostgreSQL + Redis + Spring Boot)
@@ -72,16 +78,18 @@ The codebase is organized into three main domains, each developed independently:
 ### Technology Stack
 - **Framework**: Spring Boot 3.x with Java 17
 - **Databases**: PostgreSQL 15 (main), Redis 7 (vector store & cache)
-- **AI/ML**: Spring AI 1.0.0-M5 with Gemini 2.5 Flash/Pro, GPT-4o-mini
+- **AI/ML**: Spring AI 1.0.0-M5 with Gemini 2.0 Flash, GPT-4o-mini
 - **Security**: JWT-based authentication
 - **Monitoring**: Prometheus + Grafana with Micrometer
 - **Deployment**: Docker, AWS Elastic Beanstalk, AWS Lambda (MCP servers)
 
 ### Spring AI Integration
-Spring AI dependencies are commented out by default in `build.gradle`. To enable:
-1. Uncomment Spring AI dependencies (lines 41-43)
-2. Uncomment dependency management block (lines 70-74)
-3. Set required environment variables for OpenAI/Google Cloud
+Spring AI dependencies are **currently enabled** in `build.gradle`:
+- `spring-ai-openai-spring-boot-starter` - For OpenAI GPT models
+- `spring-ai-vertex-ai-gemini-spring-boot-starter` - For Google Gemini models  
+- `spring-ai-redis-store-spring-boot-starter` - For vector embeddings
+
+All Spring AI dependencies are active with version `1.0.0-M5`.
 
 ### Key API Endpoints
 
@@ -114,9 +122,11 @@ The `.env` file is required for local development. Team members can get it from:
 - Just place it in the project root directory and it will work
 
 ### Spring Profiles
-- **default**: Local development with local DB/Redis
+- **default**: Local development with PostgreSQL/Redis
+- **h2**: Development/testing with H2 in-memory database
 - **docker**: Running inside Docker container
 - **test**: Test environment with test databases
+- **dev**: Development environment configuration
 
 ## Development Guidelines
 
@@ -165,20 +175,23 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 ## Important Notes
 
-1. **Spring AI**: Currently commented out in build.gradle - uncomment when implementing AI features
-2. **Docker Development**: Use `docker-compose up -d postgres redis` for DB only when developing with IDE
-3. **Health Check**: Available at `http://localhost:8080/health`
-4. **Actuator Endpoints**: Prometheus metrics at `/actuator/prometheus`
-5. **Swagger UI**: Will be available at `/swagger-ui.html` when configured
-6. **Git Operations**: Do NOT perform any git commits or pushes - developer will handle all git operations manually
-7. **Developer Role**: Current developer is CHAT2 team member responsible for:
-   - LLM integration (Gemini, GPT-4)
-   - OCR functionality
-   - RAG personalization
-8. **CHAT Domain LLM Configuration**:
-   - Primary Agent: Gemini 2.5 Flash (for general chat operations)
-   - Advanced Agent: Gemini 2.5 Pro (for complex reasoning tasks)
-   - Framework: Spring AI (use Spring AI abstractions, not direct API calls)
+1. **Spring AI**: Currently **enabled** in build.gradle with full implementation
+2. **Function Calling**: Implemented with 17 travel-related functions across Tour, Weather, Hotel, and Perplexity APIs
+3. **Testing Environment**: Tests use H2 in-memory database with PostgreSQL compatibility mode
+4. **Docker Development**: Use `docker-compose up -d postgres redis` for DB only when developing with IDE
+5. **Health Check**: Available at `http://localhost:8080/health`
+6. **Actuator Endpoints**: Prometheus metrics at `/actuator/prometheus`
+7. **Swagger UI**: Available at `http://localhost:8080/swagger-ui.html`
+8. **Git Operations**: Do NOT perform any git commits or pushes - developer will handle all git operations manually
+9. **Current Implementation Status**:
+   - USER domain: Authentication/OAuth2 with JWT
+   - CHAT domain: Function calling, prompt templates, multi-LLM support
+   - TRIP domain: CRUD operations, Spring AI integration
+10. **LLM Configuration**:
+    - Primary Agent: Gemini (Google Vertex AI)
+    - Secondary Agent: GPT-4o-mini (OpenAI)
+    - Framework: Spring AI abstractions only
+    - Function Calling: 17+ travel functions implemented
 
 ## Development Methodology
 
@@ -193,18 +206,37 @@ Follow this strict development sequence for implementing features:
 
 **Important**: This order ensures proper layered architecture. Do NOT skip steps.
 
-### Database ERD Updates
-- Any structural changes to the database must be reflected in `/docs/DATABASE_ERD.md`
-- Update both the Mermaid diagram and table specifications
-- Keep DDL scripts synchronized with entity changes
+### Database Management
+- Database schema defined in JPA entities with proper relationships
+- H2 in-memory database for testing (PostgreSQL compatibility mode)
+- PostgreSQL for production/development environments
+- Redis for vector embeddings and caching
+- Any structural changes should be reflected in `/docs/DATABASE_ERD.md`
 
 ## Project Status
 
-This is a new Spring Boot project in initial setup phase. The base structure is ready with:
-- Spring Boot application configured
+This is an **advanced Spring Boot project** with significant implementation completed:
+
+### ✅ Fully Implemented
+- Spring Boot 3.x with Java 17 configured
 - Docker Compose for local development
 - PostgreSQL and Redis integration
-- Basic health endpoint
-- CI/CD pipeline setup
+- JWT authentication with OAuth2 (Google, Naver, Kakao)
+- Spring AI integration with function calling
+- Comprehensive testing setup (JUnit 5, H2, Mockito)
+- CI/CD pipeline with GitHub Actions
+- Swagger/OpenAPI documentation
+- Prometheus monitoring with Micrometer
 
-Domain implementations (USER, CHAT, TRIP) are to be developed by team members.
+### 🚧 Domain Implementation Status
+1. **USER Domain**: ✅ Complete (Auth, JWT, OAuth2, profiles)
+2. **CHAT Domain**: ✅ Complete (Function calling, prompt templates, multi-LLM)
+3. **TRIP Domain**: ✅ Complete (CRUD, Spring AI integration, testing)
+
+### 📋 Current Architecture Features
+- Multi-layer domain structure with proper separation
+- Spring AI function calling with 17+ travel functions
+- Hybrid MCP architecture (AWS Lambda + Internal APIs)
+- Redis vector store for RAG personalization
+- Comprehensive exception handling
+- Full integration testing suite
