@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -29,6 +30,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@TestPropertySource(properties = {
+        "spring.data.redis.host=localhost",
+        "spring.data.redis.port=6379",
+        "jwt.access-secret=test-access-secret-key-for-integration-test-12345678901234567890",
+        "jwt.refresh-secret=test-refresh-secret-key-for-integration-test-12345678901234567890",
+        "jwt.access-expiration=3600000",
+        "jwt.refresh-expiration=604800000"
+})
 class UserPreferenceControllerTest {
 
     @Autowired
