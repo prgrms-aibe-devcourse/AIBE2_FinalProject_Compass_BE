@@ -11,10 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -28,8 +24,8 @@ public class MediaService {
     
     private final MediaRepository mediaRepository;
     private final FileValidationService fileValidationService;
+    private final S3Service s3Service;
     
-    private static final String UPLOAD_DIR = "uploads/temp/";
     
     @Transactional
     public MediaUploadResponse uploadFile(MultipartFile file, String userId) {
@@ -39,9 +35,11 @@ public class MediaService {
         fileValidationService.validateFile(file);
         
         try {
-            // 임시 저장소에 파일 저장
+            // 저장될 파일명 생성
             String storedFilename = generateStoredFilename(file.getOriginalFilename());
-            String tempFilePath = saveFileToTempStorage(file, storedFilename);
+            
+            // S3에 파일 업로드
+            String s3Url = s3Service.uploadFile(file, userId, storedFilename);
             
             // 메타데이터 생성
             Map<String, Object> metadata = createMetadata(file);
@@ -51,7 +49,7 @@ public class MediaService {
                     .userId(userId)
                     .originalFilename(file.getOriginalFilename())
                     .storedFilename(storedFilename)
-                    .s3Url(null) // S3 업로드는 다음 단계에서 구현
+                    .s3Url(s3Url)
                     .fileSize(file.getSize())
                     .mimeType(file.getContentType())
                     .status(FileStatus.UPLOADED)
@@ -60,7 +58,7 @@ public class MediaService {
             
             Media savedMedia = mediaRepository.save(media);
             
-            log.info("파일 업로드 완료 - ID: {}, 파일명: {}", savedMedia.getId(), storedFilename);
+            log.info("파일 업로드 완료 - ID: {}, S3 URL: {}", savedMedia.getId(), s3Url);
             
             return MediaUploadResponse.from(
                     savedMedia.getId(),
@@ -74,7 +72,7 @@ public class MediaService {
                     savedMedia.getCreatedAt()
             );
             
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("파일 업로드 중 오류 발생", e);
             throw new FileValidationException("파일 저장 중 오류가 발생했습니다.", e);
         }
@@ -93,19 +91,26 @@ public class MediaService {
         return lastDotIndex == -1 ? "" : filename.substring(lastDotIndex);
     }
     
-    private String saveFileToTempStorage(MultipartFile file, String storedFilename) throws IOException {
-        // 임시 저장소 디렉터리 생성
-        Path uploadPath = Paths.get(UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
+    /**
+     * 파일을 삭제합니다 (S3에서 삭제하고 DB에서 삭제 표시)
+     */
+    @Transactional
+    public void deleteFile(Long mediaId, String userId) {
+        Media media = mediaRepository.findById(mediaId)
+                .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
+        
+        if (!media.getUserId().equals(userId)) {
+            throw new FileValidationException("파일 삭제 권한이 없습니다.");
         }
         
-        // 파일 저장
-        Path filePath = uploadPath.resolve(storedFilename);
-        Files.write(filePath, file.getBytes());
+        if (media.getS3Url() != null) {
+            s3Service.deleteFile(media.getS3Url());
+        }
         
-        log.debug("임시 파일 저장 완료: {}", filePath.toString());
-        return filePath.toString();
+        media.markAsDeleted();
+        mediaRepository.save(media);
+        
+        log.info("파일 삭제 완료 - ID: {}, 사용자: {}", mediaId, userId);
     }
     
     private Map<String, Object> createMetadata(MultipartFile file) {

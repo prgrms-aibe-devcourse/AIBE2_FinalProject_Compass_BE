@@ -45,6 +45,20 @@ public class MediaExceptionHandler {
         return ResponseEntity.badRequest().body(errorResponse);
     }
     
+    @ExceptionHandler(S3UploadException.class)
+    public ResponseEntity<Map<String, Object>> handleS3UploadException(S3UploadException e) {
+        log.error("S3 업로드 중 오류 발생: {}", e.getMessage(), e);
+        
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("timestamp", LocalDateTime.now());
+        errorResponse.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        errorResponse.put("error", "S3 Upload Error");
+        errorResponse.put("message", "파일 업로드 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        errorResponse.put("path", "/api/media");
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+    
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception e) {
         log.error("미디어 처리 중 예상치 못한 오류 발생", e);

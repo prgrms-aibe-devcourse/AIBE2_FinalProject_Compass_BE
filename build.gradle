@@ -78,6 +78,10 @@ dependencies {
     // Hypersistence Utils for JSON handling
     implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.3'
 
+    // AWS S3 SDK
+    implementation 'software.amazon.awssdk:s3:2.21.29'
+    implementation 'software.amazon.awssdk:auth:2.21.29'
+
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'

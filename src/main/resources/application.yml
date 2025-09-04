@@ -101,3 +101,12 @@ logging:
     com.compass: DEBUG
     org.springframework.web: INFO
     org.springframework.security: DEBUG
+
+# AWS S3 Configuration
+aws:
+  access-key-id: ${AWS_ACCESS_KEY_ID:}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+  region: ${AWS_REGION:ap-northeast-2}
+  s3:
+    bucket-name: ${S3_BUCKET_NAME:compass-media-bucket}
+    base-url: ${S3_BASE_URL:https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com}

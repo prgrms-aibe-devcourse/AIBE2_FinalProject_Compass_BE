@@ -4,6 +4,7 @@ import com.compass.domain.media.dto.MediaUploadResponse;
 import com.compass.domain.media.entity.FileStatus;
 import com.compass.domain.media.exception.FileValidationException;
 import com.compass.domain.media.service.MediaService;
+import com.compass.domain.media.service.S3Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,9 @@ class MediaControllerTest {
     @MockBean
     private MediaService mediaService;
 
+    @MockBean
+    private S3Service s3Service;
+
     // AI 서비스 빈들 모킹 (API 키가 필요하지 않도록)
     @MockBean
     private org.springframework.ai.openai.OpenAiChatModel openAiChatModel;
@@ -71,7 +75,7 @@ class MediaControllerTest {
             .id(1L)
             .originalFilename("test.jpg")
             .storedFilename("20231201_12345678.jpg")
-            .s3Url(null)
+            .s3Url("https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com/media/testuser/2023/12/01/20231201_12345678.jpg")
             .fileSize(18L)
             .mimeType("image/jpeg")
             .status(FileStatus.UPLOADED)
@@ -90,7 +94,8 @@ class MediaControllerTest {
             .andExpect(jsonPath("$.id").value(1L))
             .andExpect(jsonPath("$.originalFilename").value("test.jpg"))
             .andExpect(jsonPath("$.mimeType").value("image/jpeg"))
-            .andExpect(jsonPath("$.status").value("UPLOADED"));
+            .andExpect(jsonPath("$.status").value("UPLOADED"))
+            .andExpect(jsonPath("$.s3Url").value("https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com/media/testuser/2023/12/01/20231201_12345678.jpg"));
     }
     
     @Test
