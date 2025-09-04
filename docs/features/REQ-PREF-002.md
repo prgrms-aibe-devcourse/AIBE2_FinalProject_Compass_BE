@@ -4,6 +4,7 @@ about: 기능명세서 기반 개발 작업을 위한 이슈 템플릿
 title: '[TRIP] REQ-PREF-002 | 예산 수준 설정'
 labels: '백엔드'
 assignees: 'TRIP1'
+status: 'COMPLETED'
 ---
 
 ## 📋 기능 개요
@@ -97,11 +98,40 @@ assignees: 'TRIP1'
 ```
 
 ## ✅ 완료 조건
-- [ ] 예산 수준 설정/수정 API 정상 동작
-- [ ] 예산 수준 조회 API 정상 동작
-- [ ] 유효하지 않은 `budgetLevel` 값에 대한 예외 처리 정상 동작
-- [ ] Swagger 문서화 완료
-- [ ] 단위 테스트 및 통합 테스트 작성 및 통과
+- [x] 예산 수준 설정/수정 API 정상 동작
+- [x] 예산 수준 조회 API 정상 동작
+- [x] 유효하지 않은 `budgetLevel` 값에 대한 예외 처리 정상 동작
+- [x] Swagger 문서화 완료
+- [x] 단위 테스트 및 통합 테스트 작성 및 통과
+
+## 🎉 구현 완료 상태
+**구현 완료일**: 2025년 9월 4일  
+**구현자**: TRIP1 팀  
+**상태**: ✅ **완료**
+
+### 📁 구현된 파일 목록
+```
+src/main/java/com/compass/domain/trip/
+├── enums/
+│   └── BudgetLevel.java                   # 예산 수준 ENUM
+├── dto/
+│   ├── BudgetRequest.java                 # 예산 요청 DTO
+│   └── BudgetResponse.java                # 예산 응답 DTO
+├── service/
+│   └── UserPreferenceService.java         # (수정) 예산 관련 로직 추가
+└── controller/
+    └── UserPreferenceController.java      # (수정) 예산 관련 엔드포인트 추가
+
+src/test/java/com/compass/domain/trip/
+├── service/
+│   └── UserPreferenceServiceTest.java     # (수정) 예산 관련 테스트 추가
+└── controller/
+    └── UserPreferenceControllerTest.java  # (수정) 예산 관련 테스트 추가
+
+docs/features/
+├── REQ-PREF-002.md                        # 기능 명세서 (본 문서)
+└── REQ-PREF-002.test.md                   # 테스트 케이스 문서
+```
 
 ## 📌 참고사항
 - `REQ-PREF-001`과 동일한 `UserPreference` 엔티티 및 테이블을 공유하므로 데이터 저장/조회 로직의 일관성을 유지합니다.

@@ -11,81 +11,180 @@ assignees: 'TRIP1'
 ## 📋 테스트 정보
 
 ### 테스트 대상
-- **클래스명**: `UserPreferenceControllerTest`, `UserPreferenceServiceTest`
-- **파일 경로**: 
-  - `src/test/java/com/compass/domain/trip/controller/UserPreferenceControllerTest.java`
-  - `src/test/java/com/compass/domain/trip/service/UserPreferenceServiceTest.java`
+- **클래스**: `UserPreferenceControllerTest`, `UserPreferenceServiceTest`
+- **주요 API**: `POST, GET, PUT /api/users/{userId}/preferences/budget-level`
 
 ### 테스트 목적
-> `POST, GET, PUT /api/users/{userId}/preferences/budget-level` API의 전체 흐름이 올바르게 동작하는지 검증합니다.
+> 예산 수준 설정 기능의 API 흐름과 비즈니스 로직의 정확성을 검증합니다.
 
-- 유효한 요청에 대해 HTTP `200 OK` 응답과 함께 데이터가 DB에 정상적으로 저장/수정/조회되는지 확인합니다.
-- 유효하지 않은 요청(유효하지 않은 값, 필수값 누락)에 대해 HTTP `400 Bad Request` 응답을 반환하며 요청을 거부하는지 확인합니다.
+- **정상 흐름**: 유효한 요청에 대해 데이터가 DB에 정상적으로 저장/수정/조회되는지 확인합니다.
+- **예외 처리**: 유효하지 않은 값, 필수값 누락 등 잘못된 요청에 대해 `400 Bad Request`를 올바르게 반환하는지 확인합니다.
 
 ---
 
 ## 🎯 테스트 케이스
 
 ### 정상 케이스 (Happy Path)
-- [ ] **케이스 1**: `POST` - 유효한 데이터로 새로운 예산 수준 설정
-    - **입력**: `{"budgetLevel": "STANDARD"}`
-    - **예상 결과**: HTTP Status `200 OK` 반환. DB에 해당 `userId`의 `BUDGET_LEVEL` 타입으로 데이터 저장.
-- [ ] **케이스 2**: `PUT` - 유효한 데이터로 기존 예산 수준 수정
-    - **입력**: `{"budgetLevel": "LUXURY"}`
-    - **예상 결과**: HTTP Status `200 OK` 반환. DB의 기존 데이터가 "LUXURY"로 업데이트됨.
-- [ ] **케이스 3**: `GET` - 설정된 예산 수준 조회
-    - **입력**: 예산 수준이 설정된 `userId`
-    - **예상 결과**: HTTP Status `200 OK` 반환 및 설정된 예산 수준(`"LUXURY"`) 정보 응답.
+- [x] **`Service-HP-01`**: 새로운 예산 수준 설정 성공 (`Service`)
+- [x] **`Service-HP-02`**: 기존 예산 수준 수정 성공 (`Service`)
+- [x] **`Service-HP-03`**: 설정된 예산 수준 조회 성공 (`Service`)
+- [x] **`Controller-HP-01`**: `POST` API - 예산 수준 설정 성공 (`Controller`)
+- [x] **`Controller-HP-02`**: `GET` API - 예산 수준 조회 성공 (`Controller`)
+- [x] **`Controller-HP-03`**: `PUT` API - 예산 수준 수정 성공 (`Controller`)
 
 ### 예외 케이스 (Exception Cases)
-- [ ] **케이스 4**: 유효하지 않은 `budgetLevel` 값으로 설정/수정
-    - **입력**: `{"budgetLevel": "INVALID_VALUE"}`
-    - **예상 결과**: HTTP Status `400 Bad Request` 반환.
-- [ ] **케이스 5**: 필수값이 누락된 데이터로 설정/수정
-    - **입력**: `{"budgetLevel": ""}` 또는 `{}`
-    - **예상 결과**: HTTP Status `400 Bad Request` 반환.
+- [x] **`Service-EC-01`**: 유효하지 않은 `BudgetLevel` 문자열로 요청 (`Service`)
+- [x] **`Controller-EC-01`**: 유효하지 않은 `budgetLevel` 값으로 API 요청 (`Controller`)
+- [x] **`Controller-EC-02`**: 필수값이 누락된 데이터로 API 요청 (`Controller`)
 
 ---
 
 ## 🔧 테스트 환경 설정
-- **의존성**: `build.gradle`에 `spring-boot-starter-test`가 포함되어 있는지 확인합니다.
-- **데이터베이스**: H2 인메모리 DB를 PostgreSQL 호환 모드로 사용합니다.
-- **보안**: `@WithMockUser`를 사용하여 인증을 통과시킵니다.
+
+- **의존성**: `build.gradle`에 `spring-boot-starter-test`, `h2database` 포함
+- **데이터베이스**: H2 인메모리 DB (PostgreSQL 호환 모드)
+- **보안**: `@WithMockUser`를 사용한 Mock 인증
+- **테스트 격리**: `@Transactional`을 사용하여 각 테스트 후 롤백
 
 ---
 
 ## 📝 테스트 코드 구조
-```java
-@SpringBootTest
-@AutoConfigureMockMvc
-@Transactional
-class UserPreferenceControllerTest extends BaseIntegrationTest {
 
+### `UserPreferenceServiceTest.java`
+```java
+@ExtendWith(MockitoExtension.class)
+class UserPreferenceServiceTest {
+    @InjectMocks
+    private UserPreferenceService userPreferenceService;
+    @Mock
+    private UserPreferenceRepository userPreferenceRepository;
+
+    @Test
+    @DisplayName("새로운 예산 수준 설정 - 성공")
+    void setBudgetLevel_Success() {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = new BudgetRequest("STANDARD");
+        when(userPreferenceRepository.findByUserIdAndPreferenceType(any(), any())).thenReturn(new ArrayList<>());
+        when(userPreferenceRepository.save(any(UserPreference.class))).thenAnswer(i -> i.getArgument(0));
+
+        // When
+        BudgetResponse response = userPreferenceService.setOrUpdateBudgetLevel(userId, request);
+
+        // Then
+        assertThat(response.getBudgetLevel()).isEqualTo("STANDARD");
+        verify(userPreferenceRepository, times(1)).save(any(UserPreference.class));
+    }
+    
+    @Test
+    @DisplayName("기존 예산 수준 수정 - 성공")
+    void updateBudgetLevel_Success() {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = BudgetRequest.builder().budgetLevel("LUXURY").build();
+        UserPreference existingPreference = UserPreference.builder().userId(userId).preferenceKey("BUDGET").build();
+        when(userPreferenceRepository.findByUserIdAndPreferenceType(userId, "BUDGET_LEVEL")).thenReturn(List.of(existingPreference));
+        when(userPreferenceRepository.save(any(UserPreference.class))).thenAnswer(i -> i.getArgument(0));
+
+        // When
+        BudgetResponse response = userPreferenceService.setOrUpdateBudgetLevel(userId, request);
+
+        // Then
+        assertThat(response.getBudgetLevel()).isEqualTo("LUXURY");
+        assertThat(existingPreference.getPreferenceKey()).isEqualTo("LUXURY");
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 BudgetLevel 문자열로 설정 요청")
+    void setBudgetLevel_InvalidLevelString() {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = BudgetRequest.builder().budgetLevel("INVALID").build();
+
+        // When & Then
+        assertThatThrownBy(() -> userPreferenceService.setOrUpdateBudgetLevel(userId, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("유효하지 않은 예산 수준입니다.");
+    }
+}
+```
+
+### `UserPreferenceControllerTest.java`
+```java
+@AutoConfigureMockMvc
+class UserPreferenceControllerTest extends BaseIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
-
     @MockBean
     private UserPreferenceService userPreferenceService;
-    
     @Autowired
     private ObjectMapper objectMapper;
 
-    @DisplayName("새로운 예산 수준을 설정한다.")
     @Test
     @WithMockUser
-    void setBudgetLevel() throws Exception {
-      // Given (준비)
-      BudgetRequest request = new BudgetRequest("STANDARD");
-      
-      // When (실행) & Then (검증)
-      mockMvc.perform(post("/api/users/1/preferences/budget-level")
-                      .content(objectMapper.writeValueAsString(request))
-                      .contentType(MediaType.APPLICATION_JSON)
-              )
-              .andExpect(status().isOk());
+    @DisplayName("POST /budget-level - 예산 수준 설정 성공")
+    void setBudgetLevel_Success() throws Exception {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = new BudgetRequest("STANDARD");
+        BudgetResponse mockResponse = BudgetResponse.from(userId, BudgetLevel.STANDARD, "...");
+        when(userPreferenceService.setOrUpdateBudgetLevel(eq(userId), any(BudgetRequest.class))).thenReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(post("/api/users/{userId}/preferences/budget-level", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.budgetLevel").value("STANDARD"));
     }
     
-    // ... (기타 GET, PUT 및 예외 케이스 테스트)
+    @Test
+    @WithMockUser
+    @DisplayName("GET /budget-level - 예산 수준 조회 성공")
+    void getBudgetLevel_Success() throws Exception {
+        // Given
+        Long userId = 1L;
+        BudgetResponse mockResponse = BudgetResponse.of(userId, BudgetLevel.LUXURY);
+        when(userPreferenceService.getBudgetLevel(userId)).thenReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(get("/api/users/{userId}/preferences/budget-level", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.budgetLevel").value("LUXURY"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PUT /budget-level - 예산 수준 수정 성공")
+    void updateBudgetLevel_Success() throws Exception {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = new BudgetRequest("BUDGET");
+        BudgetResponse mockResponse = BudgetResponse.from(userId, BudgetLevel.BUDGET, "...");
+        when(userPreferenceService.setOrUpdateBudgetLevel(eq(userId), any(BudgetRequest.class))).thenReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(put("/api/users/{userId}/preferences/budget-level", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.budgetLevel").value("BUDGET"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /budget-level - 필드 누락")
+    void setBudgetLevel_MissingField() throws Exception {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = new BudgetRequest(""); // 유효성 검증에 걸릴 빈 문자열
+
+        // When & Then
+        mockMvc.perform(post("/api/users/{userId}/preferences/budget-level", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
 }
 ```
 
@@ -93,13 +192,44 @@ class UserPreferenceControllerTest extends BaseIntegrationTest {
 
 ## 🚀 실행 방법
 ```bash
-./gradlew test --tests "com.compass.domain.trip.controller.UserPreferenceControllerTest"
+# 전체 테스트 실행
+./gradlew test
+
+# 특정 테스트만 실행
 ./gradlew test --tests "com.compass.domain.trip.service.UserPreferenceServiceTest"
+./gradlew test --tests "com.compass.domain.trip.controller.UserPreferenceControllerTest"
 ```
 
 ---
 
-## 📊 테스트 결과 (예상)
-- **JUnit 테스트**: 모든 테스트 케이스가 성공적으로 통과 (`PASSED`)
-- **Swagger UI 테스트**: API 문서화 및 수동 테스트 정상 동작
-- **최종 검증**: TBD
+## 📊 테스트 결과
+
+### ✅ 테스트 성공
+- `UserPreferenceServiceTest`: **11개 테스트 모두 성공**
+- `UserPreferenceControllerTest`: **10개 테스트 모두 성공** (기존 5개 + 신규 5개)
+
+### ⚠️ 로컬 환경 특수 문제
+- `UserControllerTest` 등 Redis를 사용하는 다른 테스트에서 로컬 Redis 서버 부재로 인한 `RedisConnectionFailureException`이 발생했습니다.
+- 이는 `REQ-PREF-002` 기능과는 무관하며, CI 환경에서는 정상 동작합니다.
+
+### 📺 테스트 실행 결과 (일부)
+```
+UserPreferenceServiceTest > 기존 예산 수준 수정 - 성공 PASSED
+UserPreferenceServiceTest > 설정된 예산 수준 조회 - 성공 PASSED
+UserPreferenceServiceTest > 새로운 예산 수준 설정 - 성공 PASSED
+UserPreferenceServiceTest > 미설정 예산 수준 조회 PASSED
+UserPreferenceServiceTest > 유효하지 않은 BudgetLevel 문자열로 설정 요청 PASSED
+
+...
+
+UserPreferenceControllerTest > POST /budget-level - 예산 수준 설정 성공 PASSED
+UserPreferenceControllerTest > GET /budget-level - 예산 수준 조회 성공 PASSED
+UserPreferenceControllerTest > PUT /budget-level - 예산 수준 수정 성공 PASSED
+UserPreferenceControllerTest > POST /budget-level - 유효하지 않은 값으로 요청 PASSED
+UserPreferenceControllerTest > POST /budget-level - 필드 누락 PASSED
+```
+
+## 🎯 최종 검증
+- **검증자**: TRIP 1
+- **검증 일시**: 2025-09-04 14:35
+- **결과**: ✅ **통과**
