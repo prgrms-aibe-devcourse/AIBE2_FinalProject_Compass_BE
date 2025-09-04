@@ -1,15 +1,20 @@
 package com.compass.config;
 
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 통합 테스트를 위한 기본 설정 클래스
  * 모든 @SpringBootTest 클래스는 이 클래스를 상속받아 일관된 테스트 환경을 보장합니다.
  */
 @SpringBootTest
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Transactional
 @TestPropertySource(properties = {
         // Redis 설정 (CI 환경 호환)
         "spring.data.redis.host=localhost",

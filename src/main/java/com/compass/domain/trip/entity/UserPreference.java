@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import com.compass.domain.trip.enums.BudgetLevel;
 
 import java.math.BigDecimal;
 
@@ -79,6 +80,12 @@ public class UserPreference extends BaseEntity {
     public void updatePreferenceValue(BigDecimal preferenceValue) {
         validatePreferenceValue(preferenceValue);
         this.preferenceValue = preferenceValue;
+    }
+
+    public void updateBudgetData(BudgetLevel budgetLevel) {
+        this.preferenceKey = budgetLevel.name();
+        this.description = budgetLevel.getDescription();
+        this.preferenceValue = BigDecimal.valueOf(1.0); // 고정값
     }
 
     /**

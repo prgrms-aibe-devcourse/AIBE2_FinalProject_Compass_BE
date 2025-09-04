@@ -25,6 +25,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.compass.domain.trip.dto.BudgetRequest;
+import com.compass.domain.trip.dto.BudgetResponse;
+import com.compass.domain.trip.enums.BudgetLevel;
+
 @AutoConfigureMockMvc
 class UserPreferenceControllerTest extends BaseIntegrationTest {
 
@@ -213,7 +217,96 @@ class UserPreferenceControllerTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/users/{userId}/preferences/travel-style", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    // ================= 예산 수준 컨트롤러 테스트 =================
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /budget-level - 예산 수준 설정 성공")
+    void setBudgetLevel_Success() throws Exception {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = BudgetRequest.builder().budgetLevel("STANDARD").build();
+        BudgetResponse mockResponse = BudgetResponse.from(userId, BudgetLevel.STANDARD, "예산 수준이 성공적으로 설정되었습니다.");
+
+        when(userPreferenceService.setOrUpdateBudgetLevel(eq(userId), any(BudgetRequest.class))).thenReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(post("/api/users/{userId}/preferences/budget-level", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.budgetLevel").value("STANDARD"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /budget-level - 예산 수준 조회 성공")
+    void getBudgetLevel_Success() throws Exception {
+        // Given
+        Long userId = 1L;
+        BudgetResponse mockResponse = BudgetResponse.of(userId, BudgetLevel.LUXURY);
+        
+        when(userPreferenceService.getBudgetLevel(userId)).thenReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(get("/api/users/{userId}/preferences/budget-level", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.budgetLevel").value("LUXURY"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PUT /budget-level - 예산 수준 수정 성공")
+    void updateBudgetLevel_Success() throws Exception {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = BudgetRequest.builder().budgetLevel("BUDGET").build();
+        BudgetResponse mockResponse = BudgetResponse.from(userId, BudgetLevel.BUDGET, "예산 수준이 성공적으로 수정되었습니다.");
+        
+        when(userPreferenceService.setOrUpdateBudgetLevel(eq(userId), any(BudgetRequest.class))).thenReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(put("/api/users/{userId}/preferences/budget-level", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.budgetLevel").value("BUDGET"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /budget-level - 유효하지 않은 값으로 요청")
+    void setBudgetLevel_InvalidValue() throws Exception {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = BudgetRequest.builder().budgetLevel("INVALID").build();
+        
+        when(userPreferenceService.setOrUpdateBudgetLevel(eq(userId), any(BudgetRequest.class)))
+                .thenThrow(new IllegalArgumentException("유효하지 않은 예산 수준입니다."));
+
+        // When & Then
+        mockMvc.perform(post("/api/users/{userId}/preferences/budget-level", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("유효하지 않은 예산 수준입니다."));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /budget-level - 필드 누락")
+    void setBudgetLevel_MissingField() throws Exception {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = BudgetRequest.builder().budgetLevel("").build();
+
+        // When & Then
+        mockMvc.perform(post("/api/users/{userId}/preferences/budget-level", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
     }
 }
