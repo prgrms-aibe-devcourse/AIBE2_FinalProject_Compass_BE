@@ -18,6 +18,7 @@ import org.springframework.util.StringUtils;
 import java.security.Key;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -54,10 +55,33 @@ public class JwtTokenProvider {
                 .signWith(accessKey, SignatureAlgorithm.HS256)
                 .compact();
     }
+    
+    public String createAccessToken(String username, List<String> roles) {
+        Claims claims = Jwts.claims().setSubject(username);
+        claims.put("roles", roles);
+        Date now = new Date();
+        return Jwts.builder()
+                .setClaims(claims)
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + accessTokenExpiration))
+                .signWith(accessKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
 
     public String createRefreshToken() {
         Date now = new Date();
         return Jwts.builder()
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + refreshTokenExpiration))
+                .signWith(refreshKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+    
+    public String createRefreshToken(String username) {
+        Claims claims = Jwts.claims().setSubject(username);
+        Date now = new Date();
+        return Jwts.builder()
+                .setClaims(claims)
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + refreshTokenExpiration))
                 .signWith(refreshKey, SignatureAlgorithm.HS256)
@@ -97,5 +121,22 @@ public class JwtTokenProvider {
         } catch (Exception e) {
             return false;
         }
+    }
+    
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parserBuilder().setSigningKey(accessKey).build().parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    public String getUserEmail(String token) {
+        return Jwts.parserBuilder().setSigningKey(accessKey).build().parseClaimsJws(token).getBody().getSubject();
+    }
+    
+    public Long getAccessTokenValidityInSeconds() {
+        return accessTokenExpiration / 1000;
     }
 }
