@@ -54,7 +54,8 @@ public class SecurityConfig {
             .oauth2Login(oauth2 -> oauth2
                     .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService)) // 사용자 정보 처리
                     .successHandler(oAuth2AuthenticationSuccessHandler) // 로그인 성공 시 처리
-                    .failureHandler(oAuth2AuthenticationFailureHandler)); // 로그인 실패 시 처리
+                    .failureHandler(oAuth2AuthenticationFailureHandler)) // 로그인 실패 시 처리
+            ;
             
         return http.build();
     }
