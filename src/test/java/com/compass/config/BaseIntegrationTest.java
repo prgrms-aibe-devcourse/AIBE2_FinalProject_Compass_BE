@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 통합 테스트를 위한 기본 설정 클래스
  * 모든 @SpringBootTest 클래스는 이 클래스를 상속받아 일관된 테스트 환경을 보장합니다.
  */
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
@@ -20,6 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
         // Redis 설정 (CI 환경 호환)
         "spring.data.redis.host=localhost",
         "spring.data.redis.port=6379",
+        "spring.data.redis.timeout=10000",
+        "spring.data.redis.lettuce.pool.max-active=8",
+        "spring.data.redis.lettuce.pool.max-idle=8",
+        "spring.data.redis.lettuce.pool.min-idle=0",
         
         // JWT 설정 (CI 환경 필수)
         "jwt.access-secret=test-access-secret-key-for-ci-integration-test-12345678901234567890",
@@ -33,9 +37,15 @@ import org.springframework.transaction.annotation.Transactional;
         "spring.ai.openai.api-key=test-key",
         
         // 데이터베이스 설정 (H2 PostgreSQL 모드)
-        "spring.datasource.url=jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+        "spring.datasource.url=jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
         "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect"
+        "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
+        "spring.jpa.defer-datasource-initialization=true",
+        
+        // 로깅 설정 (CI 환경 디버깅)
+        "logging.level.redis.embedded=WARN",
+        "logging.level.io.lettuce=WARN",
+        "logging.level.org.springframework.data.redis=WARN"
 })
 public abstract class BaseIntegrationTest {
     // 공통 테스트 설정이 필요한 경우 여기에 추가
