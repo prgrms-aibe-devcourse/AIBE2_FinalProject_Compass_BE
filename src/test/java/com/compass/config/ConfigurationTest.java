@@ -4,9 +4,6 @@ import com.compass.config.jwt.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -14,9 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Spring Boot 애플리케이션 컨텍스트가 테스트 환경에서
  * 필요한 모든 설정을 포함하여 정상적으로 로드되는지 검증하는 테스트.
  */
-@IntegrationTest
 @DisplayName("Configuration Tests")
-public class ConfigurationTest {
+public class ConfigurationTest extends BaseIntegrationTest {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
