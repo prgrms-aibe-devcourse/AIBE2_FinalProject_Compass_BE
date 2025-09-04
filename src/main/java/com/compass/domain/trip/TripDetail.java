@@ -54,8 +54,7 @@ public class TripDetail {
     @Column(columnDefinition = "TEXT")
     private String tips;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "TEXT")
     private String additionalInfo;
     
     private Integer displayOrder;

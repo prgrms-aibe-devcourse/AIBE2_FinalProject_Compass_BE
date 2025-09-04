@@ -1,13 +1,16 @@
 package com.compass.domain.chat.service;
 
+import com.compass.config.BaseIntegrationTest;
 import com.compass.domain.chat.service.impl.GeminiChatService;
 import com.compass.domain.chat.service.impl.OpenAIChatService;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -17,19 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * Spring AI Integration Tests
  * Tests for Gemini and OpenAI model integration
  */
-@SpringBootTest
-@TestPropertySource(properties = {
-    "spring.ai.vertex.ai.gemini.project-id=test-project",
-    "spring.ai.vertex.ai.gemini.location=asia-northeast3",
-    "spring.ai.openai.api-key=test-key",
-    "jwt.access-secret=test-access-secret-key-for-chat-model-service-test-1234567890",
-    "jwt.refresh-secret=test-refresh-secret-key-for-chat-model-service-test-1234567890",
-    "jwt.access-expiration=3600000",
-    "jwt.refresh-expiration=604800000"
-})
-@ActiveProfiles("test")
-@DisplayName("ChatModelService 통합 테스트")
-class ChatModelServiceTest {
+@Disabled("실제 API를 호출하므로 평소에는 비활성화")
+class ChatModelServiceTest extends BaseIntegrationTest {
 
     @Autowired(required = false)
     private GeminiChatService geminiChatService;

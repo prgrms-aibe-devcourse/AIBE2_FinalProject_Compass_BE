@@ -1,6 +1,8 @@
 package com.compass.domain.chat.function;
 
+import com.compass.config.BaseIntegrationTest;
 import com.compass.domain.chat.function.model.*;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,18 +15,17 @@ import java.util.List;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Integration tests for Spring AI Function Calling
- * Note: This test validates that functions are properly registered as beans.
- * Actual LLM integration requires API keys and network access.
- */
-@SpringBootTest
-@ActiveProfiles("test")
-public class FunctionCallingIntegrationTest {
+
+@Disabled("실제 API를 호출하므로 평소에는 비활성화")
+class FunctionCallingIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
-    private ApplicationContext applicationContext;
+    private org.springframework.context.ApplicationContext applicationContext;
+
+    @Autowired
+    private org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel chatModel;
 
     @Test
     @DisplayName("searchFlights function should be registered as a Spring bean")

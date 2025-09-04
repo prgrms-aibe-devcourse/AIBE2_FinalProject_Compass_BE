@@ -8,6 +8,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
@@ -18,6 +19,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -26,6 +28,9 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    private static final String REFRESH_TOKEN_PREFIX = "RT:";
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
@@ -55,8 +60,9 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             String accessToken = jwtTokenProvider.createAccessToken(user.getEmail());
             String refreshToken = jwtTokenProvider.createRefreshToken();
 
-            user.updateRefreshToken(refreshToken);
-            userRepository.save(user); // DB에 Refresh Token 저장
+            // Redis에 Refresh Token 저장 (DB 저장 로직 대체)
+            long refreshTokenExpiration = jwtTokenProvider.getRefreshTokenExpiration();
+            redisTemplate.opsForValue().set(REFRESH_TOKEN_PREFIX + user.getId(), refreshToken, refreshTokenExpiration, TimeUnit.MILLISECONDS);
 
             targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/login/success") // 프론트엔드 로그인 성공 URL
                     .queryParam("accessToken", accessToken)
