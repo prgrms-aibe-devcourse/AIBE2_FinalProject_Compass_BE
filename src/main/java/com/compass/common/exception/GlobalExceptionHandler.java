@@ -1,5 +1,6 @@
 package com.compass.common.exception;
 
+import com.compass.domain.trip.exception.TripNotFoundException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
@@ -8,11 +9,18 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(TripNotFoundException.class)
+    public ResponseEntity<TripErrorResponse> handleTripNotFoundException(TripNotFoundException ex) {
+        TripErrorResponse response = new TripErrorResponse("TRIP_NOT_FOUND", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
@@ -43,5 +51,13 @@ public class GlobalExceptionHandler {
     public static class ErrorResponse {
         private int status;
         private String message;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class TripErrorResponse {
+        private String error;
+        private String message;
+        private LocalDateTime timestamp;
     }
 }

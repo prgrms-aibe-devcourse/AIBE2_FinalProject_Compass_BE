@@ -25,12 +25,12 @@ class TravelPlanningPromptTest {
     @DisplayName("템플릿 기본 정보 확인")
     void testTemplateInfo() {
         assertThat(prompt.getName()).isEqualTo("travel_planning");
-        assertThat(prompt.getDescription()).contains("travel planning", "personalized itineraries");
+        assertThat(prompt.getDescription()).contains("travel planning", "duration-specific");
         assertThat(prompt.getTemplate()).contains(
             "professional travel planner",
-            "Day-by-day itinerary",
-            "Accommodation suggestions",
-            "Transportation options"
+            "{{planInclusions}}",
+            "{{durationGuidelines}}",
+            "{{durationSpecificRequirements}}"
         );
     }
     
