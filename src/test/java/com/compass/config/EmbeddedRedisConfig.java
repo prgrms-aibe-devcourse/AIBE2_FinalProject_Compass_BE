@@ -1,7 +1,5 @@
 package com.compass.config;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -11,21 +9,19 @@ import redis.embedded.RedisServer;
 @Configuration
 public class EmbeddedRedisConfig {
 
-    @Value("${spring.data.redis.port}")
-    private int redisPort;
+    private static RedisServer redisServer;
 
-    private RedisServer redisServer;
-
-    @PostConstruct
-    public void startRedis() {
-        redisServer = new RedisServer(redisPort);
-        redisServer.start();
-    }
-
-    @PreDestroy
-    public void stopRedis() {
-        if (redisServer != null) {
-            redisServer.stop();
+    // 생성자를 통해 포트 번호를 주입받습니다.
+    public EmbeddedRedisConfig(@Value("${spring.data.redis.port}") int redisPort) {
+        // synchronized 블록으로 여러 테스트가 동시에 실행되어도 딱 한 번만 서버가 실행되도록 보장합니다.
+        synchronized (EmbeddedRedisConfig.class) {
+            if (redisServer == null) {
+                redisServer = new RedisServer(redisPort);
+                redisServer.start();
+                // JVM이 종료될 때 Redis 서버도 함께 종료되도록 설정합니다.
+                Runtime.getRuntime().addShutdownHook(new Thread(redisServer::stop));
+            }
         }
     }
+
 }
