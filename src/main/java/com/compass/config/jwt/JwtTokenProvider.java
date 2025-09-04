@@ -38,6 +38,11 @@ public class JwtTokenProvider {
 
     private final UserDetailsService userDetailsService;
 
+    public long getRefreshTokenExpiration() {
+        return refreshTokenExpiration;
+    }
+
+
     @PostConstruct
     protected void init() {
         this.accessKey = Keys.hmacShaKeyFor(accessSecretKey.getBytes(StandardCharsets.UTF_8));
@@ -97,5 +102,14 @@ public class JwtTokenProvider {
         } catch (Exception e) {
             return false;
         }
+    }
+
+
+    public Long getExpiration(String accessToken) {
+        // accessToken 남은 유효시간
+        Claims claims = Jwts.parserBuilder().setSigningKey(accessKey).build().parseClaimsJws(accessToken).getBody();
+        Date expiration = claims.getExpiration();
+        long now = new Date().getTime();
+        return (expiration.getTime() - now);
     }
 }
