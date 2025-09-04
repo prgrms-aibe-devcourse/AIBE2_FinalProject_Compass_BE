@@ -1,9 +1,12 @@
 package com.compass.domain.trip.service;
 
+import com.compass.domain.trip.dto.BudgetRequest;
+import com.compass.domain.trip.dto.BudgetResponse;
 import com.compass.domain.trip.dto.TravelStyleItem;
 import com.compass.domain.trip.dto.TravelStylePreferenceRequest;
 import com.compass.domain.trip.dto.TravelStylePreferenceResponse;
 import com.compass.domain.trip.entity.UserPreference;
+import com.compass.domain.trip.enums.BudgetLevel;
 import com.compass.domain.trip.enums.TravelStyle;
 import com.compass.domain.trip.exception.DuplicateTravelStyleException;
 import com.compass.domain.trip.exception.InvalidWeightRangeException;
@@ -17,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -31,6 +35,7 @@ public class UserPreferenceService {
     private final UserPreferenceRepository userPreferenceRepository;
     
     private static final String TRAVEL_STYLE_TYPE = "TRAVEL_STYLE";
+    private static final String BUDGET_LEVEL_TYPE = "BUDGET_LEVEL";
 
     /**
      * 여행 스타일 선호도 설정
@@ -121,6 +126,39 @@ public class UserPreferenceService {
                 responseItems, 
                 "여행 스타일 선호도가 성공적으로 수정되었습니다."
         );
+    }
+    
+    // 예산 수준 설정 또는 수정
+    @Transactional
+    public BudgetResponse setOrUpdateBudgetLevel(Long userId, BudgetRequest request) {
+        BudgetLevel budgetLevel = BudgetLevel.fromString(request.getBudgetLevel());
+        if (budgetLevel == null) {
+            throw new IllegalArgumentException("유효하지 않은 예산 수준입니다.");
+        }
+
+        Optional<UserPreference> existingPreference = userPreferenceRepository.findByUserIdAndPreferenceType(userId, BUDGET_LEVEL_TYPE).stream().findFirst();
+
+        UserPreference preferenceToSave = existingPreference.orElseGet(() -> UserPreference.builder()
+                .userId(userId)
+                .preferenceType(BUDGET_LEVEL_TYPE)
+                .build());
+        
+        preferenceToSave.updateBudgetData(budgetLevel);
+
+        userPreferenceRepository.save(preferenceToSave);
+        return BudgetResponse.from(userId, budgetLevel, "예산 수준이 성공적으로 설정되었습니다.");
+    }
+    
+    // 예산 수준 조회
+    public BudgetResponse getBudgetLevel(Long userId) {
+        Optional<UserPreference> preference = userPreferenceRepository.findByUserIdAndPreferenceType(userId, BUDGET_LEVEL_TYPE).stream().findFirst();
+
+        if (preference.isPresent()) {
+            BudgetLevel budgetLevel = BudgetLevel.fromString(preference.get().getPreferenceKey());
+            return BudgetResponse.of(userId, budgetLevel);
+        } else {
+            return BudgetResponse.from(userId, null, "설정된 예산 수준이 없습니다.");
+        }
     }
 
     /**

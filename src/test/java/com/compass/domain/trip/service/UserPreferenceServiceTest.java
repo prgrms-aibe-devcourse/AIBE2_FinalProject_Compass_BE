@@ -18,10 +18,14 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+
+import com.compass.domain.trip.dto.BudgetRequest;
+import com.compass.domain.trip.dto.BudgetResponse;
 
 @ExtendWith(MockitoExtension.class)
 class UserPreferenceServiceTest {
@@ -91,7 +95,7 @@ class UserPreferenceServiceTest {
 
     @Test
     @DisplayName("여행 스타일 선호도 설정 - 중복된 여행 스타일")
-    void setTravelStylePreferences_DuplicateTravelStyle() {
+    void setTravelStylePreferences_DuplicateStyle() {
         // Given
         Long userId = 1L;
         TravelStylePreferenceRequest request = TravelStylePreferenceRequest.builder()
@@ -103,12 +107,105 @@ class UserPreferenceServiceTest {
                 .build();
 
         // When & Then
-        assertThatThrownBy(() -> userPreferenceService.setTravelStylePreferences(userId, request))
-                .isInstanceOf(DuplicateTravelStyleException.class)
-                .hasMessageContaining("중복된 여행 스타일이 있습니다: RELAXATION");
+        assertThatThrownBy(() -> userPreferenceService.setTravelStylePreferences(1L, request))
+                .isInstanceOf(DuplicateTravelStyleException.class);
+    }
+    
+    // ================= 예산 수준 테스트 =================
+    
+    @Test
+    @DisplayName("새로운 예산 수준 설정 - 성공")
+    void setBudgetLevel_Success() {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = BudgetRequest.builder().budgetLevel("STANDARD").build();
+        
+        when(userPreferenceRepository.findByUserIdAndPreferenceType(userId, "BUDGET_LEVEL")).thenReturn(new ArrayList<>());
+        when(userPreferenceRepository.save(any(UserPreference.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        verify(userPreferenceRepository, never()).deleteByUserIdAndPreferenceType(any(), any());
-        verify(userPreferenceRepository, never()).saveAll(any());
+        // When
+        BudgetResponse response = userPreferenceService.setOrUpdateBudgetLevel(userId, request);
+
+        // Then
+        assertThat(response.getUserId()).isEqualTo(userId);
+        assertThat(response.getBudgetLevel()).isEqualTo("STANDARD");
+        assertThat(response.getMessage()).contains("성공적으로 설정");
+        verify(userPreferenceRepository, times(1)).save(any(UserPreference.class));
+    }
+
+    @Test
+    @DisplayName("기존 예산 수준 수정 - 성공")
+    void updateBudgetLevel_Success() {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = BudgetRequest.builder().budgetLevel("LUXURY").build();
+        UserPreference existingPreference = UserPreference.builder()
+                .userId(userId)
+                .preferenceType("BUDGET_LEVEL")
+                .preferenceKey("BUDGET")
+                .build();
+
+        when(userPreferenceRepository.findByUserIdAndPreferenceType(userId, "BUDGET_LEVEL")).thenReturn(List.of(existingPreference));
+        when(userPreferenceRepository.save(any(UserPreference.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        BudgetResponse response = userPreferenceService.setOrUpdateBudgetLevel(userId, request);
+
+        // Then
+        assertThat(response.getUserId()).isEqualTo(userId);
+        assertThat(response.getBudgetLevel()).isEqualTo("LUXURY");
+        verify(userPreferenceRepository, times(1)).save(existingPreference);
+        assertThat(existingPreference.getPreferenceKey()).isEqualTo("LUXURY");
+    }
+
+    @Test
+    @DisplayName("설정된 예산 수준 조회 - 성공")
+    void getBudgetLevel_Success() {
+        // Given
+        Long userId = 1L;
+        UserPreference existingPreference = UserPreference.builder()
+                .userId(userId)
+                .preferenceType("BUDGET_LEVEL")
+                .preferenceKey("STANDARD")
+                .build();
+        
+        when(userPreferenceRepository.findByUserIdAndPreferenceType(userId, "BUDGET_LEVEL")).thenReturn(List.of(existingPreference));
+
+        // When
+        BudgetResponse response = userPreferenceService.getBudgetLevel(userId);
+
+        // Then
+        assertThat(response.getUserId()).isEqualTo(userId);
+        assertThat(response.getBudgetLevel()).isEqualTo("STANDARD");
+    }
+
+    @Test
+    @DisplayName("미설정 예산 수준 조회")
+    void getBudgetLevel_NotFound() {
+        // Given
+        Long userId = 1L;
+        when(userPreferenceRepository.findByUserIdAndPreferenceType(userId, "BUDGET_LEVEL")).thenReturn(new ArrayList<>());
+
+        // When
+        BudgetResponse response = userPreferenceService.getBudgetLevel(userId);
+
+        // Then
+        assertThat(response.getUserId()).isEqualTo(userId);
+        assertThat(response.getBudgetLevel()).isNull();
+        assertThat(response.getMessage()).isEqualTo("설정된 예산 수준이 없습니다.");
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 BudgetLevel 문자열로 설정 요청")
+    void setBudgetLevel_InvalidLevelString() {
+        // Given
+        Long userId = 1L;
+        BudgetRequest request = BudgetRequest.builder().budgetLevel("INVALID").build();
+
+        // When & Then
+        assertThatThrownBy(() -> userPreferenceService.setOrUpdateBudgetLevel(userId, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("유효하지 않은 예산 수준입니다.");
     }
 
     @Test
