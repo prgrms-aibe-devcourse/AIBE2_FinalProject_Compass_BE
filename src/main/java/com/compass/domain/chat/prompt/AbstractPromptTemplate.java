@@ -45,15 +45,7 @@ public abstract class AbstractPromptTemplate implements PromptTemplate {
     @Override
     public String buildPrompt(Map<String, Object> parameters) {
         if (!validateParameters(parameters)) {
-            // Log which parameters are missing for debugging
-            StringBuilder missingParams = new StringBuilder();
-            for (String required : requiredParameters) {
-                if (parameters == null || !parameters.containsKey(required) || parameters.get(required) == null) {
-                    if (missingParams.length() > 0) missingParams.append(", ");
-                    missingParams.append(required);
-                }
-            }
-            throw new IllegalArgumentException("Missing required parameters for template '" + name + "': " + missingParams.toString());
+            throw new IllegalArgumentException("Missing required parameters for template: " + name);
         }
         
         String result = template;

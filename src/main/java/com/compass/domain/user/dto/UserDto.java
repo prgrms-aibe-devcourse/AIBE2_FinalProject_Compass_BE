@@ -7,22 +7,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
-@Getter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class UserDto {
-    private Long id;
-    private String email;
-    private String nickname;
-    private String profileImageUrl;
-    private String provider;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 
-    // Nested classes for other DTOs
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor

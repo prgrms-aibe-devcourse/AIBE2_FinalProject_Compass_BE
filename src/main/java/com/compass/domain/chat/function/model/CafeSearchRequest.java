@@ -15,15 +15,35 @@ public record CafeSearchRequest(
     @JsonPropertyDescription("The city or area to search for cafes (e.g., 'Seoul', 'Gangnam', 'Tokyo')")
     String location,
     
-    @JsonPropertyDescription("Type of cafe: 'coffee', 'dessert', 'brunch', 'study' (default: 'coffee')")
+    @JsonPropertyDescription("Type of cafe: 'coffee_shop', 'dessert_cafe', 'brunch_cafe', 'study_cafe', 'pet_cafe' (default: 'coffee_shop')")
     String cafeType,
     
+    @JsonPropertyDescription("Atmosphere preferences: ['quiet', 'lively', 'cozy', 'modern', 'vintage', 'instagrammable']")
+    List<String> atmosphere,
+    
+    @JsonPropertyDescription("Available amenities: ['wifi', 'power_outlets', 'parking', 'outdoor_seating', 'pet_friendly']")
+    List<String> amenities,
+    
     @JsonPropertyDescription("Price range: 'budget', 'moderate', 'premium' (default: 'moderate')")
-    String priceRange
+    String priceRange,
+    
+    @JsonPropertyDescription("Maximum distance from location center in kilometers")
+    Double maxDistance,
+    
+    @JsonPropertyDescription("Minimum rating (1-5)")
+    Double minRating,
+    
+    @JsonPropertyDescription("Maximum number of results to return (default: 10)")
+    Integer maxResults,
+    
+    @JsonPropertyDescription("Sort by: 'rating', 'distance', 'popularity', 'price' (default: 'rating')")
+    String sortBy
 ) {
     public CafeSearchRequest {
         // Default values
-        if (cafeType == null) cafeType = "coffee";
+        if (cafeType == null) cafeType = "coffee_shop";
         if (priceRange == null) priceRange = "moderate";
+        if (maxResults == null) maxResults = 10;
+        if (sortBy == null) sortBy = "rating";
     }
 }

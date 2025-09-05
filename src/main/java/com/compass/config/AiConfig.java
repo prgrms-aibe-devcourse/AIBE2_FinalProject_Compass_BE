@@ -54,7 +54,7 @@ public class AiConfig {
     }
 
     // Note: ChatModel beans are auto-configured by Spring AI
-    // We only need to reference them, not redefine them
+    // We don't need to define them manually
 
     /**
      * Model selector service for choosing between Flash and Pro models

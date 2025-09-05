@@ -44,16 +44,14 @@ public class SecurityConfig {
             .httpBasic(httpBasic -> httpBasic.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                .requestMatchers("/api/auth/**").permitAll()  // Authentication endpoints (signup, login, refresh)
-                .requestMatchers("/api/users/**").permitAll()
-                .requestMatchers("/api/test/**").permitAll()
-                .requestMatchers("/api/debug/**").permitAll()  // Debug endpoints for testing
-                .requestMatchers("/api/chat/**").permitAll()  // Chat endpoints for testing
-                .requestMatchers("/health").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                .anyRequest().authenticated()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                        .requestMatchers("/api/users/signup", "/api/users/login", "/api/users/logout").permitAll()
+                        .requestMatchers("/api/test/**").permitAll()
+                        .requestMatchers("/api/chat/**").permitAll()  // Chat endpoints for testing
+                        .requestMatchers("/health").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                        .anyRequest().authenticated()
                 );
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
