@@ -83,6 +83,9 @@ dependencies {
 
     // Embedded Redis for testing
     testImplementation 'it.ozimov:embedded-redis:0.7.3'
+
+    //env
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 }
 
 // Spring AI BOM

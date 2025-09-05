@@ -23,14 +23,14 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret}")
+    @Value("${spring.security.jwt.secret}")
     private String accessSecretKey;
-    @Value("${jwt.refresh-secret}")
+    @Value("${spring.security.jwt.refresh-secret}")
     private String refreshSecretKey;
 
-    @Value("${jwt.access-expiration}")
+    @Value("${spring.security.jwt.access-expiration}")
     private long accessTokenExpiration;
-    @Value("${jwt.refresh-expiration}")
+    @Value("${spring.security.jwt.refresh-expiration}")
     private long refreshTokenExpiration;
 
     private Key accessKey;
