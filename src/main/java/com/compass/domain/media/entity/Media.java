@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Type;
-import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 
 import java.util.Map;
 
@@ -43,7 +43,7 @@ public class Media extends BaseEntity {
     @Column(name = "status", nullable = false)
     private FileStatus status;
     
-    @Type(JsonBinaryType.class)
+    @Type(JsonType.class)
     @Column(name = "metadata", columnDefinition = "jsonb")
     private Map<String, Object> metadata;
     

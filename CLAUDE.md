@@ -19,6 +19,20 @@ Compass is an AI-powered personalized travel planning service built with Spring 
 # Run MEDIA domain tests only
 ./gradlew test --tests "com.compass.domain.media.*"
 
+# Run all domain-specific tests
+./gradlew test --tests "com.compass.domain.user.*"
+./gradlew test --tests "com.compass.domain.chat.*"  
+./gradlew test --tests "com.compass.domain.trip.*"
+
+# Run integration tests only
+./gradlew test --tests "*IntegrationTest"
+
+# Run tests with detailed output
+./gradlew test --info
+
+# Skip tests during build
+./gradlew build -x test
+
 # Build the application
 ./gradlew clean build
 
@@ -45,6 +59,14 @@ docker-compose down
 
 # Complete cleanup (removes all data)
 docker-compose down -v
+
+# Debug specific services
+docker-compose logs postgres
+docker-compose logs redis
+
+# Connect to running containers
+docker-compose exec postgres bash
+docker-compose exec redis bash
 ```
 
 ### Database Access
@@ -54,6 +76,24 @@ docker exec -it compass-postgres psql -U compass_user -d compass
 
 # Access Redis
 docker exec -it compass-redis redis-cli
+```
+
+### Application Health & Monitoring
+```bash
+# Check application health
+curl http://localhost:8080/actuator/health
+
+# View all actuator endpoints
+curl http://localhost:8080/actuator
+
+# Check Prometheus metrics
+curl http://localhost:8080/actuator/prometheus
+
+# View Swagger API documentation
+open http://localhost:8080/swagger-ui.html
+
+# Check application info
+curl http://localhost:8080/actuator/info
 ```
 
 ## Architecture Overview
@@ -165,6 +205,21 @@ media:
     malicious-signatures: ["4D5A", "7F454C46", "3C73637269707424", "3C3F706870"]
 ```
 
+**⚠️ IMPORTANT**: AWS S3 and Hypersistence Utils dependencies are required for MEDIA domain functionality but are NOT currently in build.gradle. You MUST add these dependencies if working on MEDIA features:
+
+```gradle
+dependencies {
+    // AWS S3 SDK (required for MEDIA domain)
+    implementation 'software.amazon.awssdk:s3:2.21.29'
+    implementation 'software.amazon.awssdk:auth:2.21.29'
+
+    // Hypersistence Utils for JSON handling (required for MEDIA domain)
+    implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.3'
+}
+```
+
+**Without these dependencies, MEDIA domain will fail to compile.**
+
 ## Development Guidelines
 
 ### Branch Strategy
@@ -262,6 +317,8 @@ When working on any domain (USER, CHAT, TRIP, MEDIA):
 4. **Service Separation**: Keep business logic separate (e.g., MediaService.createMediaHeaders() vs Controller logic)
 5. **Test Coverage**: Maintain 100% test coverage for critical functionality like security validation
 6. **Security Scanning**: Always validate input files/data with multiple validation layers
+7. **BaseIntegrationTest Usage**: All integration tests should extend `BaseIntegrationTest` for consistent test environment
+8. **GlobalExceptionHandler Compatibility**: Domain exception handlers must use `GlobalExceptionHandler.ErrorResponse` for consistent API responses
 
 ### Database Management
 - Database schema defined in JPA entities with proper relationships
@@ -269,6 +326,27 @@ When working on any domain (USER, CHAT, TRIP, MEDIA):
 - PostgreSQL for production/development environments
 - Redis for vector embeddings and caching
 - Any structural changes should be reflected in `/docs/DATABASE_ERD.md`
+
+### Common Components for Domain Integration
+When integrating new domains or modifying existing ones, use these shared components:
+
+1. **BaseEntity** (`com.compass.common.entity.BaseEntity`)
+   - Provides `createdAt` and `updatedAt` timestamps
+   - All domain entities should extend this class
+
+2. **BaseIntegrationTest** (`com.compass.config.BaseIntegrationTest`)
+   - Provides consistent test environment setup
+   - Includes embedded Redis, H2 database, and Spring Security test configuration
+   - All `@SpringBootTest` classes should extend this
+
+3. **GlobalExceptionHandler** (`com.compass.common.exception.GlobalExceptionHandler`)
+   - Provides standardized error response structure with `ErrorResponse` class
+   - Domain-specific exception handlers should use `GlobalExceptionHandler.ErrorResponse` for consistency
+
+4. **Security Integration**
+   - JWT authentication is configured globally
+   - Domain endpoints require authentication unless explicitly configured in `SecurityConfig`
+   - Use `@WithMockUser` for authenticated test scenarios
 
 ## Project Status
 
@@ -296,5 +374,7 @@ This is an **advanced Spring Boot project** with significant implementation comp
 - Spring AI function calling with 17+ travel functions
 - Hybrid MCP architecture (AWS Lambda + Internal APIs)
 - Redis vector store for RAG personalization
-- Comprehensive exception handling
-- Full integration testing suite
+- Comprehensive exception handling with domain-specific precedence
+- Full integration testing suite with BaseIntegrationTest
+- AWS S3 integration for file storage with enterprise-grade security
+- Configurable validation rules via external properties

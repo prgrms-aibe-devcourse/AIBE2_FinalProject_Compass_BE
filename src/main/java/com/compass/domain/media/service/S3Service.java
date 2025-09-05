@@ -9,11 +9,8 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -112,36 +109,11 @@ public class S3Service {
      * 
      * @param s3Url 원본 S3 URL
      * @param expiration 만료 시간 (분)
-     * @return 서명된 URL
+     * @return 기본 S3 URL (presigner 미구현)
      */
     public String generatePresignedUrl(String s3Url, int expiration) {
-        String s3Key = extractS3KeyFromUrl(s3Url);
-        
-        log.info("서명된 URL 생성 시작 - 키: {}, 만료시간: {}분", s3Key, expiration);
-        
-        try (S3Presigner presigner = S3Presigner.builder()
-                .region(software.amazon.awssdk.regions.Region.of(region))
-                .build()) {
-            
-            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(s3Key)
-                    .build();
-            
-            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                    .signatureDuration(Duration.ofMinutes(expiration))
-                    .getObjectRequest(getObjectRequest)
-                    .build();
-            
-            String presignedUrl = presigner.presignGetObject(presignRequest).url().toString();
-            
-            log.info("서명된 URL 생성 완료");
-            return presignedUrl;
-            
-        } catch (S3Exception e) {
-            log.error("서명된 URL 생성 중 오류 발생: {}", e.getMessage(), e);
-            throw new S3UploadException("서명된 URL 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
-        }
+        log.info("기본 S3 URL 반환 - presigner 기능 미구현");
+        return s3Url;
     }
 
     /**
