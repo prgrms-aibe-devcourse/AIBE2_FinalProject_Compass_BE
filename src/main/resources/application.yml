@@ -110,3 +110,39 @@ aws:
   s3:
     bucket-name: ${S3_BUCKET_NAME:compass-media-bucket}
     base-url: ${S3_BASE_URL:https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com}
+
+# Media Validation Configuration
+media:
+  validation:
+    max-file-size: ${MEDIA_MAX_FILE_SIZE:10485760}  # 10MB in bytes
+    supported-extensions:
+      - .jpg
+      - .jpeg
+      - .png
+      - .webp
+      - .gif
+    supported-mime-types:
+      - image/jpeg
+      - image/png
+      - image/webp
+      - image/gif
+    image-mime-types:
+      - image/jpeg
+      - image/png
+      - image/webp
+      - image/gif
+    malicious-signatures:
+      - "4D5A"         # PE executable signature
+      - "7F454C46"     # ELF executable signature
+      - "3C73637269707424"  # Script tag
+      - "3C3F706870"   # PHP tag
+    forbidden-chars:
+      - "<"
+      - ">"
+      - ":"
+      - "\""
+      - "/"
+      - "\\"
+      - "|"
+      - "?"
+      - "*"

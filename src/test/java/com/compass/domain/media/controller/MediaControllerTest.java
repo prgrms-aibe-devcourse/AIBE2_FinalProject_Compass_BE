@@ -21,6 +21,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.CacheControl;
+import java.time.Duration;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -172,6 +175,13 @@ class MediaControllerTest {
             .build();
         
         when(mediaService.getMediaById(eq(mediaId), eq("testuser"))).thenReturn(mockResponse);
+        
+        // Mock 헤더 생성
+        HttpHeaders headers = new HttpHeaders();
+        headers.setCacheControl(CacheControl.maxAge(Duration.ofMinutes(15)).cachePrivate().mustRevalidate());
+        headers.setETag("\"1-" + mockResponse.getUpdatedAt().toString() + "\"");
+        
+        when(mediaService.createMediaHeaders(eq(mockResponse))).thenReturn(headers);
         
         // When & Then
         mockMvc.perform(get("/api/media/{id}", mediaId)

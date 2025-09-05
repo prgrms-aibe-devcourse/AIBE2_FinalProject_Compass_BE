@@ -17,10 +17,6 @@ import java.util.Map;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Media extends BaseEntity {
     
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
     @Column(name = "user_id", nullable = false)
     private String userId;
     

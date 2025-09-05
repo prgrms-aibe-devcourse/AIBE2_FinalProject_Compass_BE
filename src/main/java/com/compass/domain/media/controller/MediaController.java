@@ -12,16 +12,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.time.Duration;
-import java.time.ZoneOffset;
 
 @Slf4j
 @RestController
@@ -87,21 +83,8 @@ public class MediaController {
         String userId = authentication.getName();
         MediaGetResponse response = mediaService.getMediaById(id, userId);
         
-        // 캐싱 헤더 설정
-        HttpHeaders headers = new HttpHeaders();
-        CacheControl cacheControl = CacheControl.maxAge(Duration.ofMinutes(15))
-                .cachePrivate()
-                .mustRevalidate();
-        headers.setCacheControl(cacheControl);
-        
-        // ETag 생성 (mediaId + updatedAt)
-        String etag = String.format("\"%d-%s\"", 
-                response.getId(), 
-                response.getUpdatedAt().toString());
-        headers.setETag(etag);
-        
-        // Last-Modified 설정 (LocalDateTime을 Instant로 변환)
-        headers.setLastModified(response.getUpdatedAt().atZone(ZoneOffset.UTC).toInstant());
+        // 캐싱 헤더 생성은 서비스에서 처리
+        HttpHeaders headers = mediaService.createMediaHeaders(response);
         
         return ResponseEntity.ok()
                 .headers(headers)

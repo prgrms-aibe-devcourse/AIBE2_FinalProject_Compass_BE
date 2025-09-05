@@ -115,30 +115,28 @@ public class S3Service {
      * @return 서명된 URL
      */
     public String generatePresignedUrl(String s3Url, int expiration) {
-        try {
-            String s3Key = extractS3KeyFromUrl(s3Url);
+        String s3Key = extractS3KeyFromUrl(s3Url);
+        
+        log.info("서명된 URL 생성 시작 - 키: {}, 만료시간: {}분", s3Key, expiration);
+        
+        try (S3Presigner presigner = S3Presigner.builder()
+                .region(software.amazon.awssdk.regions.Region.of(region))
+                .build()) {
             
-            log.info("서명된 URL 생성 시작 - 키: {}, 만료시간: {}분", s3Key, expiration);
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Key)
+                    .build();
             
-            try (S3Presigner presigner = S3Presigner.builder()
-                    .region(software.amazon.awssdk.regions.Region.of(region))
-                    .build()) {
-                
-                GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(s3Key)
-                        .build();
-                
-                GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                        .signatureDuration(Duration.ofMinutes(expiration))
-                        .getObjectRequest(getObjectRequest)
-                        .build();
-                
-                String presignedUrl = presigner.presignGetObject(presignRequest).url().toString();
-                
-                log.info("서명된 URL 생성 완료");
-                return presignedUrl;
-            }
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(expiration))
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+            
+            String presignedUrl = presigner.presignGetObject(presignRequest).url().toString();
+            
+            log.info("서명된 URL 생성 완료");
+            return presignedUrl;
             
         } catch (S3Exception e) {
             log.error("서명된 URL 생성 중 오류 발생: {}", e.getMessage(), e);

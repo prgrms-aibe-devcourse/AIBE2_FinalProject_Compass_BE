@@ -13,10 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.CacheControl;
+import java.time.Duration;
 
 @Slf4j
 @Service
@@ -80,16 +84,10 @@ public class MediaService {
     }
     
     private String generateStoredFilename(String originalFilename) {
-        String extension = getFileExtension(originalFilename);
+        String extension = fileValidationService.extractFileExtension(originalFilename);
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
         String uuid = UUID.randomUUID().toString().substring(0, 8);
         return String.format("%s_%s%s", timestamp, uuid, extension);
-    }
-    
-    private String getFileExtension(String filename) {
-        if (filename == null) return "";
-        int lastDotIndex = filename.lastIndexOf('.');
-        return lastDotIndex == -1 ? "" : filename.substring(lastDotIndex);
     }
     
     /**
@@ -165,5 +163,29 @@ public class MediaService {
                 media.getCreatedAt(),
                 media.getUpdatedAt()
         );
+    }
+    
+    /**
+     * 미디어 조회 응답용 HTTP 헤더를 생성합니다.
+     */
+    public HttpHeaders createMediaHeaders(MediaGetResponse response) {
+        HttpHeaders headers = new HttpHeaders();
+        
+        // 캐싱 헤더 설정 (15분)
+        CacheControl cacheControl = CacheControl.maxAge(Duration.ofMinutes(15))
+                .cachePrivate()
+                .mustRevalidate();
+        headers.setCacheControl(cacheControl);
+        
+        // ETag 생성 (mediaId + updatedAt)
+        String etag = String.format("\"%d-%s\"", 
+                response.getId(), 
+                response.getUpdatedAt().toString());
+        headers.setETag(etag);
+        
+        // Last-Modified 설정 (LocalDateTime을 Instant로 변환)
+        headers.setLastModified(response.getUpdatedAt().atZone(ZoneOffset.UTC).toInstant());
+        
+        return headers;
     }
 }
