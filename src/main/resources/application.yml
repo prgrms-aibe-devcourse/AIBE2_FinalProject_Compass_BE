@@ -31,7 +31,6 @@ spring:
       access-expiration: 3600000  # 1 hour
       refresh-expiration: 604800000  # 7 days
 
-
     oauth2:
       client:
         registration:
@@ -102,47 +101,9 @@ logging:
     org.springframework.web: INFO
     org.springframework.security: DEBUG
 
-# AWS S3 Configuration
-aws:
-  access-key-id: ${AWS_ACCESS_KEY_ID:}
-  secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
-  region: ${AWS_REGION:ap-northeast-2}
-  s3:
-    bucket-name: ${S3_BUCKET_NAME:compass-media-bucket}
-    base-url: ${S3_BASE_URL:https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com}
-
-# Media Validation Configuration
-media:
-  validation:
-    max-file-size: ${MEDIA_MAX_FILE_SIZE:10485760}  # 10MB in bytes
-    supported-extensions:
-      - .jpg
-      - .jpeg
-      - .png
-      - .webp
-      - .gif
-    supported-mime-types:
-      - image/jpeg
-      - image/png
-      - image/webp
-      - image/gif
-    image-mime-types:
-      - image/jpeg
-      - image/png
-      - image/webp
-      - image/gif
-    malicious-signatures:
-      - "4D5A"         # PE executable signature
-      - "7F454C46"     # ELF executable signature
-      - "3C73637269707424"  # Script tag
-      - "3C3F706870"   # PHP tag
-    forbidden-chars:
-      - "<"
-      - ">"
-      - ":"
-      - "\""
-      - "/"
-      - "\\"
-      - "|"
-      - "?"
-      - "*"
+# JWT Configuration for JwtTokenProvider
+jwt:
+  secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-key-for-access-token}
+  refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-key-for-refresh-token}
+  access-expiration: 3600000  # 1 hour
+  refresh-expiration: 604800000  # 7 days

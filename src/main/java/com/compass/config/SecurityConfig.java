@@ -43,22 +43,17 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .httpBasic(httpBasic -> httpBasic.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(exceptions -> exceptions
-                    .authenticationEntryPoint((request, response, authException) -> {
-                        response.setStatus(401);
-                        response.setContentType("application/json");
-                        response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Authentication required\"}");
-                    }))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        .requestMatchers("/api/users/signup", "/api/users/login", "/api/users/logout").permitAll()
-                        .requestMatchers("/api/test/**").permitAll()
-                        .requestMatchers("/api/chat/**").permitAll()  // Chat endpoints for testing
-                        .requestMatchers("/api/media/health").permitAll()  // Media health check
-                        .requestMatchers("/health").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        .anyRequest().authenticated()
+                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()  // Authentication endpoints (signup, login, refresh)
+                .requestMatchers("/api/users/**").permitAll()
+                .requestMatchers("/api/test/**").permitAll()
+                .requestMatchers("/api/debug/**").permitAll()  // Debug endpoints for testing
+                .requestMatchers("/api/chat/**").permitAll()  // Chat endpoints for testing
+                .requestMatchers("/health").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                .anyRequest().authenticated()
                 );
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
