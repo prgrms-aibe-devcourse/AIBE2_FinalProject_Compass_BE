@@ -1,6 +1,6 @@
 package com.compass.domain.media.entity;
 
-import com.compass.domain.common.BaseEntity;
+import com.compass.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -16,6 +16,10 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Media extends BaseEntity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
     
     @Column(name = "user_id", nullable = false)
     private String userId;

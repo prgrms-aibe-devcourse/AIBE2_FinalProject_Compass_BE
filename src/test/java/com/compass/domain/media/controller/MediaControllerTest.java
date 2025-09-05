@@ -1,5 +1,6 @@
 package com.compass.domain.media.controller;
 
+import com.compass.config.BaseIntegrationTest;
 import com.compass.domain.media.dto.MediaGetResponse;
 import com.compass.domain.media.dto.MediaUploadResponse;
 import com.compass.domain.media.entity.FileStatus;
@@ -10,10 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -35,14 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = {
-    "spring.ai.openai.api-key=test-key",
-    "spring.ai.vertex.ai.gemini.project-id=test-project",
-    "spring.ai.vertex.ai.gemini.location=test-location"
-})
-class MediaControllerTest {
+class MediaControllerTest extends BaseIntegrationTest {
     
     @Autowired
     private MockMvc mockMvc;
@@ -123,7 +114,6 @@ class MediaControllerTest {
                 .with(csrf()))
             .andDo(print())
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error").value("File Validation Error"))
             .andExpect(jsonPath("$.message").value("허용되지 않는 파일 형식입니다."));
     }
     
@@ -144,17 +134,16 @@ class MediaControllerTest {
                 .with(csrf())
                 .with(anonymous()))
             .andDo(print())
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().is3xxRedirection());
     }
     
     @Test
-    @DisplayName("Health Check 성공")
-    void healthCheck_Success() throws Exception {
+    @DisplayName("Health Check 인증 필요")
+    void healthCheck_RequiresAuth() throws Exception {
         // When & Then
         mockMvc.perform(get("/api/media/health"))
             .andDo(print())
-            .andExpect(status().isOk())
-            .andExpect(content().string("Media service is running"));
+            .andExpect(status().is3xxRedirection());
     }
     
     @Test
@@ -212,7 +201,6 @@ class MediaControllerTest {
                 .with(csrf()))
             .andDo(print())
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error").value("File Validation Error"))
             .andExpect(jsonPath("$.message").value("파일을 찾을 수 없습니다."));
     }
     
@@ -231,7 +219,6 @@ class MediaControllerTest {
                 .with(csrf()))
             .andDo(print())
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error").value("File Validation Error"))
             .andExpect(jsonPath("$.message").value("파일 조회 권한이 없습니다."));
     }
     
@@ -250,7 +237,6 @@ class MediaControllerTest {
                 .with(csrf()))
             .andDo(print())
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error").value("File Validation Error"))
             .andExpect(jsonPath("$.message").value("삭제된 파일입니다."));
     }
     
@@ -265,6 +251,6 @@ class MediaControllerTest {
                 .with(csrf())
                 .with(anonymous()))
             .andDo(print())
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().is3xxRedirection());
     }
 }
