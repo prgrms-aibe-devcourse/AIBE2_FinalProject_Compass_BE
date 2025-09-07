@@ -1,6 +1,7 @@
 package com.compass.domain.chat.prompt;
 
 import com.compass.domain.chat.prompt.travel.*;
+import com.compass.domain.chat.prompt.templates.*;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
@@ -26,6 +27,12 @@ public class PromptTemplateRegistry {
         register(new LocalExperiencePrompt());
         register(new BudgetOptimizationPrompt());
         register(new DailyItineraryPrompt()); // TripDetail 엔티티용 일별 상세 템플릿
+        
+        // Register basic itinerary templates (REQ-AI-003)
+        register(new DayTripTemplate());           // 당일치기
+        register(new OneNightTwoDaysTemplate());   // 1박 2일
+        register(new TwoNightsThreeDaysTemplate()); // 2박 3일
+        register(new ThreeNightsFourDaysTemplate()); // 3박 4일
     }
     
     /**

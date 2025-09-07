@@ -15,6 +15,7 @@ import java.util.List;
 /**
  * OpenAI Chat Service Implementation
  * Fallback chat service using GPT-4o-mini model
+ * REQ-LLM-006: Includes conversation context management (not yet implemented for OpenAI)
  */
 @Slf4j
 @Service("openAIChatService")
@@ -67,5 +68,21 @@ public class OpenAIChatService implements ChatModelService {
     @Override
     public String getModelName() {
         return "GPT-4o-mini";
+    }
+    
+    @Override
+    public String generateResponseWithContext(String threadId, String userMessage) {
+        // For now, OpenAI service doesn't implement context management
+        // Just delegate to the regular generateResponse method
+        log.warn("Context management not implemented for OpenAI service, using regular response generation");
+        return generateResponse(userMessage);
+    }
+    
+    @Override
+    public String generateResponseWithContext(String threadId, String systemPrompt, String userMessage) {
+        // For now, OpenAI service doesn't implement context management
+        // Just delegate to the regular generateResponse method
+        log.warn("Context management not implemented for OpenAI service, using regular response generation");
+        return generateResponse(systemPrompt, userMessage);
     }
 }

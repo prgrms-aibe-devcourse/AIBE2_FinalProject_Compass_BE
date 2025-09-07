@@ -1,5 +1,6 @@
 package com.compass.domain.chat.service;
 
+import com.compass.domain.chat.context.ConversationContextManager;
 import com.compass.domain.chat.service.impl.GeminiChatService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,18 +22,22 @@ import static org.mockito.Mockito.*;
 
 /**
  * Gemini Chat Service 단위 테스트
+ * REQ-LLM-006: Includes conversation context management tests
  */
 class GeminiChatServiceTest {
 
     @Mock
     private VertexAiGeminiChatModel geminiChatModel;
+    
+    @Mock
+    private ConversationContextManager contextManager;
 
     private GeminiChatService geminiChatService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        geminiChatService = new GeminiChatService(geminiChatModel);
+        geminiChatService = new GeminiChatService(geminiChatModel, contextManager);
     }
 
     @Test

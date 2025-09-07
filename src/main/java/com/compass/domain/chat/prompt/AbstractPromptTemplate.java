@@ -105,4 +105,10 @@ public abstract class AbstractPromptTemplate implements PromptTemplate {
     public String[] getOptionalParameters() {
         return Arrays.copyOf(optionalParameters, optionalParameters.length);
     }
+    
+    @Override
+    public boolean supports(String userInput) {
+        // Default implementation - subclasses should override this
+        return false;
+    }
 }
