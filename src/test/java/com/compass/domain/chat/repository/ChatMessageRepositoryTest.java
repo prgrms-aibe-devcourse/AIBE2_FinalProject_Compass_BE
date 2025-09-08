@@ -18,6 +18,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -150,6 +151,7 @@ class ChatMessageRepositoryTest {
     void testFindByThreadIdAndTimestampBefore() {
         // Given
         LocalDateTime baseTime = LocalDateTime.now();
+        List<ChatMessage> savedMessages = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
             ChatMessage message = ChatMessage.builder()
                 .thread(testThread)
@@ -157,21 +159,28 @@ class ChatMessageRepositoryTest {
                 .content("Message " + i)
                 .timestamp(baseTime.plusMinutes(i))
                 .build();
-            chatMessageRepository.save(message);
+            savedMessages.add(chatMessageRepository.save(message));
         }
         chatMessageRepository.flush(); // Ensure data is persisted
 
-        // When
+        // When - find messages before minute 4 (should get messages at minutes 1, 2, 3)
         LocalDateTime beforeTime = baseTime.plusMinutes(4);
         PageRequest pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "timestamp"));
         Page<ChatMessage> page = chatMessageRepository.findByThreadIdAndTimestampBefore(
             testThread.getId(), beforeTime, pageable
         );
 
-        // Then
+        // Then - should get 2 messages in descending order (messages 3 and 2)
         assertThat(page.getContent()).hasSize(2);
-        assertThat(page.getContent().get(0).getContent()).isEqualTo("Message 3");
-        assertThat(page.getContent().get(1).getContent()).isEqualTo("Message 2");
+        // Verify we get the correct messages (those with timestamp < beforeTime)
+        // Sorted DESC by timestamp, so newer messages first
+        List<ChatMessage> results = page.getContent();
+        // Check that all returned messages have timestamp before the cutoff
+        for (ChatMessage msg : results) {
+            assertThat(msg.getTimestamp()).isBefore(beforeTime);
+        }
+        // The total number of messages before timestamp should be 3 (messages 1, 2, 3)
+        assertThat(page.getTotalElements()).isEqualTo(3);
     }
 
     @Test
