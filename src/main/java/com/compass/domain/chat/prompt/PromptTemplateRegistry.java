@@ -33,6 +33,18 @@ public class PromptTemplateRegistry {
         register(new OneNightTwoDaysTemplate());   // 1박 2일
         register(new TwoNightsThreeDaysTemplate()); // 2박 3일
         register(new ThreeNightsFourDaysTemplate()); // 3박 4일
+        
+        // Register scenario-specific templates (REQ-PROMPT-003)
+        register(new FamilyTripTemplate());        // 가족 여행
+        register(new CoupleTripTemplate());        // 커플 여행
+        register(new BusinessTripTemplate());      // 비즈니스 출장
+        register(new BackpackingTemplate());       // 배낭 여행
+        register(new LuxuryTravelTemplate());      // 럭셔리 여행
+        register(new AdventureTravelTemplate());   // 모험 여행
+        register(new CulturalTourTemplate());      // 문화 탐방
+        register(new FoodTourTemplate());          // 미식 여행
+        register(new RelaxationTemplate());        // 휴양 여행
+        register(new SoloTravelTemplate());        // 솔로 여행
     }
     
     /**
