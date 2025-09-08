@@ -17,6 +17,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import org.springframework.data.domain.Sort;
 
@@ -53,18 +54,19 @@ public class TripController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "여행 계획 목록 조회", description = "사용자의 여행 계획 목록을 페이징하여 조회합니다.")
+    @Operation(summary = "내 여행 목록 조회", description = "현재 로그인한 사용자의 여행 계획 목록을 페이징하여 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "여행 계획 목록 조회 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
     })
     @GetMapping
-    public ResponseEntity<Page<TripList.Response>> getTripsByUserId(
-            @Parameter(description = "조회할 사용자 ID", example = "1", required = true)
-            @RequestParam Long userId,
+    public ResponseEntity<Page<TripList.Response>> getMyTrips(
+            Authentication authentication,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) 
             Pageable pageable) {
-        Page<TripList.Response> response = tripService.getTripsByUserId(userId, pageable);
+        
+        String userEmail = authentication.getName(); // JWT에서 사용자 이메일 추출
+        Page<TripList.Response> response = tripService.getTripsByUserEmail(userEmail, pageable);
         return ResponseEntity.ok(response);
     }
 }

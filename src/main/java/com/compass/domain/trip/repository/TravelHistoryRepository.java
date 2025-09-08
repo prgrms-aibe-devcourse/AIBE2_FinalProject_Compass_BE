@@ -79,9 +79,11 @@ public interface TravelHistoryRepository extends JpaRepository<TravelHistory, Lo
     
     /**
      * 사용자의 평균 여행 기간 계산
+     * TODO: H2 호환 쿼리로 수정 필요
      */
-    @Query("SELECT AVG(CAST(th.endDate - th.startDate AS integer) + 1) FROM TravelHistory th WHERE th.userId = :userId")
-    Optional<Double> getAverageTripDurationByUserId(@Param("userId") Long userId);
+
+    // @Query("SELECT AVG(CAST((th.endDate - th.startDate) AS integer) + 1) FROM TravelHistory th WHERE th.userId = :userId")
+    // Optional<Double> getAverageTripDurationByUserId(@Param("userId") Long userId);
     
     /**
      * 사용자의 선호 여행 유형 통계
