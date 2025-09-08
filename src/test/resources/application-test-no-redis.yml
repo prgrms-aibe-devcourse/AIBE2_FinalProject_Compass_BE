@@ -1,0 +1,45 @@
+# Redis를 사용하지 않는 단위 테스트용 설정
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreAutoConfiguration
+  
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+    show-sql: false
+    defer-datasource-initialization: true
+
+# JWT 설정
+jwt:
+  access-secret: test-access-secret-key-for-unit-test-12345678901234567890
+  refresh-secret: test-refresh-secret-key-for-unit-test-12345678901234567890
+  access-expiration: 3600000
+  refresh-expiration: 604800000
+
+# Spring AI 설정 (테스트용 더미 값)
+spring.ai:
+  vertex.ai:
+    gemini:
+      project-id: test-project
+      location: us-central1
+  openai:
+    api-key: test-key
+
+# 로깅 레벨 설정
+logging:
+  level:
+    root: WARN
+    com.compass: INFO

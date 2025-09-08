@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Spring Boot의 기본 설정 포함 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    
+    <!-- 프로파일별 설정 -->
+    <springProfile name="default,local">
+        <property name="LOG_LEVEL" value="INFO"/>
+        <property name="LOG_PATH" value="./logs"/>
+    </springProfile>
+    
+    <springProfile name="test">
+        <property name="LOG_LEVEL" value="WARN"/>
+        <property name="LOG_PATH" value="./logs/test"/>
+    </springProfile>
+    
+    <springProfile name="production">
+        <property name="LOG_LEVEL" value="INFO"/>
+        <property name="LOG_PATH" value="/var/log/compass"/>
+    </springProfile>
+    
+    <!-- 콘솔 출력 설정 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- 파일 출력 설정 -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/compass.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/compass.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- LLM API 호출 전용 로거 -->
+    <appender name="LLM_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/llm-api-calls.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/llm-api-calls.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{ISO8601} | %X{requestId} | %X{userId} | %X{model} | %X{tokens} | %X{cost} | %X{duration} | %X{status} | %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- 성능 메트릭 로거 -->
+    <appender name="METRICS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/metrics.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/metrics.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{ISO8601} | %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- 에러 전용 로거 -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/error.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/error.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n%ex{full}</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- 비동기 로깅 설정 (성능 최적화) -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+    </appender>
+    
+    <appender name="ASYNC_LLM" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="LLM_FILE"/>
+        <queueSize>256</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+    </appender>
+    
+    <!-- 패키지별 로그 레벨 설정 -->
+    <logger name="com.compass" level="${LOG_LEVEL}"/>
+    <logger name="com.compass.domain.chat.logger.LLMCallLogger" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_LLM"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+    <logger name="com.compass.domain.chat.metrics" level="INFO" additivity="false">
+        <appender-ref ref="METRICS_FILE"/>
+    </logger>
+    
+    <!-- Spring AI 관련 로깅 -->
+    <logger name="org.springframework.ai" level="DEBUG"/>
+    <logger name="org.springframework.ai.vertexai" level="DEBUG"/>
+    <logger name="org.springframework.ai.openai" level="DEBUG"/>
+    
+    <!-- SQL 로깅 (개발 환경) -->
+    <springProfile name="default,local">
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+    </springProfile>
+    
+    <!-- Root 로거 설정 -->
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </root>
+</configuration>

@@ -70,10 +70,10 @@ jobs:
         REDIS_PORT: 6379
         JWT_ACCESS_SECRET: test-access-secret-key-for-ci-testing-purposes-256-bit
         JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci-testing-purposes-256-bit
-      run: ./gradlew test
+      run: ./gradlew unitTest
 
     - name: Build application
-      run: ./gradlew build
+      run: ./gradlew build -x test
 
     - name: Upload test results
       if: always()

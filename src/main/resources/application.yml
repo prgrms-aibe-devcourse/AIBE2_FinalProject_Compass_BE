@@ -31,7 +31,6 @@ spring:
       access-expiration: 3600000  # 1 hour
       refresh-expiration: 604800000  # 7 days
 
-
     oauth2:
       client:
         registration:
@@ -101,3 +100,10 @@ logging:
     com.compass: DEBUG
     org.springframework.web: INFO
     org.springframework.security: DEBUG
+
+# JWT Configuration for JwtTokenProvider
+jwt:
+  secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-key-for-access-token}
+  refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-key-for-refresh-token}
+  access-expiration: 3600000  # 1 hour
+  refresh-expiration: 604800000  # 7 days
