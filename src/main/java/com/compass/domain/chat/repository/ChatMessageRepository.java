@@ -42,7 +42,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
      * @param pageable Pagination information
      * @return Page of messages
      */
-    @Query("SELECT cm FROM ChatMessage cm WHERE cm.thread.id = :threadId AND cm.timestamp < :before ORDER BY cm.timestamp DESC")
+    @Query("SELECT cm FROM ChatMessage cm WHERE cm.thread.id = :threadId AND cm.timestamp < :before")
     Page<ChatMessage> findByThreadIdAndTimestampBefore(
         @Param("threadId") String threadId, 
         @Param("before") LocalDateTime before, 
