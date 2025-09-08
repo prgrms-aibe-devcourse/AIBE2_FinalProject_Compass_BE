@@ -97,12 +97,19 @@
 ./gradlew unitTest
 ```
 - **상태**: ✅ PASSING
-- **컴파일**: 성공
+- **컴파일**: 성공 (Deprecation 경고 해결됨)
 - **테스트**: 모든 유닛 테스트 통과
 
 ### Integration Tests (Redis 필요)
 - **상태**: ⚠️ Redis 의존성으로 인한 일부 테스트 스킵
 - **해결책**: CI 환경에서는 unitTest 태스크 사용 권장
+
+### CI Pipeline 최신 상태
+- **GitHub Actions**: ✅ 컴파일 성공
+- **Deprecation 경고**: ✅ 모두 해결됨
+  - `withTemperature()` → `temperature()`
+  - `withMaxOutputTokens()` → `maxOutputTokens()`
+  - `withTopP()` → `topP()`
 
 ## 📝 생성된 이슈 템플릿
 

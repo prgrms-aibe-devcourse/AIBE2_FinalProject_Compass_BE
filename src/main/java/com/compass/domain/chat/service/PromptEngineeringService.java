@@ -199,9 +199,9 @@ public class PromptEngineeringService {
             try {
                 // Configure Gemini options
                 VertexAiGeminiChatOptions options = VertexAiGeminiChatOptions.builder()
-                        .withTemperature(0.7)
-                        .withMaxOutputTokens(4000)
-                        .withTopP(0.9)
+                        .temperature(0.7)
+                        .maxOutputTokens(4000)
+                        .topP(0.9)
                         .build();
                 
                 // Create prompt and call
