@@ -34,6 +34,15 @@ spring:
     host: localhost
     port: 6379
 
+# AWS S3 설정 (테스트용 더미 값)
+aws:
+  access-key-id: test-access-key
+  secret-access-key: test-secret-key
+  region: ap-northeast-2
+  s3:
+    bucket-name: test-bucket
+    base-url: https://test-bucket.s3.ap-northeast-2.amazonaws.com
+
   # AI 관련 설정은 테스트 시에 필요 없다면 주석 처리해도 좋습니다.
   # 이렇게 하면 외부 API 호출 시도를 막아 테스트가 더 빨라지고 안정적이 됩니다.
   ai:

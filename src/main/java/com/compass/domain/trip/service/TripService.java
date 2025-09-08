@@ -57,4 +57,15 @@ public class TripService {
         Page<Trip> tripPage = tripRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         return tripPage.map(TripList.Response::from);
     }
+    
+    /**
+     * 현재 로그인한 사용자의 여행 계획 목록을 페이징하여 조회합니다.
+     * @param userEmail 조회할 사용자 이메일 (JWT에서 추출)
+     * @param pageable 페이징 정보
+     * @return 페이징된 여행 계획 목록
+     */
+    public Page<TripList.Response> getTripsByUserEmail(String userEmail, Pageable pageable) {
+        Page<Trip> tripPage = tripRepository.findByUserEmailOrderByCreatedAtDesc(userEmail, pageable);
+        return tripPage.map(TripList.Response::from);
+    }
 }

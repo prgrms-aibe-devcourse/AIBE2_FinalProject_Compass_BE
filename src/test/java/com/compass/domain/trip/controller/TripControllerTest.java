@@ -193,10 +193,10 @@ class TripControllerTest extends BaseIntegrationTest {
         System.out.println("404 응답 본문: " + result.getResponse().getContentAsString());
     }
 
-    @DisplayName("사용자의 여행 계획 목록을 조회한다.")
+    @DisplayName("내 여행 목록을 조회한다.")
     @Test
-    @WithMockUser
-    void getTripsByUserId() throws Exception {
+    @WithMockUser(username = "test@example.com")
+    void getMyTrips() throws Exception {
         // given - 먼저 여행 계획을 생성
         TripCreate.Activity activity = new TripCreate.Activity(
                 LocalTime.of(9, 0), "경복궁", "관광지", "조선 왕조의 법궁",
@@ -221,9 +221,8 @@ class TripControllerTest extends BaseIntegrationTest {
                         .with(csrf())
                 );
 
-        // when & then - 사용자의 여행 계획 목록 조회
+        // when & then - 내 여행 목록 조회 (JWT 인증 기반)
         mockMvc.perform(get("/api/trips")
-                        .param("userId", testUser.getId().toString())
                         .param("page", "0")
                         .param("size", "10")
                         .with(csrf())
@@ -236,25 +235,13 @@ class TripControllerTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.totalPages").value(1));
     }
 
-    @DisplayName("잘못된 사용자 ID로 여행 계획 목록을 조회하면 빈 목록을 반환한다.")
+    @DisplayName("인증되지 않은 사용자는 여행 목록을 조회할 수 없다.")
     @Test
-    @WithMockUser
-    void getTripsByUserIdEmpty() throws Exception {
-        // given
-        Long nonExistentUserId = 999L;
-
-        // when & then
-        mockMvc.perform(get("/api/trips")
-                        .param("userId", nonExistentUserId.toString())
-                        .param("page", "0")
-                        .param("size", "10")
-                        .with(csrf())
-                )
+    void getMyTripsWithoutAuth() throws Exception {
+        // when & then - 인증 없이 접근 (Spring Security가 302 리다이렉트 응답)
+        mockMvc.perform(get("/api/trips"))
                 .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").isArray())
-                .andExpect(jsonPath("$.content").isEmpty())
-                .andExpect(jsonPath("$.totalElements").value(0));
+                .andExpect(status().isFound()); // 302 리다이렉트 예상
     }
 }
 
