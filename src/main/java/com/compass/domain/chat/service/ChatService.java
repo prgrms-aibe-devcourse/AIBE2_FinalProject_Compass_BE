@@ -5,6 +5,7 @@ import com.compass.domain.chat.dto.ChatDtos.MessageDto;
 import com.compass.domain.chat.dto.ChatDtos.ThreadDto;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ChatService {
     /**
@@ -26,4 +27,8 @@ public interface ChatService {
      * REQ-CHAT-004: 대화 조회 로직
      */
     List<MessageDto> getMessages(String threadId, String userId, int limit, Long before);
+
+    Map<String, Object> chatWithGemini(String message);
+
+    Map<String, Object> chatWithOpenAI(String message);
 }
