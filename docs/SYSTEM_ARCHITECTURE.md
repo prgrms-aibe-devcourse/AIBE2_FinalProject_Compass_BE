@@ -1,7 +1,14 @@
 # Compass System Architecture
 
 ## Overview
-Compass는 AI 기반 맞춤형 여행 계획 서비스로, Spring Boot, Spring AI, 그리고 RAG 기술을 활용한 마이크로서비스 아키텍처입니다.
+Compass는 AI 기반 맞춤형 여행 계획 서비스로, Spring Boot, Spring AI, 그리고 RAG 기술을 활용한 마이크로서비스 아키텍처입니다. 
+
+### 핵심 기능
+- **인텐트 라우팅**: 사용자 의도를 파악하여 적절한 서비스로 분기
+- **꼬리질문 시스템**: 5개 필수 정보 수집을 위한 대화형 인터페이스
+- **통합 검색**: Perplexity API(트렌드)와 Tour API(공식 정보) 결합
+- **경로 최적화**: Gemini를 활용한 여행 동선 최적화
+- **개인화**: 사용자 선호도 기반 맞춤형 추천
 
 ## 전체 시스템 아키텍처
 
@@ -13,25 +20,26 @@ graph TB
     end
 
     subgraph "API Gateway"
-        GATEWAY[Spring Cloud Gateway<br/>- JWT Validation<br/>- Rate Limiting<br/>- Request Routing]
+        GATEWAY[Spring Cloud Gateway<br/>JWT Validation<br/>Rate Limiting<br/>Request Routing]
     end
 
     subgraph "Application Layer"
         subgraph "USER Domain"
-            AUTH[Authentication Service<br/>- JWT Token<br/>- OAuth2<br/>- User Profile]
-            PREF[Preference Service<br/>- User Preferences<br/>- Travel History]
+            AUTH[Authentication Service<br/>JWT Token<br/>OAuth2<br/>User Profile]
+            PREF[Preference Service<br/>User Preferences<br/>Travel History]
         end
 
         subgraph "CHAT Domain"
-            CHAT_SVC[Chat Service<br/>- Thread Management<br/>- Message CRUD]
-            PARSER[Chat Parser<br/>- NER Processing<br/>- Intent Detection]
-            LLM_ORCH[LLM Orchestrator<br/>- Model Selection<br/>- Function Calling]
+            CHAT_SVC[Chat Service<br/>Thread Management<br/>Message CRUD]
+            PARSER[Chat Parser<br/>NER Processing<br/>Intent Detection]
+            LLM_ORCH[LLM Orchestrator<br/>Model Selection<br/>Function Calling]
         end
 
         subgraph "TRIP Domain"
-            TRIP_PLAN[Trip Planning Service<br/>- Itinerary Generation<br/>- Budget Calculation]
-            REC[Recommendation Service<br/>- RAG Processing<br/>- Personalization]
-            WEATHER[Weather Service<br/>- Weather API Integration]
+            TRIP_PLAN[Trip Planning Service<br/>Itinerary Generation<br/>Budget Calculation<br/>Route Optimization]
+            REC[Recommendation Service<br/>RAG Processing<br/>Personalization]
+            SEARCH[Search Integration<br/>Perplexity API<br/>Tour API<br/>Data Fusion]
+            WEATHER[Weather Service<br/>Weather API Integration]
         end
     end
 
@@ -42,7 +50,7 @@ graph TB
         end
         
         subgraph "Spring AI"
-            SPRING_AI[Spring AI Framework<br/>- Prompt Templates<br/>- Model Abstraction<br/>- Function Calling]
+            SPRING_AI[Spring AI Framework<br/>Prompt Templates<br/>Model Abstraction<br/>Function Calling]
         end
         
         OCR[OCR Service<br/>Document Processing]
@@ -50,23 +58,25 @@ graph TB
 
     subgraph "Data Layer"
         subgraph "Primary Storage"
-            POSTGRES[(PostgreSQL<br/>- Users<br/>- Chats<br/>- Trips<br/>- Preferences)]
+            POSTGRES[(PostgreSQL<br/>Users<br/>Chats<br/>Trips<br/>Preferences)]
         end
 
         subgraph "Vector Store"
-            REDIS_VECTOR[(Redis Vector<br/>- Embeddings<br/>- RAG Data)]
+            REDIS_VECTOR[(Redis Vector<br/>Embeddings<br/>RAG Data)]
         end
 
         subgraph "Cache"
-            REDIS_CACHE[(Redis Cache<br/>- Session<br/>- API Cache)]
+            REDIS_CACHE[(Redis Cache<br/>Session<br/>API Cache)]
         end
     end
 
     subgraph "External Services"
-        GOOGLE_API[Google APIs<br/>- Maps<br/>- Places]
-        WEATHER_API[Weather API<br/>- OpenWeather]
-        FLIGHT_API[Flight APIs<br/>- Amadeus]
-        HOTEL_API[Hotel APIs<br/>- Booking.com]
+        GOOGLE_API[Google APIs<br/>Maps<br/>Places<br/>Directions]
+        WEATHER_API[Weather API<br/>OpenWeather]
+        FLIGHT_API[Flight APIs<br/>Amadeus]
+        HOTEL_API[Hotel APIs<br/>Booking.com]
+        PERPLEXITY[Perplexity API<br/>Trend Search<br/>Hidden Gems]
+        TOUR_API[Tour API<br/>Korea Tourism<br/>Official Info]
     end
 
     subgraph "Infrastructure"
@@ -102,6 +112,9 @@ graph TB
     TRIP_PLAN --> REC
     REC --> REDIS_VECTOR
     TRIP_PLAN --> WEATHER
+    TRIP_PLAN --> SEARCH
+    SEARCH --> PERPLEXITY
+    SEARCH --> TOUR_API
     
     %% Data connections
     AUTH --> POSTGRES
@@ -136,10 +149,10 @@ graph TB
     classDef infra fill:#f5f5f5,stroke:#424242,stroke-width:2px
 
     class WEB,MOBILE client
-    class AUTH,PREF,CHAT_SVC,PARSER,LLM_ORCH,TRIP_PLAN,REC,WEATHER,GATEWAY service
+    class AUTH,PREF,CHAT_SVC,PARSER,LLM_ORCH,TRIP_PLAN,REC,SEARCH,WEATHER,GATEWAY service
     class GEMINI,GPT,SPRING_AI,OCR ai
     class POSTGRES,REDIS_VECTOR,REDIS_CACHE data
-    class GOOGLE_API,WEATHER_API,FLIGHT_API,HOTEL_API external
+    class GOOGLE_API,WEATHER_API,FLIGHT_API,HOTEL_API,PERPLEXITY,TOUR_API external
     class PROMETHEUS,GRAFANA,LOKI,KAFKA infra
 ```
 
@@ -151,7 +164,11 @@ sequenceDiagram
     participant G as API Gateway
     participant A as Auth Service
     participant C as Chat Service
-    participant P as Parser
+    participant I as Intent Router
+    participant F as Follow-up Service
+    participant S as Search Service
+    participant PP as Perplexity API
+    participant TA as Tour API
     participant L as LLM Service
     participant T as Trip Service
     participant R as RAG/Redis
@@ -164,19 +181,32 @@ sequenceDiagram
     A-->>G: 5. JWT Token
     G-->>U: 6. Auth Response
 
-    U->>G: 7. Send Chat Message
+    U->>G: 7. "부산 여행 계획해줘"
     G->>C: 8. Process Message (with JWT)
-    C->>P: 9. Parse Input (NER)
-    P->>L: 10. Extract Entities
-    L-->>P: 11. Parsed Data
-    P-->>C: 12. Structured Request
-    C->>T: 13. Generate Trip Plan
-    T->>R: 14. Get Recommendations
-    R-->>T: 15. Personalized Data
-    T->>D: 16. Save Trip Plan
-    T-->>C: 17. Trip Response
-    C-->>G: 18. Chat Response
-    G-->>U: 19. Display Result
+    C->>I: 9. Intent Classification
+    I-->>C: 10. Intent: TRAVEL_PLAN
+    C->>F: 11. Start Follow-up Questions
+    F-->>C: 12. "언제 출발하실 예정인가요?"
+    C-->>U: 13. Display Question
+    
+    U->>C: 14. "다음달 15일"
+    C->>F: 15. Process Answer & Next Question
+    Note over F: 5개 질문 반복
+    
+    F->>S: 16. Search with Full Context
+    S->>PP: 17. Trend Search (2-3 queries)
+    PP-->>S: 18. Trendy Places
+    S->>TA: 19. Official Info Search
+    TA-->>S: 20. Official Places
+    S-->>F: 21. 30 Integrated Places
+    
+    F->>L: 22. Generate Optimized Plan
+    L->>T: 23. Save Trip Plan
+    T->>D: 24. Store in Database
+    T->>R: 25. Cache Results
+    T-->>C: 26. Complete Plan
+    C-->>G: 27. Chat Response
+    G-->>U: 28. Display Itinerary
 ```
 
 ## 배포 아키텍처
@@ -221,7 +251,7 @@ graph TB
     end
 
     subgraph "Monitoring"
-        CLOUDWATCH[CloudWatch<br/>Logs & Metrics]
+        CLOUDWATCH[CloudWatch<br/>Logs and Metrics]
         XRAY[X-Ray<br/>Distributed Tracing]
     end
 
@@ -280,6 +310,7 @@ graph LR
         TRIP_ENTITY[Trip Entity]
         PLAN_SERVICE[Planning Service]
         REC_SERVICE[Recommendation Service]
+        SEARCH_SERVICE[Search Service<br/>Perplexity + Tour API]
     end
 
     USER_ENTITY --> CHAT_ENTITY
@@ -292,12 +323,14 @@ graph LR
     PREF_SERVICE --> REC_SERVICE
     PARSER_SERVICE --> PLAN_SERVICE
     CHAT_SERVICE --> PLAN_SERVICE
+    PLAN_SERVICE --> SEARCH_SERVICE
+    SEARCH_SERVICE --> REC_SERVICE
 
     classDef entity fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     classDef service fill:#fff9c4,stroke:#f57c00,stroke-width:2px
 
     class USER_ENTITY,CHAT_ENTITY,MESSAGE_ENTITY,TRIP_ENTITY entity
-    class AUTH_SERVICE,PREF_SERVICE,PARSER_SERVICE,CHAT_SERVICE,PLAN_SERVICE,REC_SERVICE service
+    class AUTH_SERVICE,PREF_SERVICE,PARSER_SERVICE,CHAT_SERVICE,PLAN_SERVICE,REC_SERVICE,SEARCH_SERVICE service
 ```
 
 ## 보안 아키텍처
@@ -306,24 +339,24 @@ graph LR
 graph TB
     subgraph "Security Layers"
         subgraph "Network Security"
-            WAF[AWS WAF<br/>- DDoS Protection<br/>- SQL Injection Prevention]
-            SG[Security Groups<br/>- Port Control<br/>- IP Whitelisting]
+            WAF[AWS WAF<br/>DDoS Protection<br/>SQL Injection Prevention]
+            SG[Security Groups<br/>Port Control<br/>IP Whitelisting]
         end
 
         subgraph "Application Security"
-            JWT[JWT Authentication<br/>- Token Validation<br/>- Refresh Tokens]
-            OAUTH[OAuth 2.0<br/>- Social Login<br/>- SSO]
-            RBAC[RBAC<br/>- Role-Based Access<br/>- Permission Control]
+            JWT[JWT Authentication<br/>Token Validation<br/>Refresh Tokens]
+            OAUTH[OAuth 2.0<br/>Social Login<br/>SSO]
+            RBAC[RBAC<br/>Role-Based Access<br/>Permission Control]
         end
 
         subgraph "Data Security"
-            ENCRYPT[Encryption<br/>- At Rest: AES-256<br/>- In Transit: TLS 1.3]
-            VAULT[Secret Management<br/>- AWS Secrets Manager<br/>- Environment Variables]
+            ENCRYPT[Encryption<br/>At Rest: AES-256<br/>In Transit: TLS 1.3]
+            VAULT[Secret Management<br/>AWS Secrets Manager<br/>Environment Variables]
         end
 
         subgraph "Compliance"
-            GDPR[GDPR Compliance<br/>- Data Privacy<br/>- Right to Delete]
-            AUDIT[Audit Logging<br/>- Access Logs<br/>- Change Tracking]
+            GDPR[GDPR Compliance<br/>Data Privacy<br/>Right to Delete]
+            AUDIT[Audit Logging<br/>Access Logs<br/>Change Tracking]
         end
     end
 
@@ -351,9 +384,11 @@ graph TB
 | **AI/ML** | Spring AI 1.0.0-M5 | LLM Integration Framework |
 | **Primary LLM** | Gemini 2.0 Flash | Main Chat & Function Calling |
 | **Secondary LLM** | GPT-4o-mini | Fallback & OpenAI Features |
+| **Search API** | Perplexity API | Trend Search & Hidden Gems |
+| **Tourism API** | Korea Tourism API | Official Place Information |
 | **Database** | PostgreSQL 15 | Primary Data Storage |
 | **Vector Store** | Redis 7 | Embeddings & RAG Data |
-| **Cache** | Redis 7 | Session & API Cache |
+| **Cache** | Redis 7 | Session & API Cache (30min TTL) |
 | **Message Queue** | Apache Kafka | Event Streaming |
 | **Container** | Docker | Containerization |
 | **Orchestration** | AWS ECS Fargate | Container Management |
@@ -367,10 +402,11 @@ graph TB
 
 1. **Horizontal Scaling**: ECS Fargate를 통한 자동 스케일링
 2. **Database Scaling**: RDS Read Replica 및 Connection Pooling
-3. **Caching Strategy**: Redis를 활용한 다층 캐싱
-4. **Async Processing**: Kafka를 통한 비동기 처리
-5. **CDN Distribution**: CloudFront를 통한 글로벌 분산
-6. **Microservices**: 도메인별 독립적 확장 가능
+3. **Caching Strategy**: Redis를 활용한 다층 캐싱 (30분 TTL)
+4. **API Rate Limiting**: Perplexity 2-3회, Tour API 배치 호출 제한
+5. **Async Processing**: Kafka를 통한 비동기 처리
+6. **CDN Distribution**: CloudFront를 통한 글로벌 분산
+7. **Microservices**: 도메인별 독립적 확장 가능
 
 ## 성능 목표
 
@@ -379,6 +415,8 @@ graph TB
 - **Availability**: 99.9% SLA
 - **Error Rate**: < 0.1%
 - **LLM Response**: < 2s (P90)
+- **Search Integration**: < 3s (Perplexity + Tour API)
+- **Cache Hit Rate**: > 70% (Redis)
 
 ## 개발 환경
 

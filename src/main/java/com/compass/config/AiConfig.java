@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * - Fallback: GPT-4o-mini
  */
 @Configuration
+@ConditionalOnProperty(name = "compass.ai.enabled", havingValue = "true", matchIfMissing = true)
 public class AiConfig {
 
     @Value("${spring.ai.vertex.ai.gemini.chat.options.model:gemini-2.0-flash}")
@@ -36,7 +37,10 @@ public class AiConfig {
     @Bean
     @Primary
     @ConditionalOnProperty(name = "spring.ai.vertex.ai.gemini.project-id", matchIfMissing = false)
-    public ChatClient geminiChatClient(VertexAiGeminiChatModel vertexAiGeminiChatModel) {
+    public ChatClient geminiChatClient(@Autowired(required = false) VertexAiGeminiChatModel vertexAiGeminiChatModel) {
+        if (vertexAiGeminiChatModel == null) {
+            return null;
+        }
         return ChatClient.builder(vertexAiGeminiChatModel)
                 .build();
     }
@@ -48,13 +52,16 @@ public class AiConfig {
      */
     @Bean(name = "openAiChatClient")
     @ConditionalOnProperty(name = "spring.ai.openai.api-key", matchIfMissing = false)
-    public ChatClient openAiChatClient(OpenAiChatModel openAiChatModel) {
+    public ChatClient openAiChatClient(@Autowired(required = false) OpenAiChatModel openAiChatModel) {
+        if (openAiChatModel == null) {
+            return null;
+        }
         return ChatClient.builder(openAiChatModel)
                 .build();
     }
 
     // Note: ChatModel beans are auto-configured by Spring AI
-    // We don't need to define them manually
+    // We only need to reference them, not redefine them
 
     /**
      * Model selector service for choosing between Flash and Pro models

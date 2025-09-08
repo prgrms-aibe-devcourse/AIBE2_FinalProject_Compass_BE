@@ -1,0 +1,322 @@
+{
+  "templateId": "two_nights",
+  "templateName": "2박3일",
+  "duration": "2박3일",
+  "description": "연휴나 중기 여행에 적합한 2박3일 일정",
+  "defaultSchedule": {
+    "day1": {
+      "dayNumber": 1,
+      "date": "{{startDate}}",
+      "activities": [
+        {
+          "time": "09:00",
+          "duration": 150,
+          "type": "transport",
+          "title": "출발 및 이동",
+          "description": "{{origin}}에서 {{destination}}으로 이동",
+          "category": "교통",
+          "optional": false
+        },
+        {
+          "time": "11:30",
+          "duration": 30,
+          "type": "accommodation",
+          "title": "체크인",
+          "description": "호텔 체크인 및 짐 정리",
+          "category": "숙박",
+          "optional": false,
+          "placeholder": "{{accommodation}}"
+        },
+        {
+          "time": "12:00",
+          "duration": 90,
+          "type": "meal",
+          "title": "점심 식사",
+          "description": "도착 후 첫 현지 식사",
+          "category": "식사",
+          "optional": false,
+          "placeholder": "{{lunch_day1}}"
+        },
+        {
+          "time": "13:30",
+          "duration": 180,
+          "type": "attraction",
+          "title": "주요 관광지 1",
+          "description": "첫날 메인 관광지 탐방",
+          "category": "관광",
+          "optional": false,
+          "placeholder": "{{attraction1}}"
+        },
+        {
+          "time": "16:30",
+          "duration": 30,
+          "type": "rest",
+          "title": "휴식",
+          "description": "카페 또는 휴게소에서 휴식",
+          "category": "휴식",
+          "optional": true,
+          "placeholder": "{{rest_day1}}"
+        },
+        {
+          "time": "17:00",
+          "duration": 90,
+          "type": "attraction",
+          "title": "일몰 명소",
+          "description": "일몰 감상 명소 방문",
+          "category": "관광",
+          "optional": true,
+          "placeholder": "{{sunset_spot}}"
+        },
+        {
+          "time": "18:30",
+          "duration": 120,
+          "type": "meal",
+          "title": "저녁 식사",
+          "description": "현지 대표 요리",
+          "category": "식사",
+          "optional": false,
+          "placeholder": "{{dinner_day1}}"
+        },
+        {
+          "time": "20:30",
+          "duration": 90,
+          "type": "entertainment",
+          "title": "야간 활동",
+          "description": "야경, 공연 또는 현지 문화 체험",
+          "category": "엔터테인먼트",
+          "optional": true,
+          "placeholder": "{{night_day1}}"
+        }
+      ],
+      "estimatedCost": {
+        "transport": 80000,
+        "accommodation": 100000,
+        "meals": 70000,
+        "attractions": 50000,
+        "entertainment": 30000,
+        "total": 330000
+      }
+    },
+    "day2": {
+      "dayNumber": 2,
+      "date": "{{day2Date}}",
+      "activities": [
+        {
+          "time": "08:00",
+          "duration": 60,
+          "type": "meal",
+          "title": "아침 식사",
+          "description": "호텔 조식 또는 현지 아침",
+          "category": "식사",
+          "optional": false,
+          "placeholder": "{{breakfast_day2}}"
+        },
+        {
+          "time": "09:00",
+          "duration": 210,
+          "type": "attraction",
+          "title": "주요 관광지 2",
+          "description": "둘째날 메인 관광 코스",
+          "category": "관광",
+          "optional": false,
+          "placeholder": "{{attraction2}}"
+        },
+        {
+          "time": "12:30",
+          "duration": 90,
+          "type": "meal",
+          "title": "점심 식사",
+          "description": "관광지 근처 맛집",
+          "category": "식사",
+          "optional": false,
+          "placeholder": "{{lunch_day2}}"
+        },
+        {
+          "time": "14:00",
+          "duration": 120,
+          "type": "activity",
+          "title": "체험 활동",
+          "description": "현지 문화 체험 또는 액티비티",
+          "category": "체험",
+          "optional": false,
+          "placeholder": "{{activity_day2}}"
+        },
+        {
+          "time": "16:00",
+          "duration": 60,
+          "type": "shopping",
+          "title": "쇼핑",
+          "description": "전통시장 또는 쇼핑센터",
+          "category": "쇼핑",
+          "optional": true,
+          "placeholder": "{{shopping_day2}}"
+        },
+        {
+          "time": "17:00",
+          "duration": 60,
+          "type": "rest",
+          "title": "호텔 휴식",
+          "description": "호텔에서 휴식 및 재정비",
+          "category": "휴식",
+          "optional": true
+        },
+        {
+          "time": "18:00",
+          "duration": 120,
+          "type": "meal",
+          "title": "저녁 식사",
+          "description": "특별한 저녁 코스 요리",
+          "category": "식사",
+          "optional": false,
+          "placeholder": "{{dinner_day2}}"
+        },
+        {
+          "time": "20:00",
+          "duration": 120,
+          "type": "entertainment",
+          "title": "야간 활동",
+          "description": "바, 클럽 또는 야시장",
+          "category": "엔터테인먼트",
+          "optional": true,
+          "placeholder": "{{night_day2}}"
+        }
+      ],
+      "estimatedCost": {
+        "meals": 80000,
+        "attractions": 60000,
+        "activity": 50000,
+        "shopping": 40000,
+        "entertainment": 40000,
+        "total": 270000
+      }
+    },
+    "day3": {
+      "dayNumber": 3,
+      "date": "{{endDate}}",
+      "activities": [
+        {
+          "time": "08:00",
+          "duration": 60,
+          "type": "meal",
+          "title": "아침 식사",
+          "description": "호텔 조식",
+          "category": "식사",
+          "optional": false,
+          "placeholder": "{{breakfast_day3}}"
+        },
+        {
+          "time": "09:00",
+          "duration": 30,
+          "type": "accommodation",
+          "title": "체크아웃",
+          "description": "호텔 체크아웃 및 짐 보관",
+          "category": "숙박",
+          "optional": false
+        },
+        {
+          "time": "09:30",
+          "duration": 150,
+          "type": "attraction",
+          "title": "주요 관광지 3",
+          "description": "마지막날 필수 관광지",
+          "category": "관광",
+          "optional": false,
+          "placeholder": "{{attraction3}}"
+        },
+        {
+          "time": "12:00",
+          "duration": 90,
+          "type": "meal",
+          "title": "점심 식사",
+          "description": "마지막 현지 점심",
+          "category": "식사",
+          "optional": false,
+          "placeholder": "{{lunch_day3}}"
+        },
+        {
+          "time": "13:30",
+          "duration": 90,
+          "type": "attraction",
+          "title": "선택 관광",
+          "description": "시간 여유시 추가 관광",
+          "category": "관광",
+          "optional": true,
+          "placeholder": "{{optional_attraction}}"
+        },
+        {
+          "time": "15:00",
+          "duration": 60,
+          "type": "shopping",
+          "title": "기념품 구매",
+          "description": "마지막 쇼핑 및 기념품",
+          "category": "쇼핑",
+          "optional": true,
+          "placeholder": "{{souvenir}}"
+        },
+        {
+          "time": "16:00",
+          "duration": 30,
+          "type": "rest",
+          "title": "출발 준비",
+          "description": "짐 찾기 및 귀가 준비",
+          "category": "준비",
+          "optional": false
+        },
+        {
+          "time": "16:30",
+          "duration": 150,
+          "type": "transport",
+          "title": "귀가",
+          "description": "{{destination}}에서 {{origin}}으로 귀가",
+          "category": "교통",
+          "optional": false
+        }
+      ],
+      "estimatedCost": {
+        "meals": 60000,
+        "attractions": 40000,
+        "shopping": 30000,
+        "transport": 80000,
+        "total": 210000
+      }
+    }
+  },
+  "totalEstimatedCost": 810000,
+  "recommendations": {
+    "packing": ["2박용 캐리어", "세면도구", "여벌 옷 2세트", "충전기", "카메라", "편한 신발 2켤레", "상비약"],
+    "tips": [
+      "둘째날이 가장 체력 소모가 크므로 첫날은 가볍게 시작하세요",
+      "호텔은 관광지 중심부에 위치한 곳을 선택하면 이동이 편리합니다",
+      "마지막날 오후 일정은 여유있게 계획하세요",
+      "중요한 관광지는 오전에 방문하면 덜 붐빕니다"
+    ],
+    "bestSeason": "봄/가을",
+    "difficulty": "보통"
+  },
+  "variables": [
+    "origin",
+    "destination",
+    "startDate",
+    "day2Date",
+    "endDate",
+    "accommodation",
+    "attraction1",
+    "attraction2",
+    "attraction3",
+    "optional_attraction",
+    "sunset_spot",
+    "activity_day2",
+    "lunch_day1",
+    "dinner_day1",
+    "breakfast_day2",
+    "lunch_day2",
+    "dinner_day2",
+    "breakfast_day3",
+    "lunch_day3",
+    "rest_day1",
+    "night_day1",
+    "night_day2",
+    "shopping_day2",
+    "souvenir"
+  ]
+}
