@@ -1,804 +1,566 @@
-# 📊 Compass 데이터베이스 ERD
+# 🗄️ Compass 데이터베이스 ERD (Entity Relationship Diagram)
 
-> **Last Updated**: 2025-01-02
-> **Based on**: TEAM_REQUIREMENTS.md (5-member team with TRIP1/TRIP2 structure)
-> **Team Structure**: USER1, USER2, CHAT1, CHAT2, TRIP (combined TRIP1+TRIP2)
-
-## 🎯 엔티티 추출 (요구사항 기반)
-
-### 핵심 엔티티
-
-#### USER Domain (USER1, USER2)
-1. **users** - 사용자 정보 관리
-2. **user_preferences** - 사용자 선호도 정보
-3. **token_blacklist** - 토큰 블랙리스트 (JWT 관리)
-4. **user_favorites** - 사용자 즐겨찾기
-
-#### CHAT Domain (CHAT1, CHAT2)
-5. **chat_threads** - 채팅방 정보
-6. **messages** - 채팅 메시지
-7. **message_attachments** - 메시지 첨부파일 (OCR 지원)
-8. **intent_keywords** - 의도 분류 키워드
-9. **prompt_templates** - 프롬프트 템플릿 (Gemini 2.0 Flash)
-10. **ai_responses** - AI 응답 캐시 (신규)
-
-#### TRIP Domain (TRIP1+TRIP2 Combined)
-11. **trips** - 여행 계획
-12. **trip_details** - 여행 일정 상세
-13. **trip_feedbacks** - 여행 평가
-14. **trip_shares** - 여행 공유 정보
-15. **trip_checklists** - 여행 체크리스트
-16. **recommendation_cache** - RAG 추천 캐시 (신규)
-17. **travel_embeddings** - 여행지 벡터 임베딩 (신규)
-18. **user_interaction_embeddings** - 사용자 상호작용 벡터 (신규)
-
-#### System Domain
-19. **api_usage_logs** - API 사용 로그 (모든 도메인)
-
----
-
-## 🗄️ ERD 다이어그램
+## 📊 전체 ERD 다이어그램
 
 ```mermaid
 erDiagram
-    users ||--o{ chat_threads : creates
-    users ||--o| user_preferences : has
-    users ||--o{ trips : owns
-    users ||--o{ user_favorites : has
-    users ||--o{ api_usage_logs : generates
+    %% === 현재 구현된 엔티티 ===
+    users ||--o{ chat_threads : "has"
+    users ||--o{ media : "uploads"
+    users ||--o{ user_preferences : "has"
+    users ||--o{ user_contexts : "has"
+    users ||--o{ travel_histories : "has"
     
-    chat_threads ||--o{ messages : contains
-    messages ||--o{ message_attachments : has
-    messages ||--o{ api_usage_logs : triggers
-    messages ||--o| ai_responses : caches
+    chat_threads ||--o{ chat_messages : "contains"
     
-    trips ||--o{ trip_details : contains
-    trips ||--o{ trip_feedbacks : receives
-    trips ||--o{ trip_shares : has
-    trips ||--o{ trip_checklists : has
-    trips ||--o{ recommendation_cache : generates
-    trips ||--o{ travel_embeddings : has
-    users ||--o{ user_interaction_embeddings : generates
+    %% === 계획된 엔티티 (점선) ===
+    users ||..o{ trips : "creates"
+    users ||..o{ refresh_tokens : "has"
+    users ||..o{ social_accounts : "has"
     
+    trips ||..o{ trip_details : "contains"
+    trips ||..o{ trip_places : "includes"
+    trips ||..o{ trip_bookings : "has"
+    
+    %% === Redis 저장소 (별도 표시) ===
+    users ||..o{ travel_contexts : "temporary_storage"
+    users ||..o{ conversation_states : "session"
+    
+    %% 엔티티 정의 - 현재 구현됨
     users {
         bigint id PK
         varchar email UK
         varchar password
         varchar nickname
+        varchar role
+        varchar social_type
+        varchar social_id
         varchar profile_image_url
-        varchar travel_style
-        varchar budget_level
-        varchar status
         timestamp created_at
         timestamp updated_at
-        timestamp deleted_at
+    }
+    
+    chat_threads {
+        varchar id PK
+        bigint user_id FK
+        varchar title
+        timestamp created_at
+        timestamp updated_at
+        timestamp last_message_at
+    }
+    
+    chat_messages {
+        bigint id PK
+        varchar thread_id FK
+        varchar role
+        text content
+        timestamp timestamp
+        int token_count
+        jsonb metadata
+    }
+    
+    media {
+        bigint id PK
+        bigint user_id FK
+        varchar original_filename
+        varchar stored_filename
+        varchar s3_url
+        bigint file_size
+        varchar mime_type
+        varchar status
+        jsonb metadata
+        boolean deleted
+        timestamp created_at
+        timestamp updated_at
     }
     
     user_preferences {
         bigint id PK
         bigint user_id FK
-        jsonb preferred_categories
-        jsonb favorite_destinations
-        jsonb disliked_items
-        varchar activity_time_preference
-        varchar accommodation_type
-        varchar food_preference
-        boolean is_vegetarian
-        jsonb travel_companions
-        float preference_vector
+        varchar preference_type
+        varchar preference_key
+        decimal preference_value
+        varchar description
+        timestamp created_at
         timestamp updated_at
     }
     
-    chat_threads {
+    user_contexts {
         bigint id PK
-        uuid thread_uuid UK
         bigint user_id FK
-        varchar title
-        varchar status
-        jsonb context_summary
-        integer message_count
-        timestamp last_message_at
+        varchar age_group
+        varchar travel_companion
+        int companion_count
+        boolean with_children
+        varchar children_age_group
+        varchar physical_condition
+        text special_requirements
+        varchar language_preference
+        jsonb past_feedback
+        varchar current_trip_purpose
+        varchar season_preference
+        jsonb additional_context
         timestamp created_at
-        timestamp deleted_at
+        timestamp updated_at
     }
     
-    messages {
+    travel_histories {
         bigint id PK
-        bigint thread_id FK
-        varchar role
-        text content
-        varchar intent_type
-        jsonb metadata
-        integer token_count
-        varchar llm_model
-        timestamp created_at
-    }
-    
-    message_attachments {
-        bigint id PK
-        bigint message_id FK
-        varchar file_type
-        varchar file_url
-        text extracted_text
-        jsonb metadata
-        timestamp created_at
-    }
-    
-    trips {
-        bigint id PK
-        uuid trip_uuid UK
         bigint user_id FK
-        bigint thread_id FK
-        varchar title
         varchar destination
         date start_date
         date end_date
-        integer number_of_people
-        integer total_budget
-        varchar status
-        jsonb trip_metadata
-        integer version
+        varchar travel_type
+        int companion_count
+        int total_budget
+        int actual_expense
+        int rating
+        jsonb visited_places
+        text preferred_activities
+        text travel_notes
+        varchar travel_style
+        varchar accommodation_type
+        varchar transportation_mode
+        varchar weather_condition
+        varchar season
+        boolean used_ai_plan
+        int ai_satisfaction
+        jsonb metadata
         timestamp created_at
         timestamp updated_at
-        timestamp deleted_at
+    }
+    
+    %% 계획된 엔티티
+    trips {
+        bigint id PK
+        bigint user_id FK
+        varchar destination
+        date start_date
+        date end_date
+        varchar status
+        int total_budget
+        varchar travel_style
+        jsonb ai_generated_plan
+        timestamp created_at
+        timestamp updated_at
     }
     
     trip_details {
         bigint id PK
         bigint trip_id FK
-        integer day_number
-        date activity_date
-        time activity_time
+        int day_number
+        jsonb schedule
+        text notes
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    trip_places {
+        bigint id PK
+        bigint trip_id FK
         varchar place_name
-        varchar category
-        text description
-        integer estimated_cost
-        varchar address
+        varchar place_type
         decimal latitude
         decimal longitude
-        text tips
+        varchar address
+        varchar opening_hours
+        int entrance_fee
+        int estimated_time
         jsonb additional_info
-        integer display_order
-    }
-    
-    trip_feedbacks {
-        bigint id PK
-        bigint trip_id FK
-        bigint user_id FK
-        integer rating
-        text comment
-        jsonb liked_activities
-        jsonb disliked_activities
         timestamp created_at
     }
     
-    trip_shares {
+    trip_bookings {
         bigint id PK
         bigint trip_id FK
-        uuid share_code UK
-        varchar access_level
-        timestamp expires_at
-        integer view_count
-        timestamp created_at
-    }
-    
-    trip_checklists {
-        bigint id PK
-        bigint trip_id FK
-        varchar category
-        varchar item_name
-        boolean is_checked
-        integer display_order
+        varchar booking_type
+        varchar confirmation_number
+        date booking_date
+        decimal amount
+        varchar status
+        jsonb booking_details
         timestamp created_at
         timestamp updated_at
     }
     
-    api_usage_logs {
+    refresh_tokens {
         bigint id PK
         bigint user_id FK
-        bigint message_id FK
-        varchar api_type
-        varchar model_name
-        integer prompt_tokens
-        integer completion_tokens
-        integer total_tokens
-        decimal cost
-        integer response_time_ms
-        varchar status_code
-        text error_message
-        timestamp created_at
-    }
-    
-    token_blacklist {
-        bigint id PK
-        varchar token_hash UK
-        varchar token_type
+        varchar token
         timestamp expires_at
         timestamp created_at
     }
     
-    intent_keywords {
+    social_accounts {
         bigint id PK
-        varchar intent_type
-        varchar keyword
-        float weight
-        boolean is_active
-        timestamp created_at
-    }
-    
-    prompt_templates {
-        bigint id PK
-        varchar template_name UK
-        varchar template_type
-        text template_content
-        jsonb variables
-        varchar llm_model
-        boolean is_active
-        integer version
+        bigint user_id FK
+        varchar provider
+        varchar provider_id
+        varchar access_token
+        varchar refresh_token
+        timestamp token_expires_at
+        jsonb profile_data
         timestamp created_at
         timestamp updated_at
     }
     
-    user_favorites {
-        bigint id PK
-        bigint user_id FK
-        varchar item_type
-        varchar item_id
-        varchar item_name
-        jsonb metadata
-        timestamp created_at
+    %% Redis 전용 (NoSQL)
+    travel_contexts {
+        string key
+        string user_id
+        string destination
+        string departure_date
+        string duration
+        string companions
+        string budget_level
+        string travel_style
+        boolean is_complete
+        int ttl_seconds
     }
     
-    ai_responses {
-        bigint id PK
-        bigint message_id FK
-        varchar cache_key UK
-        text response_content
-        varchar model_version
-        jsonb response_metadata
-        timestamp expires_at
-        timestamp created_at
-    }
-    
-    recommendation_cache {
-        bigint id PK
-        bigint trip_id FK
-        varchar cache_key UK
-        jsonb recommendations
-        float relevance_score
-        varchar embedding_model
-        timestamp expires_at
-        timestamp created_at
-    }
-    
-    travel_embeddings {
-        bigint id PK
-        bigint trip_id FK
-        varchar content_type
-        text content
-        vector embedding_vector
-        varchar model_version
-        jsonb metadata
-        timestamp created_at
-    }
-    
-    user_interaction_embeddings {
-        bigint id PK
-        bigint user_id FK
-        varchar interaction_type
-        text interaction_content
-        vector embedding_vector
-        varchar model_version
-        float weight
-        timestamp created_at
+    conversation_states {
+        string key
+        string thread_id
+        string current_question_index
+        array collected_answers
+        string intent_type
+        timestamp last_activity
+        int ttl_seconds
     }
 ```
 
----
+## 📝 테이블 상세 명세
 
-## 📋 테이블 상세 명세
+### 🔐 USER 도메인
 
-### 1. users (사용자)
+#### 1. users (구현 완료)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| id | BIGSERIAL | PK | 사용자 고유 ID |
-| email | VARCHAR(255) | UK, NOT NULL | 이메일 (로그인 ID) |
-| password | VARCHAR(255) | NOT NULL | BCrypt 암호화된 비밀번호 |
-| nickname | VARCHAR(100) | | 사용자 닉네임 |
-| profile_image_url | VARCHAR(500) | | 프로필 이미지 URL |
-| travel_style | VARCHAR(50) | | 여행 스타일 (REST/SIGHTSEEING/ACTIVITY) |
-| budget_level | VARCHAR(50) | | 예산 수준 (BUDGET/STANDARD/LUXURY) |
-| status | VARCHAR(20) | DEFAULT 'ACTIVE' | 계정 상태 (ACTIVE/INACTIVE/DELETED) |
-| created_at | TIMESTAMP | DEFAULT NOW() | 가입일시 |
-| updated_at | TIMESTAMP | | 수정일시 |
-| deleted_at | TIMESTAMP | | 삭제일시 (soft delete) |
+| id | BIGINT | PK, AUTO_INCREMENT | 사용자 고유 ID |
+| email | VARCHAR(255) | UNIQUE, NOT NULL | 이메일 (로그인 ID) |
+| password | VARCHAR(255) | NULLABLE | 비밀번호 (소셜 로그인시 NULL) |
+| nickname | VARCHAR(100) | NOT NULL | 닉네임 |
+| role | VARCHAR(50) | NOT NULL | 권한 (USER, ADMIN) |
+| social_type | VARCHAR(50) | NULLABLE | 소셜 로그인 타입 (KAKAO, GOOGLE) |
+| social_id | VARCHAR(255) | NULLABLE | 소셜 로그인 고유 ID |
+| profile_image_url | VARCHAR(500) | NULLABLE | 프로필 이미지 URL |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
 
-### 2. user_preferences (사용자 선호도)
+#### 2. refresh_tokens (계획)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| id | BIGSERIAL | PK | 선호도 ID |
-| user_id | BIGINT | FK, UK | 사용자 ID |
-| preferred_categories | JSONB | | 선호 카테고리 (최대 3개) |
-| favorite_destinations | JSONB | | 선호 여행지 목록 |
-| disliked_items | JSONB | | 비선호 항목 (블랙리스트) |
-| activity_time_preference | VARCHAR(50) | | 활동 시간 선호 (MORNING/EVENING) |
-| accommodation_type | VARCHAR(50) | | 숙박 선호 (HOTEL/GUESTHOUSE/AIRBNB) |
-| food_preference | VARCHAR(100) | | 음식 선호 (한식/양식/일식 등) |
-| is_vegetarian | BOOLEAN | DEFAULT FALSE | 채식주의 여부 |
-| travel_companions | JSONB | | 동행인 정보 |
-| preference_vector | FLOAT[] | | 벡터화된 선호도 (RAG용) |
-| updated_at | TIMESTAMP | | 최종 업데이트 시간 |
+| id | BIGINT | PK, AUTO_INCREMENT | 토큰 ID |
+| user_id | BIGINT | FK(users), NOT NULL | 사용자 ID |
+| token | VARCHAR(500) | UNIQUE, NOT NULL | 리프레시 토큰 |
+| expires_at | TIMESTAMP | NOT NULL | 만료일시 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
 
-### 3. chat_threads (채팅방)
+#### 3. social_accounts (계획)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| id | BIGSERIAL | PK | 채팅방 ID |
-| thread_uuid | UUID | UK, DEFAULT gen_random_uuid() | 채팅방 고유 식별자 |
-| user_id | BIGINT | FK, NOT NULL | 사용자 ID |
-| title | VARCHAR(255) | | 채팅방 제목 |
-| status | VARCHAR(20) | DEFAULT 'ACTIVE' | 상태 (ACTIVE/ARCHIVED/DELETED) |
-| context_summary | JSONB | | 대화 컨텍스트 요약 |
-| message_count | INTEGER | DEFAULT 0 | 메시지 수 |
-| last_message_at | TIMESTAMP | | 마지막 메시지 시간 |
-| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
-| deleted_at | TIMESTAMP | | 삭제일시 |
+| id | BIGINT | PK, AUTO_INCREMENT | 계정 ID |
+| user_id | BIGINT | FK(users), NOT NULL | 사용자 ID |
+| provider | VARCHAR(50) | NOT NULL | 제공자 (KAKAO, GOOGLE, NAVER) |
+| provider_id | VARCHAR(255) | NOT NULL | 제공자측 사용자 ID |
+| access_token | VARCHAR(1000) | NULLABLE | 액세스 토큰 |
+| refresh_token | VARCHAR(1000) | NULLABLE | 리프레시 토큰 |
+| token_expires_at | TIMESTAMP | NULLABLE | 토큰 만료일시 |
+| profile_data | JSONB | NULLABLE | 프로필 추가 정보 |
+| created_at | TIMESTAMP | NOT NULL | 연동일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
 
-### 4. messages (메시지)
+### 💬 CHAT 도메인
+
+#### 4. chat_threads (구현 완료)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| id | BIGSERIAL | PK | 메시지 ID |
-| thread_id | BIGINT | FK, NOT NULL | 채팅방 ID |
-| role | VARCHAR(20) | NOT NULL | 역할 (USER/ASSISTANT/SYSTEM) |
+| id | VARCHAR(36) | PK, UUID | 채팅 스레드 ID |
+| user_id | BIGINT | FK(users), NOT NULL | 사용자 ID |
+| title | VARCHAR(255) | NULLABLE | 채팅방 제목 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
+| last_message_at | TIMESTAMP | NULLABLE | 마지막 메시지 시간 |
+
+**인덱스**:
+- idx_chat_thread_user_id (user_id)
+- idx_chat_thread_last_message (last_message_at DESC)
+
+#### 5. chat_messages (구현 완료)
+| 컬럼명 | 타입 | 제약조건 | 설명 |
+|--------|------|----------|------|
+| id | BIGINT | PK, AUTO_INCREMENT | 메시지 ID |
+| thread_id | VARCHAR(36) | FK(chat_threads), NOT NULL | 스레드 ID |
+| role | VARCHAR(20) | NOT NULL | 역할 (user, assistant, system) |
 | content | TEXT | NOT NULL | 메시지 내용 |
-| intent_type | VARCHAR(50) | | 의도 분류 (PLANNING/RECOMMENDATION/INFO) |
-| metadata | JSONB | | 메타데이터 (키워드, 엔티티 등) |
-| token_count | INTEGER | | 토큰 사용량 |
-| llm_model | VARCHAR(50) | | 사용된 LLM 모델 |
-| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
+| timestamp | TIMESTAMP | NOT NULL | 전송시간 |
+| token_count | INT | NULLABLE | 토큰 수 |
+| metadata | JSONB | NULLABLE | 추가 메타데이터 |
 
-### 5. message_attachments (메시지 첨부파일)
+**인덱스**:
+- idx_chat_message_thread_id (thread_id)
+- idx_chat_message_timestamp (timestamp DESC)
+
+### 🗺️ TRIP 도메인
+
+#### 6. user_preferences (구현 완료)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| id | BIGSERIAL | PK | 첨부파일 ID |
-| message_id | BIGINT | FK, NOT NULL | 메시지 ID |
-| file_type | VARCHAR(50) | | 파일 타입 (IMAGE/DOCUMENT) |
-| file_url | VARCHAR(500) | NOT NULL | 파일 URL |
-| extracted_text | TEXT | | OCR 추출 텍스트 |
-| metadata | JSONB | | 파일 메타데이터 |
-| created_at | TIMESTAMP | DEFAULT NOW() | 업로드 일시 |
+| id | BIGINT | PK, AUTO_INCREMENT | 선호도 ID |
+| user_id | BIGINT | FK(users), NOT NULL | 사용자 ID |
+| preference_type | VARCHAR(50) | NOT NULL | 선호도 타입 (TRAVEL_STYLE, BUDGET_LEVEL) |
+| preference_key | VARCHAR(50) | NOT NULL | 선호도 키 (RELAXATION, SIGHTSEEING 등) |
+| preference_value | DECIMAL(3,2) | NOT NULL | 선호도 값 (0.00 ~ 1.00) |
+| description | VARCHAR(255) | NULLABLE | 설명 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
 
-### 6. trips (여행 계획)
+**유니크 제약**:
+- uk_user_preference_type_key (user_id, preference_type, preference_key)
+
+#### 7. user_contexts (구현 완료)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| id | BIGSERIAL | PK | 여행 ID |
-| trip_uuid | UUID | UK, DEFAULT gen_random_uuid() | 여행 고유 식별자 |
-| user_id | BIGINT | FK, NOT NULL | 사용자 ID |
-| thread_id | BIGINT | FK | 생성된 채팅방 ID |
-| title | VARCHAR(255) | NOT NULL | 여행 제목 |
+| id | BIGINT | PK, AUTO_INCREMENT | 컨텍스트 ID |
+| user_id | BIGINT | UNIQUE, NOT NULL | 사용자 ID |
+| age_group | VARCHAR(20) | NULLABLE | 나이대 (20대, 30대, 40대, 50대+) |
+| travel_companion | VARCHAR(50) | NULLABLE | 동행 유형 (SOLO, COUPLE, FAMILY 등) |
+| companion_count | INT | NULLABLE | 동행 인원수 |
+| with_children | BOOLEAN | NULLABLE | 아이 동반 여부 |
+| children_age_group | VARCHAR(50) | NULLABLE | 아이 연령대 |
+| physical_condition | VARCHAR(100) | NULLABLE | 신체 조건 |
+| special_requirements | TEXT | NULLABLE | 특별 요구사항 |
+| language_preference | VARCHAR(50) | NULLABLE | 언어 선호도 |
+| past_feedback | JSONB | NULLABLE | 과거 피드백 |
+| current_trip_purpose | VARCHAR(50) | NULLABLE | 현재 여행 목적 |
+| season_preference | VARCHAR(20) | NULLABLE | 계절 선호도 |
+| additional_context | JSONB | NULLABLE | 추가 컨텍스트 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
+
+#### 8. travel_histories (구현 완료)
+| 컬럼명 | 타입 | 제약조건 | 설명 |
+|--------|------|----------|------|
+| id | BIGINT | PK, AUTO_INCREMENT | 히스토리 ID |
+| user_id | BIGINT | FK(users), NOT NULL | 사용자 ID |
+| destination | VARCHAR(100) | NOT NULL | 여행 목적지 |
+| start_date | DATE | NOT NULL | 출발일 |
+| end_date | DATE | NOT NULL | 도착일 |
+| travel_type | VARCHAR(50) | NULLABLE | 여행 유형 |
+| companion_count | INT | NULLABLE | 동행 인원수 |
+| total_budget | INT | NULLABLE | 총 예산 |
+| actual_expense | INT | NULLABLE | 실제 지출 |
+| rating | INT | NULLABLE | 평점 (1-5) |
+| visited_places | JSONB | NULLABLE | 방문 장소 |
+| preferred_activities | TEXT | NULLABLE | 선호 활동 |
+| travel_notes | TEXT | NULLABLE | 여행 메모 |
+| travel_style | VARCHAR(100) | NULLABLE | 여행 스타일 |
+| accommodation_type | VARCHAR(50) | NULLABLE | 숙박 유형 |
+| transportation_mode | VARCHAR(50) | NULLABLE | 교통수단 |
+| weather_condition | VARCHAR(50) | NULLABLE | 날씨 상태 |
+| season | VARCHAR(20) | NULLABLE | 계절 |
+| used_ai_plan | BOOLEAN | NULLABLE | AI 계획 사용 여부 |
+| ai_satisfaction | INT | NULLABLE | AI 만족도 (1-5) |
+| metadata | JSONB | NULLABLE | 메타데이터 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
+
+#### 9. trips (계획)
+| 컬럼명 | 타입 | 제약조건 | 설명 |
+|--------|------|----------|------|
+| id | BIGINT | PK, AUTO_INCREMENT | 여행 ID |
+| user_id | BIGINT | FK(users), NOT NULL | 사용자 ID |
 | destination | VARCHAR(255) | NOT NULL | 목적지 |
 | start_date | DATE | NOT NULL | 출발일 |
 | end_date | DATE | NOT NULL | 도착일 |
-| number_of_people | INTEGER | | 여행 인원 |
-| total_budget | INTEGER | | 총 예산 |
-| status | VARCHAR(20) | DEFAULT 'PLANNING' | 상태 (PLANNING/CONFIRMED/ONGOING/COMPLETED) |
-| trip_metadata | JSONB | | 추가 메타데이터 |
-| version | INTEGER | DEFAULT 1 | 버전 (낙관적 잠금) |
-| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
-| updated_at | TIMESTAMP | | 수정일시 |
-| deleted_at | TIMESTAMP | | 삭제일시 |
+| status | VARCHAR(50) | NOT NULL | 상태 (PLANNING, CONFIRMED, COMPLETED) |
+| total_budget | INT | NULLABLE | 총 예산 |
+| travel_style | VARCHAR(100) | NULLABLE | 여행 스타일 |
+| ai_generated_plan | JSONB | NULLABLE | AI 생성 계획 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
 
-### 7. trip_details (여행 일정 상세)
+#### 10. trip_details (계획)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| id | BIGSERIAL | PK | 일정 ID |
-| trip_id | BIGINT | FK, NOT NULL | 여행 ID |
-| day_number | INTEGER | NOT NULL | 일차 |
-| activity_date | DATE | | 활동 날짜 |
-| activity_time | TIME | | 활동 시간 |
+| id | BIGINT | PK, AUTO_INCREMENT | 상세 ID |
+| trip_id | BIGINT | FK(trips), NOT NULL | 여행 ID |
+| day_number | INT | NOT NULL | 일차 |
+| schedule | JSONB | NULLABLE | 일정 (시간별) |
+| notes | TEXT | NULLABLE | 메모 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
+
+#### 11. trip_places (계획)
+| 컬럼명 | 타입 | 제약조건 | 설명 |
+|--------|------|----------|------|
+| id | BIGINT | PK, AUTO_INCREMENT | 장소 ID |
+| trip_id | BIGINT | FK(trips), NOT NULL | 여행 ID |
 | place_name | VARCHAR(255) | NOT NULL | 장소명 |
-| category | VARCHAR(50) | | 카테고리 (관광지/식당/숙박) |
-| description | TEXT | | 설명 |
-| estimated_cost | INTEGER | | 예상 비용 |
-| address | VARCHAR(500) | | 주소 |
-| latitude | DECIMAL(10,8) | | 위도 |
-| longitude | DECIMAL(11,8) | | 경도 |
-| tips | TEXT | | 팁/주의사항 |
-| additional_info | JSONB | | 추가 정보 |
-| display_order | INTEGER | | 표시 순서 |
+| place_type | VARCHAR(50) | NULLABLE | 장소 유형 |
+| latitude | DECIMAL(10,8) | NULLABLE | 위도 |
+| longitude | DECIMAL(11,8) | NULLABLE | 경도 |
+| address | VARCHAR(500) | NULLABLE | 주소 |
+| opening_hours | VARCHAR(255) | NULLABLE | 영업시간 |
+| entrance_fee | INT | NULLABLE | 입장료 |
+| estimated_time | INT | NULLABLE | 예상 소요시간(분) |
+| additional_info | JSONB | NULLABLE | 추가 정보 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
 
-### 8. ai_responses (AI 응답 캐시) - 신규
+#### 12. trip_bookings (계획)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| id | BIGSERIAL | PK | 캐시 ID |
-| message_id | BIGINT | FK | 메시지 ID |
-| cache_key | VARCHAR(255) | UK | 캐시 키 (prompt hash) |
-| response_content | TEXT | NOT NULL | 캐시된 응답 |
-| model_version | VARCHAR(50) | | 모델 버전 (gemini-2.0-flash) |
-| response_metadata | JSONB | | 응답 메타데이터 |
-| expires_at | TIMESTAMP | | 캐시 만료 시간 |
-| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
+| id | BIGINT | PK, AUTO_INCREMENT | 예약 ID |
+| trip_id | BIGINT | FK(trips), NOT NULL | 여행 ID |
+| booking_type | VARCHAR(50) | NOT NULL | 예약 유형 (FLIGHT, HOTEL, RESTAURANT) |
+| confirmation_number | VARCHAR(100) | NULLABLE | 예약 번호 |
+| booking_date | DATE | NOT NULL | 예약일 |
+| amount | DECIMAL(10,2) | NULLABLE | 금액 |
+| status | VARCHAR(50) | NOT NULL | 상태 (PENDING, CONFIRMED, CANCELLED) |
+| booking_details | JSONB | NULLABLE | 예약 상세 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
 
-### 9. recommendation_cache (추천 캐시) - 신규
+### 🖼️ MEDIA 도메인
+
+#### 13. media (구현 완료)
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| id | BIGSERIAL | PK | 캐시 ID |
-| trip_id | BIGINT | FK | 여행 ID |
-| cache_key | VARCHAR(255) | UK | 캐시 키 (context hash) |
-| recommendations | JSONB | NOT NULL | RAG 추천 결과 |
-| relevance_score | FLOAT | | 관련성 점수 |
-| embedding_model | VARCHAR(50) | | 임베딩 모델 |
-| expires_at | TIMESTAMP | | 캐시 만료 시간 |
-| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
+| id | BIGINT | PK, AUTO_INCREMENT | 미디어 ID |
+| user_id | BIGINT | FK(users), NOT NULL | 사용자 ID |
+| original_filename | VARCHAR(500) | NOT NULL | 원본 파일명 |
+| stored_filename | VARCHAR(500) | NOT NULL | 저장 파일명 |
+| s3_url | VARCHAR(1000) | NULLABLE | S3 URL |
+| file_size | BIGINT | NOT NULL | 파일 크기 (bytes) |
+| mime_type | VARCHAR(100) | NOT NULL | MIME 타입 |
+| status | VARCHAR(50) | NOT NULL | 상태 (UPLOADED, PROCESSING, DELETED) |
+| metadata | JSONB | NULLABLE | 메타데이터 |
+| deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 삭제 여부 |
+| created_at | TIMESTAMP | NOT NULL | 생성일시 |
+| updated_at | TIMESTAMP | NOT NULL | 수정일시 |
 
-### 10. travel_embeddings (여행지 벡터 임베딩) - 신규
-| 컬럼명 | 타입 | 제약조건 | 설명 |
-|--------|------|----------|------|
-| id | BIGSERIAL | PK | 임베딩 ID |
-| trip_id | BIGINT | FK | 여행 ID |
-| content_type | VARCHAR(50) | | 콘텐츠 타입 (destination/activity/restaurant) |
-| content | TEXT | NOT NULL | 원본 텍스트 콘텐츠 |
-| embedding_vector | vector(1536) | NOT NULL | 벡터 임베딩 (OpenAI/Gemini) |
-| model_version | VARCHAR(50) | | 임베딩 모델 버전 |
-| metadata | JSONB | | 추가 메타데이터 |
-| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
+## 🔄 Redis 저장소 (NoSQL)
 
-### 11. user_interaction_embeddings (사용자 상호작용 벡터) - 신규
-| 컬럼명 | 타입 | 제약조건 | 설명 |
-|--------|------|----------|------|
-| id | BIGSERIAL | PK | 임베딩 ID |
-| user_id | BIGINT | FK, NOT NULL | 사용자 ID |
-| interaction_type | VARCHAR(50) | | 상호작용 타입 (search/click/favorite) |
-| interaction_content | TEXT | NOT NULL | 상호작용 내용 |
-| embedding_vector | vector(1536) | NOT NULL | 벡터 임베딩 |
-| model_version | VARCHAR(50) | | 임베딩 모델 버전 |
-| weight | FLOAT | DEFAULT 1.0 | 가중치 (중요도) |
-| created_at | TIMESTAMP | DEFAULT NOW() | 생성일시 |
+### 14. travel_contexts (Redis - 계획)
+| 필드명 | 타입 | 설명 |
+|--------|------|------|
+| key | STRING | "travel-context:{user_id}" |
+| user_id | STRING | 사용자 ID |
+| destination | STRING | 목적지 |
+| departure_date | STRING | 출발일 |
+| duration | STRING | 여행 기간 |
+| companions | STRING | 동행자 |
+| budget_level | STRING | 예산 수준 |
+| travel_style | STRING | 여행 스타일 |
+| is_complete | BOOLEAN | 정보 수집 완료 여부 |
+| ttl | INT | 1800 (30분) |
 
-### 12. trip_feedbacks (여행 평가)
-| 컬럼명 | 타입 | 제약조건 | 설명 |
-|--------|------|----------|------|
-| id | BIGSERIAL | PK | 평가 ID |
-| trip_id | BIGINT | FK, NOT NULL | 여행 ID |
-| user_id | BIGINT | FK, NOT NULL | 사용자 ID |
-| rating | INTEGER | CHECK (1-5) | 평점 |
-| comment | TEXT | | 코멘트 |
-| liked_activities | JSONB | | 좋았던 활동 |
-| disliked_activities | JSONB | | 싫었던 활동 |
-| created_at | TIMESTAMP | DEFAULT NOW() | 작성일시 |
+### 15. conversation_states (Redis - 계획)
+| 필드명 | 타입 | 설명 |
+|--------|------|------|
+| key | STRING | "conv-state:{thread_id}" |
+| thread_id | STRING | 채팅 스레드 ID |
+| current_question_index | INT | 현재 질문 인덱스 |
+| collected_answers | ARRAY | 수집된 답변 배열 |
+| intent_type | STRING | 인텐트 타입 |
+| last_activity | TIMESTAMP | 마지막 활동 시간 |
+| ttl | INT | 3600 (1시간) |
 
-### 13. api_usage_logs (API 사용 로그)
-| 컬럼명 | 타입 | 제약조건 | 설명 |
-|--------|------|----------|------|
-| id | BIGSERIAL | PK | 로그 ID |
-| user_id | BIGINT | FK | 사용자 ID |
-| message_id | BIGINT | FK | 메시지 ID |
-| api_type | VARCHAR(50) | | API 타입 (GEMINI/GPT4/TOUR/WEATHER/OCR) |
-| model_name | VARCHAR(100) | | 모델명 |
-| prompt_tokens | INTEGER | | 프롬프트 토큰 |
-| completion_tokens | INTEGER | | 완성 토큰 |
-| total_tokens | INTEGER | | 총 토큰 |
-| cost | DECIMAL(10,6) | | 비용 (USD) |
-| response_time_ms | INTEGER | | 응답 시간 (ms) |
-| status_code | VARCHAR(10) | | 상태 코드 |
-| error_message | TEXT | | 에러 메시지 |
-| created_at | TIMESTAMP | DEFAULT NOW() | 호출일시 |
-
----
-
-## 🔑 인덱스 전략
-
-### Primary Indexes
-```sql
--- 자주 조회되는 컬럼들에 대한 인덱스
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_status ON users(status) WHERE status = 'ACTIVE';
-
-CREATE INDEX idx_chat_threads_user_id ON chat_threads(user_id);
-CREATE INDEX idx_chat_threads_status ON chat_threads(status);
-
-CREATE INDEX idx_messages_thread_id ON messages(thread_id);
-CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
-
-CREATE INDEX idx_trips_user_id ON trips(user_id);
-CREATE INDEX idx_trips_status ON trips(status);
-CREATE INDEX idx_trips_dates ON trips(start_date, end_date);
-
-CREATE INDEX idx_trip_details_trip_id ON trip_details(trip_id);
-CREATE INDEX idx_trip_details_day ON trip_details(trip_id, day_number);
-
--- 복합 인덱스
-CREATE INDEX idx_messages_thread_created ON messages(thread_id, created_at DESC);
-CREATE INDEX idx_api_logs_user_created ON api_usage_logs(user_id, created_at DESC);
-```
-
-### Full-Text Search Indexes
-```sql
--- 메시지 검색용 전문 검색 인덱스
-CREATE INDEX idx_messages_content_gin ON messages USING gin(to_tsvector('korean', content));
-
--- 여행 계획 검색용
-CREATE INDEX idx_trips_title_gin ON trips USING gin(to_tsvector('korean', title));
-CREATE INDEX idx_trip_details_place_gin ON trip_details USING gin(to_tsvector('korean', place_name));
-```
-
-### JSONB Indexes
-```sql
--- JSONB 컬럼에 대한 GIN 인덱스
-CREATE INDEX idx_user_preferences_categories ON user_preferences USING gin(preferred_categories);
-CREATE INDEX idx_messages_metadata ON messages USING gin(metadata);
-CREATE INDEX idx_trips_metadata ON trips USING gin(trip_metadata);
-```
-
-### Vector Indexes (pgvector)
-```sql
--- 벡터 유사도 검색을 위한 인덱스
-CREATE INDEX idx_user_preferences_vector ON user_preferences USING ivfflat (preference_vector vector_cosine_ops) WITH (lists = 100);
-CREATE INDEX idx_travel_embeddings_vector ON travel_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists = 100);
-CREATE INDEX idx_user_interaction_vector ON user_interaction_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists = 100);
-
--- HNSW 인덱스 (더 높은 정확도, pgvector 0.5.0+)
--- CREATE INDEX idx_travel_embeddings_hnsw ON travel_embeddings USING hnsw (embedding_vector vector_cosine_ops) WITH (m = 16, ef_construction = 64);
-```
-
----
-
-## 🔄 관계 설명
-
-### 1:1 관계
-- users ↔ user_preferences (사용자는 하나의 선호도 설정을 가짐)
+## 🔑 관계 설명
 
 ### 1:N 관계
-- users → chat_threads (사용자는 여러 채팅방을 가질 수 있음)
-- users → trips (사용자는 여러 여행 계획을 가질 수 있음)
-- chat_threads → messages (채팅방은 여러 메시지를 포함)
-- messages → message_attachments (메시지는 여러 첨부파일을 가질 수 있음)
-- trips → trip_details (여행은 여러 일정을 포함)
-- trips → trip_feedbacks (여행은 여러 평가를 받을 수 있음)
+- **users → chat_threads**: 한 사용자는 여러 채팅 스레드를 가질 수 있음
+- **users → media**: 한 사용자는 여러 미디어 파일을 업로드할 수 있음
+- **users → user_preferences**: 한 사용자는 여러 선호도를 가질 수 있음
+- **users → travel_histories**: 한 사용자는 여러 여행 기록을 가질 수 있음
+- **users → trips**: 한 사용자는 여러 여행 계획을 생성할 수 있음
+- **chat_threads → chat_messages**: 한 스레드는 여러 메시지를 포함함
+- **trips → trip_details**: 한 여행은 여러 일차별 상세 정보를 가짐
+- **trips → trip_places**: 한 여행은 여러 장소를 포함함
+- **trips → trip_bookings**: 한 여행은 여러 예약을 포함함
 
-### N:M 관계 (Join Table 통해 구현)
-- 현재 설계에서는 N:M 관계가 없음
-- 향후 그룹 여행 기능 추가 시 users ↔ trips 관계가 N:M이 될 수 있음
+### 1:1 관계
+- **users ↔ user_contexts**: 한 사용자는 하나의 컨텍스트를 가짐
 
----
+## 🚀 구현 우선순위
 
-## 🚀 확장 고려사항
+### Phase 1 (MVP - 구현 완료)
+✅ users
+✅ chat_threads
+✅ chat_messages
+✅ user_preferences
+✅ user_contexts
+✅ travel_histories
+✅ media
 
-### 향후 추가 가능한 테이블
-1. **group_trips** - 그룹 여행 관리
-2. **trip_participants** - 여행 참가자 관리 (N:M)
-3. **notifications** - 알림 관리
-4. **user_sessions** - 세션 관리
-5. **weather_cache** - 날씨 정보 캐시 (외부 API)
-6. **tour_cache** - 관광지 정보 캐시 (외부 API)
-7. **hotel_cache** - 호텔 정보 캐시 (외부 API)
-8. **ocr_history** - OCR 처리 이력
+### Phase 2 (개발 중)
+🔄 trips
+🔄 trip_details
+📋 travel_contexts (Redis)
+📋 conversation_states (Redis)
 
-### 성능 최적화 전략
-1. **파티셔닝**: messages, api_usage_logs 테이블을 날짜 기준으로 파티셔닝
-2. **캐싱**: 
-   - Redis를 활용한 자주 조회되는 데이터 캐싱
-   - AI 응답 캐싱 (ai_responses 테이블)
-   - RAG 추천 결과 캐싱 (recommendation_cache 테이블)
-3. **읽기 전용 복제본**: 조회 성능 향상을 위한 읽기 전용 DB 구성
-4. **벡터 DB 최적화**: 
-   - PostgreSQL pgvector 확장 (유사도 검색)
-   - Redis Vector Search 병행 사용 (실시간 RAG)
-   - IVFFlat/HNSW 인덱싱 전략
-   - 1536차원 벡터 (OpenAI/Gemini 임베딩)
-5. **LLM 최적화**:
-   - Gemini 2.0 Flash for general chat (faster)
-   - Response streaming for better UX
-   - 벡터 임베딩 캐싱으로 중복 계산 방지
+### Phase 3 (계획)
+📋 trip_places
+📋 trip_bookings
+📋 refresh_tokens
+📋 social_accounts
 
----
+## 📊 데이터베이스 인덱스 전략
 
-## 📝 DDL Scripts
+### 성능 최적화 인덱스
+1. **users**
+   - idx_users_email (email) - 로그인 성능
+   - idx_users_social (social_type, social_id) - 소셜 로그인
 
-### 기본 테이블 생성 (MVP)
-```sql
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgvector";
+2. **chat_threads**
+   - idx_chat_thread_user_id (user_id) - 사용자별 조회
+   - idx_chat_thread_last_message (last_message_at DESC) - 최근 대화 정렬
 
--- Users table
-CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    nickname VARCHAR(100),
-    profile_image_url VARCHAR(500),
-    travel_style VARCHAR(50),
-    budget_level VARCHAR(50),
-    status VARCHAR(20) DEFAULT 'ACTIVE',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP,
-    deleted_at TIMESTAMP
-);
+3. **chat_messages**
+   - idx_chat_message_thread_id (thread_id) - 스레드별 메시지 조회
+   - idx_chat_message_timestamp (timestamp DESC) - 시간순 정렬
 
--- User preferences table
-CREATE TABLE user_preferences (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    preferred_categories JSONB,
-    favorite_destinations JSONB,
-    disliked_items JSONB,
-    activity_time_preference VARCHAR(50),
-    accommodation_type VARCHAR(50),
-    food_preference VARCHAR(100),
-    is_vegetarian BOOLEAN DEFAULT FALSE,
-    travel_companions JSONB,
-    preference_vector vector(1536), -- OpenAI embedding dimension
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+4. **trips**
+   - idx_trips_user_id (user_id) - 사용자별 여행 조회
+   - idx_trips_dates (start_date, end_date) - 날짜 범위 검색
 
--- Chat threads table
-CREATE TABLE chat_threads (
-    id BIGSERIAL PRIMARY KEY,
-    thread_uuid UUID UNIQUE DEFAULT gen_random_uuid(),
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title VARCHAR(255),
-    status VARCHAR(20) DEFAULT 'ACTIVE',
-    context_summary JSONB,
-    message_count INTEGER DEFAULT 0,
-    last_message_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
-);
+5. **travel_histories**
+   - idx_travel_history_user_id (user_id) - 사용자별 이력
+   - idx_travel_history_destination (destination) - 목적지 검색
 
--- Messages table
-CREATE TABLE messages (
-    id BIGSERIAL PRIMARY KEY,
-    thread_id BIGINT NOT NULL REFERENCES chat_threads(id) ON DELETE CASCADE,
-    role VARCHAR(20) NOT NULL,
-    content TEXT NOT NULL,
-    intent_type VARCHAR(50),
-    metadata JSONB,
-    token_count INTEGER,
-    llm_model VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+## 🔒 보안 및 제약사항
 
--- Trips table
-CREATE TABLE trips (
-    id BIGSERIAL PRIMARY KEY,
-    trip_uuid UUID UNIQUE DEFAULT gen_random_uuid(),
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    thread_id BIGINT REFERENCES chat_threads(id),
-    title VARCHAR(255) NOT NULL,
-    destination VARCHAR(255) NOT NULL,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    number_of_people INTEGER,
-    total_budget INTEGER,
-    status VARCHAR(20) DEFAULT 'PLANNING',
-    trip_metadata JSONB,
-    version INTEGER DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP,
-    deleted_at TIMESTAMP
-);
+1. **개인정보 보호**
+   - 비밀번호는 BCrypt 해싱
+   - 민감한 정보는 암호화 저장
+   - PII 데이터 최소 수집 원칙
 
--- Trip details table
-CREATE TABLE trip_details (
-    id BIGSERIAL PRIMARY KEY,
-    trip_id BIGINT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
-    day_number INTEGER NOT NULL,
-    activity_date DATE,
-    activity_time TIME,
-    place_name VARCHAR(255) NOT NULL,
-    category VARCHAR(50),
-    description TEXT,
-    estimated_cost INTEGER,
-    address VARCHAR(500),
-    latitude DECIMAL(10,8),
-    longitude DECIMAL(11,8),
-    tips TEXT,
-    additional_info JSONB,
-    display_order INTEGER
-);
+2. **데이터 무결성**
+   - 외래키 제약조건 설정
+   - CASCADE DELETE 신중히 사용
+   - 트랜잭션 관리 철저
 
--- AI response cache table
-CREATE TABLE ai_responses (
-    id BIGSERIAL PRIMARY KEY,
-    message_id BIGINT REFERENCES messages(id),
-    cache_key VARCHAR(255) UNIQUE NOT NULL,
-    response_content TEXT NOT NULL,
-    model_version VARCHAR(50),
-    response_metadata JSONB,
-    expires_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+3. **성능 고려사항**
+   - JSONB 필드는 적절히 인덱싱
+   - 대용량 TEXT 필드는 별도 테이블 고려
+   - Redis 캐싱 적극 활용
 
--- Recommendation cache table
-CREATE TABLE recommendation_cache (
-    id BIGSERIAL PRIMARY KEY,
-    trip_id BIGINT REFERENCES trips(id),
-    cache_key VARCHAR(255) UNIQUE NOT NULL,
-    recommendations JSONB NOT NULL,
-    relevance_score FLOAT,
-    embedding_model VARCHAR(50),
-    expires_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+## 📝 마이그레이션 전략
 
--- Travel embeddings table (Vector DB)
-CREATE TABLE travel_embeddings (
-    id BIGSERIAL PRIMARY KEY,
-    trip_id BIGINT REFERENCES trips(id),
-    content_type VARCHAR(50),
-    content TEXT NOT NULL,
-    embedding_vector vector(1536) NOT NULL,
-    model_version VARCHAR(50),
-    metadata JSONB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- User interaction embeddings table (Vector DB)
-CREATE TABLE user_interaction_embeddings (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    interaction_type VARCHAR(50),
-    interaction_content TEXT NOT NULL,
-    embedding_vector vector(1536) NOT NULL,
-    model_version VARCHAR(50),
-    weight FLOAT DEFAULT 1.0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- API usage logs table
-CREATE TABLE api_usage_logs (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT REFERENCES users(id),
-    message_id BIGINT REFERENCES messages(id),
-    api_type VARCHAR(50),
-    model_name VARCHAR(100),
-    prompt_tokens INTEGER,
-    completion_tokens INTEGER,
-    total_tokens INTEGER,
-    cost DECIMAL(10,6),
-    response_time_ms INTEGER,
-    status_code VARCHAR(10),
-    error_message TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+### Flyway 마이그레이션 파일 구조
+```
+src/main/resources/db/migration/
+├── V1__Create_users_table.sql
+├── V2__Create_chat_tables.sql
+├── V3__Create_trip_tables.sql
+├── V4__Create_media_table.sql
+├── V5__Add_user_preferences.sql
+├── V6__Add_user_contexts.sql
+├── V7__Add_travel_histories.sql
+└── V8__Create_trips_tables.sql (계획)
 ```
 
----
-
-## 👥 팀 담당 영역 매핑
-
-### USER Domain (USER1, USER2)
-- **담당 테이블**: users, user_preferences, token_blacklist, user_favorites
-- **주요 기능**: JWT 인증, 프로필 관리, 선호도 설정
-
-### CHAT Domain (CHAT1, CHAT2)
-- **담당 테이블**: chat_threads, messages, message_attachments, intent_keywords, prompt_templates, ai_responses
-- **주요 기능**: 
-  - CHAT1: 대화 관리, 메시지 CRUD
-  - CHAT2: LLM 통합 (Gemini 2.0 Flash), OCR, RAG 개인화
-
-### TRIP Domain (TRIP1+TRIP2 Combined)
-- **담당 테이블**: trips, trip_details, trip_feedbacks, trip_shares, trip_checklists, recommendation_cache
-- **주요 기능**: 여행 계획 생성, 일정 관리, 외부 API 연동, 추천 시스템
-
-## 🔐 보안 고려사항
-
-1. **암호화**
-   - 비밀번호: BCrypt 해싱
-   - 민감 데이터: AES-256 암호화
-   - API 키: 환경변수 관리
-
-2. **접근 제어**
-   - Row Level Security (RLS) 적용
-   - 사용자별 데이터 격리
-   - JWT 토큰 기반 인증
-
-3. **감사 로그**
-   - 모든 데이터 변경 이력 추적
-   - API 호출 로그 기록
-   - 비정상 접근 패턴 감지
-
-4. **데이터 보호**
-   - 개인정보 마스킹
-   - Soft Delete 적용
-   - 정기 백업 및 복구 테스트
+### 롤백 전략
+- 각 마이그레이션은 독립적으로 롤백 가능
+- 데이터 마이그레이션 전 백업 필수
+- 스테이징 환경에서 테스트 후 프로덕션 적용

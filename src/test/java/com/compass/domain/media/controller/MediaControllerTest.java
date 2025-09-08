@@ -1,0 +1,256 @@
+package com.compass.domain.media.controller;
+
+import com.compass.config.BaseIntegrationTest;
+import com.compass.domain.media.dto.MediaGetResponse;
+import com.compass.domain.media.dto.MediaUploadResponse;
+import com.compass.domain.media.entity.FileStatus;
+import com.compass.domain.media.exception.FileValidationException;
+import com.compass.domain.media.service.MediaService;
+import com.compass.domain.media.service.S3Service;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.CacheControl;
+import java.time.Duration;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.anonymous;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+class MediaControllerTest extends BaseIntegrationTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @MockBean
+    private MediaService mediaService;
+
+    @MockBean
+    private S3Service s3Service;
+
+    // AI 서비스 빈들 모킹 (API 키가 필요하지 않도록)
+    @MockBean
+    private org.springframework.ai.openai.OpenAiChatModel openAiChatModel;
+
+    @MockBean
+    private org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel vertexAiGeminiChatModel;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("파일 업로드 성공")
+    void uploadFile_Success() throws Exception {
+        // Given
+        MockMultipartFile file = new MockMultipartFile(
+            "file",
+            "test.jpg",
+            "image/jpeg",
+            "test image content".getBytes()
+        );
+        
+        MediaUploadResponse mockResponse = MediaUploadResponse.builder()
+            .id(1L)
+            .originalFilename("test.jpg")
+            .storedFilename("20231201_12345678.jpg")
+            .s3Url("https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com/media/testuser/2023/12/01/20231201_12345678.jpg")
+            .fileSize(18L)
+            .mimeType("image/jpeg")
+            .status(FileStatus.UPLOADED)
+            .metadata(new HashMap<>())
+            .createdAt(LocalDateTime.now())
+            .build();
+        
+        when(mediaService.uploadFile(any(), eq(1L))).thenReturn(mockResponse);
+        
+        // When & Then
+        mockMvc.perform(multipart("/api/media/upload")
+                .file(file)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(1L))
+            .andExpect(jsonPath("$.originalFilename").value("test.jpg"))
+            .andExpect(jsonPath("$.mimeType").value("image/jpeg"))
+            .andExpect(jsonPath("$.status").value("UPLOADED"))
+            .andExpect(jsonPath("$.s3Url").value("https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com/media/testuser/2023/12/01/20231201_12345678.jpg"));
+    }
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("파일 업로드 실패 - 파일 검증 오류")
+    void uploadFile_ValidationError() throws Exception {
+        // Given
+        MockMultipartFile file = new MockMultipartFile(
+            "file",
+            "test.pdf",
+            "application/pdf",
+            "invalid file content".getBytes()
+        );
+        
+        when(mediaService.uploadFile(any(), eq(1L)))
+            .thenThrow(new FileValidationException("허용되지 않는 파일 형식입니다."));
+        
+        // When & Then
+        mockMvc.perform(multipart("/api/media/upload")
+                .file(file)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("허용되지 않는 파일 형식입니다."));
+    }
+    
+    @Test
+    @DisplayName("인증되지 않은 사용자 - 401 Unauthorized")
+    void uploadFile_Unauthorized() throws Exception {
+        // Given
+        MockMultipartFile file = new MockMultipartFile(
+            "file",
+            "test.jpg",
+            "image/jpeg",
+            "test image content".getBytes()
+        );
+        
+        // When & Then
+        mockMvc.perform(multipart("/api/media/upload")
+                .file(file)
+                .with(csrf())
+                .with(anonymous()))
+            .andDo(print())
+            .andExpect(status().is3xxRedirection());
+    }
+    
+    @Test
+    @DisplayName("Health Check 인증 필요")
+    void healthCheck_RequiresAuth() throws Exception {
+        // When & Then
+        mockMvc.perform(get("/api/media/health"))
+            .andDo(print())
+            .andExpect(status().is3xxRedirection());
+    }
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("미디어 조회 성공")
+    void getMedia_Success() throws Exception {
+        // Given
+        Long mediaId = 1L;
+        MediaGetResponse mockResponse = MediaGetResponse.builder()
+            .id(mediaId)
+            .originalFilename("test.jpg")
+            .mimeType("image/jpeg")
+            .fileSize(12345L)
+            .presignedUrl("https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com/media/testuser/2023/12/01/test.jpg?X-Amz-Signature=test")
+            .metadata(new HashMap<>())
+            .createdAt(LocalDateTime.now())
+            .updatedAt(LocalDateTime.now())
+            .build();
+        
+        when(mediaService.getMediaById(eq(mediaId), eq(1L))).thenReturn(mockResponse);
+        
+        // Mock 헤더 생성
+        HttpHeaders headers = new HttpHeaders();
+        headers.setCacheControl(CacheControl.maxAge(Duration.ofMinutes(15)).cachePrivate().mustRevalidate());
+        headers.setETag("\"1-" + mockResponse.getUpdatedAt().toString() + "\"");
+        
+        when(mediaService.createMediaHeaders(eq(mockResponse))).thenReturn(headers);
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(mediaId))
+            .andExpect(jsonPath("$.originalFilename").value("test.jpg"))
+            .andExpect(jsonPath("$.mimeType").value("image/jpeg"))
+            .andExpect(jsonPath("$.fileSize").value(12345L))
+            .andExpect(jsonPath("$.presignedUrl").exists())
+            .andExpect(header().exists("Cache-Control"))
+            .andExpect(header().exists("ETag"));
+    }
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("미디어 조회 실패 - 존재하지 않는 ID")
+    void getMedia_NotFound() throws Exception {
+        // Given
+        Long mediaId = 999L;
+        
+        when(mediaService.getMediaById(eq(mediaId), eq(1L)))
+            .thenThrow(new FileValidationException("파일을 찾을 수 없습니다."));
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("파일을 찾을 수 없습니다."));
+    }
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("미디어 조회 실패 - 권한 없음")
+    void getMedia_Forbidden() throws Exception {
+        // Given
+        Long mediaId = 1L;
+        
+        when(mediaService.getMediaById(eq(mediaId), eq(1L)))
+            .thenThrow(new FileValidationException("파일 조회 권한이 없습니다."));
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("파일 조회 권한이 없습니다."));
+    }
+    
+    @Test
+    @WithMockUser(username = "testuser")
+    @DisplayName("미디어 조회 실패 - 삭제된 파일")
+    void getMedia_DeletedFile() throws Exception {
+        // Given
+        Long mediaId = 1L;
+        
+        when(mediaService.getMediaById(eq(mediaId), eq(1L)))
+            .thenThrow(new FileValidationException("삭제된 파일입니다."));
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf()))
+            .andDo(print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("삭제된 파일입니다."));
+    }
+    
+    @Test
+    @DisplayName("미디어 조회 실패 - 인증되지 않은 사용자")
+    void getMedia_Unauthorized() throws Exception {
+        // Given
+        Long mediaId = 1L;
+        
+        // When & Then
+        mockMvc.perform(get("/api/media/{id}", mediaId)
+                .with(csrf())
+                .with(anonymous()))
+            .andDo(print())
+            .andExpect(status().is3xxRedirection());
+    }
+}

@@ -2,6 +2,7 @@ package com.compass.domain.trip;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,6 +17,8 @@ import java.time.LocalTime;
 @Entity
 @Table(name = "trip_details")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class TripDetail {
 
     @Id
@@ -51,8 +54,7 @@ public class TripDetail {
     @Column(columnDefinition = "TEXT")
     private String tips;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "TEXT")
     private String additionalInfo;
     
     private Integer displayOrder;
@@ -72,5 +74,10 @@ public class TripDetail {
         this.tips = tips;
         this.additionalInfo = additionalInfo;
         this.displayOrder = displayOrder;
+    }
+    
+    // Manual setter for Trip relationship
+    public void setTrip(Trip trip) {
+        this.trip = trip;
     }
 }

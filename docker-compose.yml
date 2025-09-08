@@ -42,26 +42,29 @@ services:
     container_name: compass-app
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: compass
-      DB_USERNAME: compass_user
-      DB_PASSWORD: compass_password
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # JWT Configuration
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-jwt-access-secret-key-for-local-development-only-256bits}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-jwt-refresh-secret-key-for-local-development-only-256bits}
+      JWT_ACCESS_TOKEN_EXPIRY: ${JWT_ACCESS_TOKEN_EXPIRY:-3600000}
+      JWT_REFRESH_TOKEN_EXPIRY: ${JWT_REFRESH_TOKEN_EXPIRY:-604800000}
       # AI Services
       OPENAI_API_KEY: ${OPENAI_API_KEY:-test-key}
       GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID:-test-project}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
-      GOOGLE_APPLICATION_CREDENTIALS: /app/credentials.json
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      GEMINI_TEMPERATURE: ${GEMINI_TEMPERATURE:-0.7}
+      GOOGLE_CREDENTIALS_BASE64: ${GOOGLE_CREDENTIALS_BASE64:-}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/google-credentials.json
     volumes:
-      - ./travelagent-468611-1ae0c9d4e187.json:/app/credentials.json:ro
       - ./logs:/app/logs
+      - ./google-credentials.json:/app/google-credentials.json:ro
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:

@@ -24,6 +24,25 @@ public interface ChatModelService {
     String generateResponse(String systemPrompt, String userMessage);
     
     /**
+     * 대화 컨텍스트를 포함한 응답 생성 (REQ-LLM-006)
+     * 
+     * @param threadId 채팅 스레드 ID
+     * @param userMessage 사용자 입력 메시지
+     * @return AI 모델의 응답
+     */
+    String generateResponseWithContext(String threadId, String userMessage);
+    
+    /**
+     * 시스템 프롬프트와 대화 컨텍스트를 포함한 응답 생성
+     * 
+     * @param threadId 채팅 스레드 ID
+     * @param systemPrompt 시스템 프롬프트
+     * @param userMessage 사용자 입력 메시지
+     * @return AI 모델의 응답
+     */
+    String generateResponseWithContext(String threadId, String systemPrompt, String userMessage);
+    
+    /**
      * 스트리밍 응답 생성 (향후 구현)
      * 
      * @param userMessage 사용자 입력 메시지

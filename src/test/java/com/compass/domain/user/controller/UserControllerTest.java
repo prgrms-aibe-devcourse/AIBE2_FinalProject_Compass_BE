@@ -1,6 +1,9 @@
 package com.compass.domain.user.controller;
 
+import com.compass.config.BaseIntegrationTest;
+import com.compass.config.jwt.JwtTokenProvider;
 import com.compass.domain.user.dto.UserDto;
+import com.compass.domain.user.enums.Role;
 import com.compass.domain.user.entity.User;
 import com.compass.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,10 +12,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,12 +23,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
 @AutoConfigureMockMvc
-@Transactional
-@ActiveProfiles("test") // 테스트 시 'test' 프로필을 활성화하여 application-test.yml을 사용하도록 설정
-class UserControllerTest {
+class UserControllerTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -40,9 +40,15 @@ class UserControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
+        redisTemplate.getConnectionFactory().getConnection().flushAll(); // Clear Redis before each test
     }
 
     @Test
@@ -69,7 +75,12 @@ class UserControllerTest {
     @DisplayName("회원가입 API 실패 - 중복된 이메일")
     void signUp_api_fail_duplicateEmail() throws Exception {
         // given
-        userRepository.save(User.builder().email("test@example.com").password("any").nickname("any").build());
+        userRepository.save(User.builder()
+                .email("test@example.com")
+                .password("any")
+                .nickname("any")
+                .role(Role.USER)
+                .build());
         UserDto.SignUpRequest request = new UserDto.SignUpRequest("test@example.com", "password123", "testuser");
         String requestBody = objectMapper.writeValueAsString(request);
 
@@ -81,7 +92,7 @@ class UserControllerTest {
         // then
         resultActions
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Email already exists."))
+                .andExpect(jsonPath("$.message").value("이미 존재하는 이메일입니다."))
                 .andDo(print());
     }
 
@@ -100,7 +111,7 @@ class UserControllerTest {
         // then
         resultActions
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Invalid email format."))
+                .andExpect(jsonPath("$.message").value("잘못된 이메일 형식입니다."))
                 .andDo(print());
     }
 
@@ -108,7 +119,12 @@ class UserControllerTest {
     @DisplayName("로그인 API 성공")
     void login_api_success() throws Exception {
         // given
-        userRepository.save(User.builder().email("test@example.com").password(passwordEncoder.encode("password123")).nickname("testuser").build());
+        userRepository.save(User.builder()
+                .email("test@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("testuser")
+                .role(Role.USER)
+                .build());
         UserDto.LoginRequest request = new UserDto.LoginRequest("test@example.com", "password123");
         String requestBody = objectMapper.writeValueAsString(request);
 
@@ -121,6 +137,7 @@ class UserControllerTest {
         resultActions
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").exists())
+                .andExpect(jsonPath("$.refreshToken").exists())
                 .andDo(print());
     }
 
@@ -134,20 +151,64 @@ class UserControllerTest {
         // when & then
         mockMvc.perform(post("/api/users/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("User not found."));
+                .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 일치하지 않습니다."));
     }
 
     @Test
     @DisplayName("로그인 API 실패 - 비밀번호 불일치")
     void login_api_fail_invalidPassword() throws Exception {
         // given
-        userRepository.save(User.builder().email("test@example.com").password(passwordEncoder.encode("password123")).nickname("testuser").build());
+        userRepository.save(User.builder()
+                .email("test@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("testuser")
+                .role(Role.USER)
+                .build());
         UserDto.LoginRequest request = new UserDto.LoginRequest("test@example.com", "wrongpassword");
         String requestBody = objectMapper.writeValueAsString(request);
 
         // when & then
         mockMvc.perform(post("/api/users/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Invalid password."));
+                .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 일치하지 않습니다."));
+    }
+
+    @Test
+    @DisplayName("로그아웃 API 성공")
+    void logout_api_success() throws Exception {
+        // given
+        String userEmail = "logout@example.com";
+        userRepository.save(User.builder()
+                .email(userEmail)
+                .password(passwordEncoder.encode("password123"))
+                .nickname("logoutuser")
+                .role(Role.USER)
+                .build());
+
+        String accessToken = jwtTokenProvider.createAccessToken(userEmail);
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/users/logout")
+                .header("Authorization", "Bearer " + accessToken));
+
+        // then
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("로그아웃 되었습니다."));
+
+        // Redis에 토큰이 블랙리스트로 등록되었는지 확인
+        String blacklisted = redisTemplate.opsForValue().get("blacklist:" + accessToken);
+        assertThat(blacklisted).isEqualTo("logout");
+    }
+
+    @Test
+    @DisplayName("로그아웃 API 실패 - 잘못된 헤더 형식")
+    void logout_api_fail_badHeader() throws Exception {
+        // given & when
+        ResultActions resultActions = mockMvc.perform(post("/api/users/logout")
+                .header("Authorization", "invalid-token-format"));
+
+        // then
+        resultActions.andExpect(status().isBadRequest());
     }
 }
