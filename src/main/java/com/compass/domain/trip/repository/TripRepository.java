@@ -16,4 +16,7 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
     
     @Query("SELECT t FROM Trip t WHERE t.user.id = :userId ORDER BY t.createdAt DESC")
     Page<Trip> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
+    
+    @Query("SELECT t FROM Trip t WHERE t.user.email = :userEmail ORDER BY t.createdAt DESC")
+    Page<Trip> findByUserEmailOrderByCreatedAtDesc(@Param("userEmail") String userEmail, Pageable pageable);
 }
