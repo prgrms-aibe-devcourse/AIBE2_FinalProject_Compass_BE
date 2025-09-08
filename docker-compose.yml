@@ -42,13 +42,10 @@ services:
     container_name: compass-app
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: compass
-      DB_USERNAME: compass_user
-      DB_PASSWORD: compass_password
       REDIS_HOST: redis
       REDIS_PORT: 6379
       # JWT Configuration
@@ -68,8 +65,6 @@ services:
       - ./logs:/app/logs
       - ./google-credentials.json:/app/google-credentials.json:ro
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:

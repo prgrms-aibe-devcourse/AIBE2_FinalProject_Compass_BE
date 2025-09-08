@@ -26,8 +26,11 @@ target/
 # Environment
 .env
 *.env
+.env.*
 application-local.yml
 application-local.properties
+application-prod.yml
+application-prod.properties
 
 # Google Cloud Credentials
 gcp-key.json

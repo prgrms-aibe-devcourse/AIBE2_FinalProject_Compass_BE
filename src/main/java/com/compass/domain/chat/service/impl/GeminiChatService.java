@@ -93,13 +93,12 @@ public class GeminiChatService implements ChatModelService {
             String response = geminiChatModel.call(prompt).getResult().getOutput().getContent();
             
             // Store messages in context for future use
+            // Note: threadId is now managed via thread relationship, not directly
             ChatMessage userMsg = ChatMessage.builder()
-                    .threadId(threadId)
                     .role("user")
                     .content(userMessage)
                     .build();
             ChatMessage assistantMsg = ChatMessage.builder()
-                    .threadId(threadId)
                     .role("assistant")
                     .content(response)
                     .build();
@@ -137,13 +136,12 @@ public class GeminiChatService implements ChatModelService {
             String response = geminiChatModel.call(prompt).getResult().getOutput().getContent();
             
             // Store messages in context
+            // Note: threadId is now managed via thread relationship, not directly
             ChatMessage userMsg = ChatMessage.builder()
-                    .threadId(threadId)
                     .role("user")
                     .content(userMessage)
                     .build();
             ChatMessage assistantMsg = ChatMessage.builder()
-                    .threadId(threadId)
                     .role("assistant")
                     .content(response)
                     .build();

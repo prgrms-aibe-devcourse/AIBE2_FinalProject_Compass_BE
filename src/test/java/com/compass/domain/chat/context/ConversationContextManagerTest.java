@@ -47,12 +47,10 @@ class ConversationContextManagerTest {
         // Given
         String threadId = "test-thread-2";
         ChatMessage userMessage = ChatMessage.builder()
-                .threadId(threadId)
                 .role("user")
                 .content("안녕하세요, 여행 계획을 도와주세요.")
                 .build();
         ChatMessage assistantMessage = ChatMessage.builder()
-                .threadId(threadId)
                 .role("assistant")
                 .content("안녕하세요! 어떤 여행을 계획하고 계신가요?")
                 .build();
@@ -79,8 +77,7 @@ class ConversationContextManagerTest {
         // When - Add 12 messages (more than MAX_MESSAGES=10)
         for (int i = 1; i <= 12; i++) {
             ChatMessage message = ChatMessage.builder()
-                    .threadId(threadId)
-                    .role(i % 2 == 1 ? "user" : "assistant")
+                        .role(i % 2 == 1 ? "user" : "assistant")
                     .content("메시지 " + i)
                     .build();
             contextManager.addMessage(threadId, message);
@@ -106,8 +103,7 @@ class ConversationContextManagerTest {
         // When - Add messages that exceed token limit
         for (int i = 1; i <= 5; i++) {
             ChatMessage message = ChatMessage.builder()
-                    .threadId(threadId)
-                    .role("user")
+                        .role("user")
                     .content(longMessage + i)
                     .build();
             contextManager.addMessage(threadId, message);
@@ -126,12 +122,10 @@ class ConversationContextManagerTest {
         // Given
         String threadId = "test-thread-5";
         contextManager.addMessage(threadId, ChatMessage.builder()
-                .threadId(threadId)
                 .role("user")
                 .content("제주도 여행 계획 짜줘")
                 .build());
         contextManager.addMessage(threadId, ChatMessage.builder()
-                .threadId(threadId)
                 .role("assistant")
                 .content("제주도 여행 일정을 도와드리겠습니다.")
                 .build());
@@ -151,7 +145,6 @@ class ConversationContextManagerTest {
         // Given
         String threadId = "test-thread-6";
         contextManager.addMessage(threadId, ChatMessage.builder()
-                .threadId(threadId)
                 .role("user")
                 .content("테스트 메시지")
                 .build());
@@ -174,8 +167,7 @@ class ConversationContextManagerTest {
         // When - Add messages to create context
         for (int i = 1; i <= 3; i++) {
             contextManager.addMessage(threadId, ChatMessage.builder()
-                    .threadId(threadId)
-                    .role(i % 2 == 1 ? "user" : "assistant")
+                        .role(i % 2 == 1 ? "user" : "assistant")
                     .content("메시지 " + i)
                     .build());
         }
@@ -199,8 +191,7 @@ class ConversationContextManagerTest {
             final int index = i;
             threads[i] = new Thread(() -> {
                 ChatMessage message = ChatMessage.builder()
-                        .threadId(threadId)
-                        .role("user")
+                                .role("user")
                         .content("Thread " + index + " message")
                         .build();
                 contextManager.addMessage(threadId, message);

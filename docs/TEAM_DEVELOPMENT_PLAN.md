@@ -69,7 +69,7 @@
 | REQ-CHAT-006 | 메시지 입력 검증 | @Valid, 최대 1000자 제한 | 3 |
 |  | → 빈 메시지 방지, 길이 제한 검증, XSS 방지 새니타이징, SQL 인젝션 방어 |  |  |
 
-### 🤖 CHAT2+TRIP2 - 프롬프트 엔지니어링 및 AI 여행 계획 (11개)
+### 🔧 공통 작업 (전체 팀원)
 | 요구사항ID | 기능명 | 설명 | 우선순위 | 의존성 |
 |------------|--------|------|---------|--------|
 | REQ-LLM-001 | Spring AI 설정 | dependency 추가, 기본 설정 | 1 | 독립 |
@@ -95,76 +95,101 @@
 | REQ-MON-002 | 에러 로깅 | 예외 처리 및 스택 트레이스 | 3 | 독립 |
 |  | → LLM 에러 분류, 재시도 가능 여부 판단, 사용자 친화적 에러 메시지 |  |  |  |
 
-### 🔧 공통 작업 (전체 팀원)
-- REQ-SYS-003: GlobalExceptionHandler 구현
-- REQ-SYS-004: application-dev.yml, application-prod.yml 분리
-- REQ-NFR-001: 5초 이내 응답 목표
-- REQ-NFR-004: BCrypt 암호화, 환경변수 관리
-- REQ-NFR-008: Google Java Style 컨벤션
-
 ---
 
-## 🔄 1차 고도화 (Week 2) - Multi-LLM + Lambda MCP
+## 🔄 Week 2 - 핵심 3대 기능 개발
 
-### 🔐 USER - Redis JWT 고급 기능 (5개)
+### 📌 기존 요구사항 우선 완료
+
+#### CHAT 도메인 (CHAT1 담당)
+- REQ-CHAT-005: 채팅 삭제 API (DELETE /api/chat/threads/{id})
+- REQ-CHAT-007: 채팅 제목 자동 생성 (첫 메시지 기반)
+- REQ-CHAT-008: 채팅 제목 수정 API (PUT /api/chat/threads/{id}/title)
+- REQ-CHAT-009: 메시지 검색 기능 (전문 검색 구현)
+
+#### TRIP 도메인 (TRIP1 담당)
+- REQ-TRIP-003: 내 여행 목록 조회 (GET /api/trips)
+- REQ-TRIP-004: 여행 계획 수정 API (PUT /api/trips/{id})
+
+### 🔐 USER - 기본 프로필 관리 (4개)
 | 요구사항ID | 기능명 | 설명 | 우선순위 |
 |------------|--------|------|---------|
-| REQ-AUTH-005 | 토큰 갱신 API | POST /api/auth/refresh, rotation | 1 |
-|  | → 리프레시 토큰 검증, 새로운 액세스/리프레시 토큰 쌍 발급, 기존 토큰 무효화 |  |  |
-| REQ-AUTH-006 | Redis 화이트리스트 | 활성 토큰 관리 | 2 |
-|  | → 발급된 모든 유효 토큰을 Redis에 저장, 검증 시 화이트리스트 확인 로직 추가 |  |  |
-| REQ-AUTH-007 | 동시 접속 제한 | 디바이스별 토큰 관리 | 2 |
-|  | → 디바이스 식별자 기반 토큰 매핑, 동일 계정 최대 3개 디바이스 제한 구현 |  |  |
-| REQ-AUTH-008 | 토큰 만료 관리 | TTL 자동 관리 | 3 |
-|  | → Redis EXPIRE 설정, 만료된 토큰 자동 삭제, 스케줄러로 주기적 정리 |  |  |
-| REQ-USER-001 | 회원 탈퇴 API | DELETE /api/users/account | 3 |
-|  | → 사용자 데이터 소프트 삭제, 관련 토큰 모두 무효화, 탈퇴 사유 기록 |  |  |
+| REQ-USER-002 | 프로필 조회 API | GET /api/users/profile | 1 |
+|  | → 현재 사용자 프로필 조회, JWT 토큰 기반 인증, 기본 정보 반환 |  |  |
+| REQ-USER-003 | 프로필 업데이트 API | PUT /api/users/profile | 1 |
+|  | → 프로필 정보 수정, 부분 업데이트 지원, 검증 로직 포함 |  |  |
+| REQ-USER-004 | 여행 스타일 저장 | 휴양/관광/액티비티 선호도 | 2 |
+|  | → user_preferences 테이블에 ENUM 저장, 가중치 관리 |  |  |
+| REQ-USER-005 | 예산 수준 저장 | BUDGET/STANDARD/LUXURY | 2 |
+|  | → 예산 레벨 설정, 레벨별 예산 범위 매핑 |  |  |
 
-### 🗺️ TRIP1 - 여행 계획 고도화 및 선호도 (6개)
+### 🗺️ TRIP1 - Perplexity + Tour API 통합 (10개)
 | 요구사항ID | 기능명 | 설명 | 우선순위 |
 |------------|--------|------|---------|
-| REQ-TRIP-003 | 내 여행 목록 조회 | GET /api/trips, 페이징 | 1 |
-|  | → 현재 사용자의 모든 여행 조회, Pageable 구현, 최신순 정렬 기본값 |  |  |
-| REQ-TRIP-004 | 여행 계획 수정 API | PUT /api/trips/{id} | 2 |
-|  | → 일정 부분 수정 지원, JSONB 병합 로직, 수정 이력 관리 |  |  |
-| REQ-PREF-003 | 선호도 조회 API | GET /api/users/preferences | 1 |
-|  | → 현재 사용자의 모든 선호도 설정 조회, 기본값 포함하여 응답 |  |  |
-| REQ-PREF-004 | 선호도 업데이트 API | PUT /api/users/preferences | 2 |
-|  | → 부분 업데이트 지원, 변경된 필드만 수정, 검증 로직 포함 |  |  |
-| REQ-PREF-005 | 관심 카테고리 설정 | 최대 3개 카테고리 선택 | 3 |
-|  | → 문화/역사/음식/쇼핑/자연 등 카테고리 중 최대 3개 선택, 우선순위 설정 |  |  |
-| REQ-TRIP-014 | 상세 일정 추가 | 관광지, 식당, 숙박 상세 정보 | 3 |
-|  | → 각 일정 항목에 장소명, 주소, 영업시간, 예상비용 등 메타데이터 추가 |  |  |
+| REQ-PERP-001 | Perplexity API 클라이언트 | HTTP 클라이언트 구현 | 1 |
+|  | → RestTemplate/WebClient 설정, API 키 관리, 요청/응답 처리 |  |  |
+| REQ-PERP-002 | 전체 컨텍스트 검색 | 사용자 입력 + 5개 답변 통합 | 1 |
+|  | → 원본 입력과 꼬리질문 답변 모두 포함한 쿼리 생성 |  |  |
+| REQ-PERP-003 | 트렌드 검색 | 최신 핫플, 숨은 명소 | 1 |
+|  | → Perplexity로 최신 트렌드, 현지인 추천 수집 |  |  |
+| REQ-TOUR-001 | Tour API 클라이언트 | 한국관광공사 API 연동 | 1 |
+|  | → ServiceKey 설정, areaCode(서울:1, 부산:6), contentTypeId 관리 |  |  |
+| REQ-TOUR-002 | 공식 정보 조회 | 영업시간, 휴무일, 입장료 | 1 |
+|  | → 관광지 상세정보, GPS 좌표, 공식 설명 조회 |  |  |
+| REQ-TOUR-003 | 축제/행사 매칭 | 여행 날짜 기반 이벤트 | 2 |
+|  | → 해당 기간 축제, 특별 행사, 계절 이벤트 조회 |  |  |
+| REQ-INTEG-001 | 데이터 통합 | Perplexity + Tour 병합 | 1 |
+|  | → 중복 제거(이름/주소), 정보 보완, 우선순위 정렬 |  |  |
+| REQ-INTEG-002 | 정보 검증 | 공식 정보로 검증 | 2 |
+|  | → Tour API로 영업시간 확인, 휴무일 체크 |  |  |
+| REQ-CACHE-001 | 통합 캐싱 | Redis 30분 TTL | 2 |
+|  | → 통합 결과 캐싱, 소스별 캐시 관리 |  |  |
+| REQ-LIST-001 | 최종 리스트 | 30개 검증된 장소 | 1 |
+|  | → 트렌드 + 공식정보 통합, 카테고리 분류, 추천 이유 포함 |  |  |
 
-### 🖼️ MEDIA - OCR 및 메타데이터 관리 (6개)
+### 💬 CHAT1 - 간단한 인텐트 라우터 (4개)
 | 요구사항ID | 기능명 | 설명 | 우선순위 |
 |------------|--------|------|---------|  
-| REQ-MEDIA-006 | OpenAI Vision API 연동 | OCR 텍스트 추출 | 1 |
-|  | → Vision API 호출, 이미지 전송, 텍스트 추출, 구조화된 데이터 반환 |  |  |
-| REQ-MEDIA-007 | OCR 결과 저장 | 추출 텍스트 DB 저장 | 1 |
-|  | → OCR 결과 테이블 저장, 이미지 ID 연결, 검색 인덱스, 타임스탬프 |  |  |
-| REQ-MEDIA-008 | 이미지 메타데이터 추출 | EXIF, 크기, 포맷 | 2 |
-|  | → EXIF 데이터 파싱, GPS 위치 추출, 촬영 시간, 카메라 정보 저장 |  |  |
-| REQ-MEDIA-009 | 썸네일 생성 | 리사이징, S3 저장 | 2 |
-|  | → 이미지 리사이징 (200x200, 400x400), 품질 최적화, S3 저장, URL 관리 |  |  |
-| REQ-MEDIA-010 | 이미지 삭제 API | DELETE /api/media/{id} | 3 |
-|  | → S3 파일 삭제, DB 레코드 삭제, 썸네일 삭제, 관련 데이터 정리 |  |  |
-| REQ-MEDIA-011 | 배치 업로드 | 다중 파일 동시 처리 | 3 |
-|  | → 최대 10개 파일 동시 처리, 병렬 업로드, 진행률 반환, 에러 처리 |  |  |
+| REQ-INTENT-001 | 키워드 기반 분류 | 여행/추천/일반 3가지 분류 | 1 |
+|  | → 간단한 키워드 매칭, if-else 로직, HashMap 사용 |  |  |
+| REQ-INTENT-002 | 라우팅 처리 | 분류별 서비스 호출 | 1 |
+|  | → 여행→꼬리질문, 추천→Perplexity, 일반→직접응답 |  |  |
+| REQ-INTENT-003 | 기본 키워드 사전 | 10-15개 핵심 키워드 | 2 |
+|  | → "여행", "추천", "계획" 등 기본 키워드만 관리 |  |  |
+| REQ-INTENT-004 | 로깅 | 분류 결과 로깅 | 3 |
+|  | → 간단한 로그 출력, 통계 수집 |  |  |
 
-### 💬 CHAT1 - 인텐트 라우팅 (5개)
+### 🖼️ MEDIA - 이미지 고급 기능 (4개)
 | 요구사항ID | 기능명 | 설명 | 우선순위 |
 |------------|--------|------|---------|
-| REQ-CHAT-005 | 채팅 삭제 API | DELETE /api/chat/threads/{id} | 3 |
-|  | → 소프트 삭제 처리, 관련 메시지 모두 비활성화, 삭제 이력 기록 |  |  |
-| REQ-CHAT-007 | 채팅 제목 자동 생성 | 첫 메시지 기반 제목 | 2 |
-|  | → 첫 50자 추출하거나 AI 요약 사용, 의미 있는 제목 생성, 자동 저장 |  |  |
-| REQ-INTENT-001 | 의도 분류 기능 | 여행계획/추천/정보 분류 | 1 |
-|  | → 메시지 의도 분석, 3가지 카테고리로 분류, 확률 기반 라우팅 결정 |  |  |
-| REQ-INTENT-002 | 키워드 매칭 | 키워드 사전 관리 | 2 |
-|  | → 도메인별 키워드 사전 구축, 패턴 매칭 알고리즘, 동적 업데이트 지원 |  |  |
-| REQ-INTENT-003 | 의도별 프롬프트 | 템플릿 선택 로직 | 2 |
-|  | → 의도별 최적화된 프롬프트 템플릿, 변수 치환 로직, 동적 생성 |  |  |
+| REQ-MEDIA-006 | OCR 텍스트 추출 | Google Vision API 연동 | 2 |
+|  | → 이미지에서 텍스트 추출, JSON 응답, 다국어 지원 |  |  |
+| REQ-MEDIA-007 | 썸네일 생성 | 이미지 리사이징 | 2 |
+|  | → 300x300 썸네일 자동 생성, WebP 포맷, S3 저장 |  |  |
+| REQ-MEDIA-008 | 이미지 삭제 API | DELETE /api/media/{id} | 3 |
+|  | → S3 파일 삭제, DB 레코드 삭제, 썸네일 삭제, 관련 데이터 정리 |  |  |
+| REQ-MEDIA-009 | 배치 업로드 | 다중 파일 동시 처리 | 3 |
+|  | → 최대 10개 파일 동시 처리, 병렬 업로드, 진행률 반환, 에러 처리 |  |  |
+
+### 🤖 CHAT2 - 꼬리질문 시스템 전담 (8개)
+| 요구사항ID | 기능명 | 설명 | 우선순위 |
+|------------|--------|------|---------|
+| REQ-FOLLOW-001 | 질문 플로우 엔진 | 순차적 질문 관리 | 1 |
+|  | → 5개 필수 질문 순서 관리, 단계별 진행, 상태 추적 |  |  |
+| REQ-FOLLOW-002 | 필수 정보 정의 | 5개 필수 필드 스키마 | 1 |
+|  | → 목적지, 날짜, 기간, 동행자, 예산 필드 정의 |  |  |
+| REQ-FOLLOW-003 | 질문 템플릿 | 각 정보별 질문 문구 | 1 |
+|  | → 친근한 질문 표현, 예시 포함, 선택지 제공 |  |  |
+| REQ-FOLLOW-004 | 대화 상태 관리 | 현재 질문 단계 추적 | 1 |
+|  | → ConversationState 관리, 현재 단계 저장, 진행률 계산 |  |  |
+| REQ-FOLLOW-005 | 답변 파싱 | 자연어 답변 구조화 | 1 |
+|  | → LLM 활용 답변 파싱, 엔티티 추출, 유효성 검증 |  |  |
+| REQ-FOLLOW-006 | 정보 저장 | 수집 정보 Redis 저장 | 1 |
+|  | → TravelContext 객체로 저장, 30분 TTL, JSON 직렬화 |  |  |
+| REQ-FOLLOW-007 | 완성도 체크 | 필수 정보 수집 확인 | 2 |
+|  | → 모든 필드 입력 확인, 미입력 필드 표시 |  |  |
+| REQ-FOLLOW-008 | 재질문 로직 | 잘못된 답변 시 재질문 | 3 |
+|  | → 파싱 실패 시 재질문, 다른 표현으로 질문 |  |  |
 
 ### 🤖 CHAT2+TRIP2 - 개인화 DB + 최소 Function Calling (15개)
 | 요구사항ID | 기능명 | 설명 | 우선순위 | 의존성 |
@@ -207,7 +232,25 @@
 
 ---
 
-## 🎯 2차 고도화 (Week 3) - 개인화 + 에이전트 패턴
+### 성능 최적화
+| 요구사항ID | 기능명 | 설명 | 우선순위 | 담당 |
+|------------|--------|------|---------|------|
+| REQ-PERF-001 | 응답 시간 단축 | 3초 이내 목표 | 1 | CHAT2 |
+| REQ-PERF-002 | 캐싱 최적화 | Redis 캐싱 전략 | 2 | TRIP1 |
+| REQ-PERF-003 | API 사용량 모니터링 | 토큰/비용 추적 | 2 | CHAT2 |
+| REQ-PERF-004 | 병렬 처리 | 독립 작업 병렬화 | 3 | CHAT1 |
+
+### 테스트 및 문서화
+| 요구사항ID | 기능명 | 설명 | 우선순위 | 담당 |
+|------------|--------|------|---------|------|
+| REQ-TEST-001 | 통합 테스트 | E2E 시나리오 테스트 | 1 | 전체 |
+| REQ-TEST-002 | 성능 테스트 | 부하 테스트 | 2 | USER |
+| REQ-DOC-001 | API 문서화 | Swagger 업데이트 | 2 | 각자 |
+| REQ-DOC-002 | 사용 가이드 | 사용자 매뉴얼 | 3 | CHAT1 |
+
+---
+
+## 🎯 2차 고도화 (추후 계획) - 개인화 + 에이전트 패턴
 
 ### 🔐 USER - Week 3 (미정)
 - 추후 결정
@@ -350,42 +393,31 @@
 
 ## 📊 작업량 분배 요약
 
-### MVP (Week 1) - 균형적 분배
+### MVP (Week 1) - 완료 ✅
 | 팀원 | 작업 개수 | 핵심 역할 |
 |------|----------|----------|
 | USER | 6개 | 인증 시스템 구축 |
 | TRIP1 | 5개 | 여행 계획 기본 API |
 | CHAT1 | 5개 | 채팅 CRUD |
-| CHAT2+TRIP2 | 11개 | LLM 통합, Function Calling, AI 여행 계획 |
-| MEDIA | 5개 | 이미지 업로드, OCR |
+| CHAT2 | 11개 | LLM 통합, 프롬프트 엔지니어링 |
+| MEDIA | 5개 | 이미지 업로드 (진행 중) |
 
-### 1차 고도화 (Week 2)
-| 팀원 | 작업 개수 | 핵심 역할 |
+### Week 2 - 핵심 3대 기능
+| 팀원 | 기존 요구사항 | 신규 핵심 기능 | 총 작업 |
+|------|-------------|--------------|---------|
+| CHAT1 | CHAT-5,7,8,9 (4개) | 인텐트 라우터 (4개) | 8개 |
+| CHAT2 | - | 꼬리질문 시스템 (8개) | 8개 |
+| TRIP1 | TRIP-3,4 (2개) | Perplexity+Tour API (10개) | 12개 |
+| USER | - | 프로필 관리 (4개) | 4개 |
+
+### Week 3 - 통합 및 최적화
+| 팀원 | 주요 역할 | 작업 개수 |
 |------|----------|----------|
-| USER | 5개 | Redis JWT 고급 기능 |
-| TRIP1 | 6개 | 여행 계획, 선호도 관리 |
-| CHAT1 | 5개 | 인텐트 라우팅 |
-| CHAT2+TRIP2 | 15개 | Lambda MCP, Multi-LLM, 컨텍스트 관리 |
-| MEDIA | 6개 | OCR, 메타데이터 |
-
-### 2차 고도화 (Week 3)
-| 팀원 | 작업 개수 | 핵심 역할 |
-|------|----------|----------|
-| USER | 미정 | Week 3 미정 |
-| TRIP1 | 7개 | 개인화 알고리즘 |
-| CHAT1 | 10개 | 에이전트 패턴 |
-| CHAT2+TRIP2 | 27개 | 개인화 시스템, 여행 관리, Lambda 최적화 |
-| MEDIA | 7개 | OCR 고급 기능 |
-
-### 전체 통계
-| 팀원 | MVP | 1차 | 2차 | 총계 |
-|------|-----|-----|-----|------|
-| USER | 6 | 5 | 미정 | **11+개** |
-| TRIP1 | 5 | 6 | 7 | **18개** |
-| CHAT1 | 5 | 5 | 10 | **20개** |
-| CHAT2+TRIP2 (프롬프트) | 11 | 15 | 27 | **53개** |
-| MEDIA | 5 | 6 | 7 | **18개** |
-| **합계** | **32** | **37** | **51+** | **120+개** |
+| CHAT2 | Gemini 통합, 성능 최적화 | 3개 |
+| CHAT1 | 응답 포맷팅, 문서화 | 3개 |
+| TRIP1 | 계획 저장, 캐싱 | 3개 |
+| USER | 에러 처리, 테스트 | 3개 |
+| 전체 | 통합 테스트 | 1개 |
 
 ---
 
@@ -489,22 +521,14 @@ graph LR
 
 ---
 
-## 💻 CHAT2+TRIP2 - 프롬프트 엔지니어링 구현 예시
+## 💻 Week 2 핵심 구현 예시
 
-### PromptEngineeringService.java
+### 1. 간단한 인텐트 라우터 (CHAT1)
 ```java
 package com.compass.chat.service;
 
-import com.compass.chat.prompt.PromptTemplateLibrary;
-import com.compass.chat.detector.SimpleKeywordDetector;
-import com.compass.trip.entity.UserPreference;
-import com.compass.trip.entity.UserContext;
-import com.compass.trip.entity.TravelHistory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.ChatClient;
-import org.springframework.ai.chat.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -513,245 +537,407 @@ import java.util.HashMap;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PromptEngineeringService {
+public class SimpleIntentRouter {
     
-    private final ChatClient chatClient;
-    private final PromptTemplateLibrary templateLibrary;
-    private final SimpleKeywordDetector keywordDetector;
-    private final UserPreferenceService preferenceService;
-    private final UserContextService contextService;
-    private final TravelHistoryService historyService;
+    private final FollowUpQuestionService followUpService;
+    private final PerplexityService perplexityService;
+    private final ChatService chatService;
     
-    /**
-     * 프롬프트 엔진으로 여행 계획 생성
-     */
-    public String generateTravelPlan(String userMessage, Long userId) {
-        // 1. 키워드 감지로 템플릿 추천
-        String templateType = keywordDetector.detectTemplate(userMessage);
-        log.info("감지된 템플릿 유형: {}", templateType);
+    // 간단한 키워드 사전
+    private static final Map<String, Intent> KEYWORD_MAP = new HashMap<>();
+    static {
+        // 여행 계획 키워드
+        KEYWORD_MAP.put("여행", Intent.TRAVEL_PLAN);
+        KEYWORD_MAP.put("계획", Intent.TRAVEL_PLAN);
+        KEYWORD_MAP.put("일정", Intent.TRAVEL_PLAN);
+        KEYWORD_MAP.put("도쿄", Intent.TRAVEL_PLAN);
+        KEYWORD_MAP.put("부산", Intent.TRAVEL_PLAN);
         
-        // 2. DB에서 개인화 컨텍스트 로드
-        Map<String, Object> context = loadPersonalizationContext(userId);
+        // 추천 키워드
+        KEYWORD_MAP.put("추천", Intent.RECOMMEND);
+        KEYWORD_MAP.put("명소", Intent.RECOMMEND);
+        KEYWORD_MAP.put("맛집", Intent.RECOMMEND);
         
-        // 3. 동적 템플릿 선택 및 변수 주입
-        String prompt = templateLibrary.getTemplate(templateType)
-            .withVariable("userRequest", userMessage)
-            .withVariable("preferences", context.get("preferences"))
-            .withVariable("context", context.get("context"))
-            .withVariable("history", context.get("history"))
-            .build();
-        
-        // 4. LLM 호출 (Gemini 2.0 Flash)
-        ChatResponse response = chatClient.call(new Prompt(prompt));
-        
-        // 5. 학습 데이터 수집 (A/B 테스트용)
-        trackTemplatePerformance(templateType, response);
-        
-        return response.getResult().getOutput().getContent();
+        // 일반 정보
+        KEYWORD_MAP.put("날씨", Intent.GENERAL);
+        KEYWORD_MAP.put("환율", Intent.GENERAL);
     }
     
-    /**
-     * 개인화 컨텍스트 로드
-     */
-    private Map<String, Object> loadPersonalizationContext(Long userId) {
-        Map<String, Object> context = new HashMap<>();
+    public String processMessage(String message, Long userId) {
+        // 1. 간단한 키워드 매칭으로 의도 분류
+        Intent intent = classifyIntent(message);
+        log.info("분류된 의도: {}", intent);
         
-        // UserPreference 테이블에서 선호도 로드
-        UserPreference preference = preferenceService.findByUserId(userId);
-        context.put("preferences", Map.of(
-            "travelStyle", preference.getTravelStyle(),
-            "budget", preference.getBudgetLevel(),
-            "interests", preference.getInterests(),
-            "foodPreferences", preference.getFoodPreferences()
-        ));
-        
-        // UserContext 테이블에서 컨텍스트 로드
-        UserContext userContext = contextService.findByUserId(userId);
-        context.put("context", Map.of(
-            "ageGroup", userContext.getAgeGroup(),
-            "travelCompanion", userContext.getTravelCompanion(),
-            "specialRequirements", userContext.getSpecialRequirements()
-        ));
-        
-        // TravelHistory 테이블에서 학습 데이터 로드
-        TravelHistory history = historyService.findByUserId(userId);
-        context.put("history", Map.of(
-            "visitedPlaces", history.getVisitedPlaces(),
-            "satisfactionScores", history.getSatisfactionScores(),
-            "preferredPatterns", history.getPatterns()
-        ));
-        
-        return context;
+        // 2. 의도별 라우팅
+        switch (intent) {
+            case TRAVEL_PLAN:
+                return followUpService.startQuestions(message, userId);
+            case RECOMMEND:
+                return perplexityService.searchPlaces(message);
+            case GENERAL:
+            default:
+                return chatService.generateResponse(message);
+        }
     }
     
-    /**
-     * 템플릿 성능 추적
-     */
-    private void trackTemplatePerformance(String templateType, ChatResponse response) {
-        // A/B 테스트 및 성능 개선을 위한 데이터 수집
-        log.info("템플릿 {} 사용, 응답 시간: {}ms", 
-                templateType, response.getMetadata().get("duration"));
-    }
-}
-```
-
-### TravelRequest.java (DTO)
-```java
-package com.compass.trip.dto;
-
-import lombok.Data;
-import java.time.LocalDate;
-
-@Data
-public class TravelRequest {
-    private String destination;      // 목적지 (예: "서울", "부산")
-    private LocalDate startDate;     // 출발일
-    private LocalDate endDate;       // 도착일
-    private Integer numberOfPeople;  // 인원수
-    private Integer budget;          // 예산 (원)
-    private String travelStyle;      // 여행 스타일 (휴양/관광/액티비티)
-    private String specialRequests;  // 특별 요청사항
-}
-```
-
-### TravelPlan.java (Response DTO)
-```java
-package com.compass.trip.dto;
-
-import lombok.Data;
-import java.time.LocalDate;
-import java.util.List;
-
-@Data
-public class TravelPlan {
-    private Long planId;
-    private String userId;
-    private String destination;
-    private LocalDate startDate;
-    private LocalDate endDate;
-    private Integer totalBudget;
-    private List<DailyItinerary> itineraries;
-    
-    @Data
-    public static class DailyItinerary {
-        private Integer day;
-        private LocalDate date;
-        private List<Activity> activities;
-    }
-    
-    @Data
-    public static class Activity {
-        private String time;           // 시간 (예: "09:00")
-        private String placeName;      // 장소명
-        private String description;    // 설명
-        private String category;       // 카테고리 (관광지/식당/숙박)
-        private Integer estimatedCost; // 예상 비용
-        private String address;        // 주소
-        private String tips;          // 팁/주의사항
-    }
-}
-```
-
-### application.yml 설정 (CHAT2가 기본 설정)
-```yaml
-spring:
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      chat:
-        options:
-          model: gpt-4o-mini
-          temperature: 0.7
-    
-    vertex-ai:
-      gemini:
-        project-id: ${GCP_PROJECT_ID}
-        location: us-central1
-        model: gemini-2.0-flash
-    
-    # 최소 Function Calling 설정 (날씨, 호텔만)
-    function:
-      calling:
-        enabled: true
-        functions:
-          - getCurrentWeather
-          - searchHotels
-```
-
-### SimpleKeywordDetector.java
-```java
-package com.compass.chat.detector;
-
-import org.springframework.stereotype.Component;
-import java.util.Map;
-import java.util.HashMap;
-
-@Component
-public class SimpleKeywordDetector {
-    
-    private final Map<String, String[]> templateKeywords;
-    
-    public SimpleKeywordDetector() {
-        this.templateKeywords = new HashMap<>();
+    private Intent classifyIntent(String message) {
+        String lowerMessage = message.toLowerCase();
         
-        // 템플릿별 키워드 정의
-        templateKeywords.put("family_trip", new String[]{
-            "가족", "아이", "부모님", "할머니", "할아버지", "family"
-        });
-        
-        templateKeywords.put("couple_trip", new String[]{
-            "커플", "연인", "두명", "허니문", "로맨틱", "couple"
-        });
-        
-        templateKeywords.put("business_trip", new String[]{
-            "비즈니스", "출장", "회의", "미팅", "business"
-        });
-        
-        templateKeywords.put("backpack_trip", new String[]{
-            "배낭", "혹자", "혁자", "저예산", "게스트하우스", "backpack"
-        });
-        
-        templateKeywords.put("kpop_trip", new String[]{
-            "kpop", "아이돌", "BTS", "블랙핑크", "스트레이키즈", "콘서트"
-        });
-    }
-    
-    /**
-     * 사용자 메시지에서 키워드를 감지하여 템플릿 추천
-     */
-    public String detectTemplate(String userMessage) {
-        String lowerMessage = userMessage.toLowerCase();
-        
-        for (Map.Entry<String, String[]> entry : templateKeywords.entrySet()) {
-            for (String keyword : entry.getValue()) {
-                if (lowerMessage.contains(keyword.toLowerCase())) {
-                    return entry.getKey();
-                }
+        // 간단한 if-else로 키워드 검사
+        for (Map.Entry<String, Intent> entry : KEYWORD_MAP.entrySet()) {
+            if (lowerMessage.contains(entry.getKey())) {
+                return entry.getValue();
             }
         }
         
-        // 기본 템플릿
-        return "general_trip";
+        return Intent.GENERAL; // 기본값
+    }
+    
+    enum Intent {
+        TRAVEL_PLAN,  // 여행 계획
+        RECOMMEND,    // 추천
+        GENERAL       // 일반 정보
     }
 }
 ```
 
-### 협업 구조
+### 2. 꼬리질문 시스템 (CHAT2)
+```java
+@Service
+@RequiredArgsConstructor
+public class FollowUpQuestionService {
+    
+    private static final List<String> QUESTIONS = Arrays.asList(
+        "어디로 여행을 가시나요?",
+        "언제 출발하실 예정인가요?",
+        "며칠 동안 여행하실 계획인가요?",
+        "누구와 함께 가시나요?",
+        "예산은 얼마나 생각하고 계신가요?"
+    );
+    
+    private final RedisTemplate<String, ConversationState> redisTemplate;
+    private final ChatModelService chatModelService;
+    
+    public String startQuestions(String initialMessage, Long userId) {
+        // Redis에 대화 상태 저장
+        ConversationState state = new ConversationState();
+        state.setUserId(userId);
+        state.setCurrentStep(0);
+        state.setDestination(extractDestination(initialMessage));
+        
+        String key = "conversation:" + userId;
+        redisTemplate.opsForValue().set(key, state, Duration.ofMinutes(30));
+        
+        return getNextQuestion(state);
+    }
+    
+    public String processAnswer(String answer, Long userId) {
+        String key = "conversation:" + userId;
+        ConversationState state = redisTemplate.opsForValue().get(key);
+        
+        // 답변 파싱 및 저장
+        parseAndSaveAnswer(answer, state);
+        
+        // 다음 질문 또는 완료
+        state.setCurrentStep(state.getCurrentStep() + 1);
+        
+        if (state.getCurrentStep() >= QUESTIONS.size()) {
+            return generateTravelPlan(state);
+        }
+        
+        redisTemplate.opsForValue().set(key, state, Duration.ofMinutes(30));
+        return getNextQuestion(state);
+    }
+    
+    private String getNextQuestion(ConversationState state) {
+        return QUESTIONS.get(state.getCurrentStep());
+    }
+}
 ```
-CHAT2 (프롬프트 엔진 담당)
-  ├── PromptEngineeringService
-  ├── SimpleKeywordDetector
-  └── 프롬프트 템플릿 관리
-      ↓
-TRIP2 (개인화 DB 구현)
-  ├── UserPreference 테이블
-  ├── UserContext 테이블
-  └── TravelHistory 테이블
-      ↓
-TRIP1 (여행 API 구현)
-  ├── POST /api/trips - 계획 저장
-  ├── GET /api/trips/{id} - 계획 조회
-  └── Trip 도메인 엔티티 관리
+
+### 3. Perplexity + Tour API 통합 (TRIP1)
+```java
+@Service
+@RequiredArgsConstructor
+public class PerplexityService {
+    
+    @Value("${perplexity.api.key}")
+    private String apiKey;
+    
+    private final RestTemplate restTemplate;
+    private final RedisTemplate<String, TravelContext> contextTemplate;
+    private final RedisTemplate<String, List<Place>> cacheTemplate;
+    
+    // ✅ 꼬리질문 완료 후 TravelContext를 받아서 처리
+    public List<Place> searchAndIntegrate(Long userId) {
+        // Redis에서 꼬리질문으로 수집된 TravelContext 가져오기
+        TravelContext context = contextTemplate.opsForValue()
+            .get("travel-context:" + userId);
+        
+        if (context == null || !context.isComplete()) {
+            throw new IllegalStateException("꼬리질문이 완료되지 않았습니다");
+        }
+        
+        List<Place> allPlaces = new ArrayList<>();
+        
+        // [Perplexity 검색] - TravelContext 활용
+        // 1차: 전체 컨텍스트 기반 종합 검색
+        String query1 = buildComprehensiveQuery(context);
+        List<Place> perplexityPlaces = searchPerplexity(query1);
+        
+        // 2차: 맛집/카페 검색 (필요시)
+        if (context.includesFood()) {
+            String query2 = buildFoodQuery(context);
+            perplexityPlaces.addAll(searchPerplexity(query2));
+        }
+        
+        // [Tour API 검색] - TravelContext 활용
+        TourAPIService tourService = new TourAPIService();
+        List<Place> tourPlaces = tourService.searchPlaces(
+            context.getDestination(),
+            context.getDuration(),
+            context.getTravelDate()
+        );
+        
+        // [데이터 통합]
+        // 1. 중복 제거 (이름/주소 기반)
+        // 2. 정보 병합 (Perplexity 리뷰 + Tour 공식정보)
+        // 3. 우선순위 정렬
+        List<Place> integratedPlaces = integrateData(
+            perplexityPlaces, 
+            tourPlaces
+        );
+        
+        // Redis 캐싱 (30분 TTL)
+        cacheResults(context.getDestination(), integratedPlaces);
+        
+        return integratedPlaces; // 30개 검증된 장소
+    }
+    
+    private String buildComprehensiveQuery(TravelContext context) {
+        // TravelContext의 모든 정보를 활용한 쿼리 생성
+        return String.format(
+            "다음 조건에 맞는 %s 여행 장소 추천 10곳: " +
+            "목적지: %s, 기간: %s, 동행: %s, 스타일: %s, 예산: %s. " +
+            "각 장소별로 추천 이유와 특징을 간단히 포함해주세요.",
+            context.getDestination(),
+            context.getDestination(),
+            context.getDuration(),
+            context.getCompanions(),
+            context.getTravelStyle(),
+            context.getBudget()
+        );
+    }
+    
+    private String buildFoodQuery(TravelContext context) {
+        return String.format(
+            "%s에서 %s 여행자가 좋아할 만한 맛집과 카페 각 3곳씩 추천. " +
+            "동행: %s, 예산: %s 수준",
+            context.getDestination(),
+            context.getTravelStyle(),
+            context.getCompanions(),
+            context.getBudget()
+        );
+    }
+    
+    private String buildAccommodationQuery(TravelContext context) {
+        return String.format(
+            "%s %s 여행 %s 동행 시 추천 숙소 지역과 교통 팁. " +
+            "예산: %s, 주요 관광지 접근성 중심",
+            context.getDestination(),
+            context.getDuration(),
+            context.getCompanions(),
+            context.getBudget()
+        );
+    }
+    
+    private List<Place> search(String query) {
+        // Perplexity API 호출 (llama-3.1-sonar-small 모델 사용)
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + apiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        
+        Map<String, Object> request = Map.of(
+            "model", "llama-3.1-sonar-small-128k-online",
+            "messages", List.of(
+                Map.of("role", "system", 
+                       "content", "당신은 여행 전문가입니다. 사용자의 전체 맥락을 고려하여 개인화된 추천을 제공하세요."),
+                Map.of("role", "user", "content", query)
+            ),
+            "temperature", 0.2,
+            "max_tokens", 1500
+        );
+        
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+        ResponseEntity<PerplexityResponse> response = restTemplate.exchange(
+            "https://api.perplexity.ai/chat/completions",
+            HttpMethod.POST,
+            entity,
+            PerplexityResponse.class
+        );
+        
+        return parseResponse(response.getBody());
+    }
+}
+
+@Service
+public class TourAPIService {
+    
+    @Value("${tour.api.key}")
+    private String serviceKey;
+    
+    private final RestTemplate restTemplate;
+    
+    public List<Place> searchPlaces(String destination, String duration, LocalDate travelDate) {
+        // 한국관광공사 Tour API 호출
+        String areaCode = getAreaCode(destination); // 부산=6, 서울=1
+        
+        // 1. 관광지 정보 조회
+        String tourUrl = String.format(
+            "http://apis.data.go.kr/B551011/KorService1/areaBasedList1" +
+            "?serviceKey=%s&areaCode=%s&contentTypeId=12&numOfRows=20&MobileOS=ETC&MobileApp=Compass",
+            serviceKey, areaCode
+        );
+        
+        // 2. 축제/행사 정보 조회 (여행 날짜 매칭)
+        String festivalUrl = String.format(
+            "http://apis.data.go.kr/B551011/KorService1/searchFestival1" +
+            "?serviceKey=%s&areaCode=%s&eventStartDate=%s",
+            serviceKey, areaCode, travelDate.format(DateTimeFormatter.BASIC_ISO_DATE)
+        );
+        
+        // API 응답 파싱 및 Place 객체 변환
+        List<Place> places = new ArrayList<>();
+        
+        // XML 또는 JSON 파싱하여 Place 리스트 생성
+        // 영업시간, 휴무일, 입장료, GPS 좌표 포함
+        
+        return places;
+    }
+    
+    private String getAreaCode(String destination) {
+        Map<String, String> areaMap = Map.of(
+            "서울", "1",
+            "인천", "2", 
+            "대전", "3",
+            "대구", "4",
+            "광주", "5",
+            "부산", "6",
+            "울산", "7",
+            "세종", "8",
+            "경기", "31",
+            "강원", "32"
+        );
+        return areaMap.getOrDefault(destination, "1");
+    }
+}
+```
+
+### 4. Week 2 통합 플로우
+```
+[사용자 입력]
+    ↓
+[SimpleIntentRouter] (CHAT1)
+  - 키워드 매칭으로 의도 파악
+  - 여행/추천/일반 3가지 분류
+    ↓
+[여행 계획인 경우]
+    ↓
+[FollowUpQuestionService] (CHAT2)
+  - 5개 필수 질문 순차 진행
+  - 답변을 TravelContext 객체로 구성
+  - Redis에 TravelContext 저장 (30분 TTL)
+  - 답변 파싱 및 검증
+    ↓
+[정보 수집 완료 - TravelContext 준비됨]
+    ↓
+[통합 검색 서비스] (TRIP1)
+  - Redis에서 TravelContext 가져오기
+  - PerplexityService: TravelContext 기반 트렌드, 숨은 명소 (2-3회)
+  - TourAPIService: TravelContext 기반 공식 정보, 영업시간
+  - 데이터 통합: 중복 제거, 정보 병합
+  - 30개 검증된 장소 리스트 생성
+    ↓
+[Gemini 최적화] (Week 3에서 구현)
+```
+
+---
+
+## 📝 Week 2 개발 가이드라인
+
+1. **CHAT1**: 간단한 인텐트 라우터 구현 (4개 작업)
+2. **CHAT2**: 꼬리질문 시스템 구현 (8개 작업)
+3. **TRIP1**: Perplexity API 연동 (8개 작업)
+4. **USER**: 프로필 관리 API (4개 작업)
+5. **전체**: 통합 테스트
+
+### 주요 구현 포인트
+- 인텐트 라우터는 최대한 간단하게 (키워드 매칭만)
+- 꼬리질문은 5개 고정 질문으로 진행
+- Perplexity는 최대 2-3회 호출로 제한
+- 모든 상태는 Redis에 저장 (30분 TTL)
+
+### 테스트 시나리오
+```
+사용자: "도쿄 여행 가고 싶어"
+Bot: "도쿄 여행 계획을 도와드리겠습니다! 언제 출발하실 예정인가요?"
+사용자: "다음달 15일"
+Bot: "며칠 동안 여행하실 계획인가요?"
+사용자: "3박 4일"
+Bot: "누구와 함께 가시나요?"
+사용자: "여자친구"
+Bot: "어떤 스타일의 여행을 선호하시나요? (휴양/관광/액티비티)"
+사용자: "관광"
+Bot: "예산은 얼마나 생각하고 계신가요?"
+사용자: "1인당 100만원"
+Bot: [Perplexity 검색 후 장소 리스트 제공]
+```
+
+---
+
+## 🎯 Week 3 - 통합 및 최적화
+
+### 통합 작업 (전체 팀)
+| 요구사항ID | 기능명 | 설명 | 우선순위 | 담당 |
+|------------|--------|------|---------|------|
+| REQ-INTEG-001 | 전체 플로우 통합 | 라우터→꼬리질문→Perplexity→Gemini | 1 | 전체 |
+| REQ-INTEG-002 | Gemini 동선 최적화 | 수집된 장소로 일정 생성 | 1 | CHAT2 |
+| REQ-INTEG-003 | 여행 계획 저장 | 생성된 일정 DB 저장 | 1 | TRIP1 |
+| REQ-INTEG-004 | 응답 포맷팅 | 사용자 친화적 출력 | 2 | CHAT1 |
+| REQ-INTEG-005 | 에러 처리 | 통합 에러 핸들링 | 2 | USER |
+
+### Gemini 최적화 (CHAT2)
+| 요구사항ID | 기능명 | 설명 | 우선순위 |
+|------------|--------|------|---------|
+| REQ-GEMINI-001 | 경로 최적화 | 장소 간 이동 경로 계산 | 1 |
+| REQ-GEMINI-002 | 시간 배분 | 장소별 체류 시간 조정 | 1 |
+| REQ-GEMINI-003 | 일정 포맷팅 | 시간대별 일정표 생성 | 1 |
+
+### 캐싱 및 저장 (TRIP1)
+| 요구사항ID | 기능명 | 설명 | 우선순위 |
+|------------|--------|------|---------|
+| REQ-CACHE-001 | 검색 결과 캐싱 | Redis 30분 TTL | 1 |
+| REQ-CACHE-002 | 여행 계획 저장 | PostgreSQL 영구 저장 | 1 |
+| REQ-CACHE-003 | 캐시 무효화 | 업데이트 시 캐시 갱신 | 2 |
+
+### Week 3 통합 플로우
+```
+[Week 2 완료 상태]
+    ↓
+[통합 테스트]
+  - 전체 플로우 검증
+  - 성능 측정
+    ↓
+[Gemini 최적화]
+  - 경로 계산
+  - 시간 배분
+  - 일정표 생성
+    ↓
+[최종 저장]
+  - PostgreSQL 저장
+  - Redis 캐싱
+    ↓
+[배포 준비]
 ```
 
 ---

@@ -14,10 +14,10 @@ import software.amazon.awssdk.services.s3.S3Client;
 @Configuration
 public class S3Configuration {
 
-    @Value("${aws.access-key-id:#{null}}")
+    @Value("${aws.access-key-id:dummy-access-key}")
     private String accessKeyId;
 
-    @Value("${aws.secret-access-key:#{null}}")
+    @Value("${aws.secret-access-key:dummy-secret-key}")
     private String secretAccessKey;
 
     @Value("${aws.region:ap-northeast-2}")
@@ -27,9 +27,10 @@ public class S3Configuration {
     public S3Client s3Client() {
         log.info("S3Client 초기화 - 리전: {}", region);
         
-        // 자격증명이 없는 경우 기본 자격증명 공급자 사용 (로컬 개발 환경)
-        if (accessKeyId == null || secretAccessKey == null) {
-            log.warn("AWS 자격증명이 설정되지 않았습니다. 기본 자격증명 공급자를 사용합니다.");
+        // 더미 자격증명인 경우 기본 자격증명 공급자 사용 (로컬 개발 환경)
+        if (accessKeyId == null || secretAccessKey == null || 
+            "dummy-access-key".equals(accessKeyId) || "dummy-secret-key".equals(secretAccessKey)) {
+            log.warn("AWS 자격증명이 설정되지 않았거나 더미 값입니다. 기본 자격증명 공급자를 사용합니다.");
             return S3Client.builder()
                     .region(Region.of(region))
                     .build();
