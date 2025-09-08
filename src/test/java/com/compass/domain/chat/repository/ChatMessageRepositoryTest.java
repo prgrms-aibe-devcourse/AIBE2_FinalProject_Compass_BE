@@ -159,6 +159,7 @@ class ChatMessageRepositoryTest {
                 .build();
             chatMessageRepository.save(message);
         }
+        chatMessageRepository.flush(); // Ensure data is persisted
 
         // When
         LocalDateTime beforeTime = baseTime.plusMinutes(4);
