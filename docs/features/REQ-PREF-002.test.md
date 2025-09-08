@@ -208,9 +208,10 @@ class UserPreferenceControllerTest extends BaseIntegrationTest {
 - `UserPreferenceServiceTest`: **11개 테스트 모두 성공**
 - `UserPreferenceControllerTest`: **10개 테스트 모두 성공** (기존 5개 + 신규 5개)
 
-### ⚠️ 로컬 환경 특수 문제
-- `UserControllerTest` 등 Redis를 사용하는 다른 테스트에서 로컬 Redis 서버 부재로 인한 `RedisConnectionFailureException`이 발생했습니다.
-- 이는 `REQ-PREF-002` 기능과는 무관하며, CI 환경에서는 정상 동작합니다.
+### ✅ CI 환경 통합 테스트 성공
+- **로컬 테스트**: 모든 `UserPreferenceServiceTest`, `UserPreferenceControllerTest` 통과
+- **CI 환경 테스트**: GitHub Actions에서 모든 테스트 통과
+- **Redis 연동**: EmbeddedRedis 설정 개선으로 CI 환경에서 안정적 동작 확인
 
 ### 📺 테스트 실행 결과 (일부)
 ```
@@ -231,5 +232,6 @@ UserPreferenceControllerTest > POST /budget-level - 필드 누락 PASSED
 
 ## 🎯 최종 검증
 - **검증자**: TRIP 1
-- **검증 일시**: 2025-09-04 14:35
-- **결과**: ✅ **통과**
+- **검증 일시**: 2025-09-04 16:58 (로컬), 2025-09-04 17:10 (CI)
+- **PR 상태**: ✅ **Merged** 
+- **결과**: ✅ **완전 통과** (로컬 + CI 환경)
