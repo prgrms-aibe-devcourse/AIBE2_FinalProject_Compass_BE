@@ -5,9 +5,9 @@ spring:
       
   datasource:
     # AWS RDS PostgreSQL 연결 설정
-    url: jdbc:postgresql://${DB_HOST:compass-db.coqwxjz7zumt.ap-northeast-2.rds.amazonaws.com}:${DB_PORT:5432}/${DB_NAME:compass}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:compass1004!}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:compass}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     
     # 연결 풀 최적화 (운영 환경)

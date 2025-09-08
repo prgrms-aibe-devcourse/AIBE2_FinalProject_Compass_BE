@@ -22,13 +22,13 @@ public class S3Service {
 
     private final S3Client s3Client;
 
-    @Value("${aws.s3.bucket-name}")
+    @Value("${aws.s3.bucket-name:compass-media-bucket}")
     private String bucketName;
 
-    @Value("${aws.s3.base-url}")
+    @Value("${aws.s3.base-url:https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com}")
     private String s3BaseUrl;
 
-    @Value("${aws.region}")
+    @Value("${aws.region:ap-northeast-2}")
     private String region;
 
     /**

@@ -3,114 +3,216 @@ package com.compass.domain.chat.service.impl;
 import com.compass.domain.chat.dto.ChatDtos.MessageCreateDto;
 import com.compass.domain.chat.dto.ChatDtos.MessageDto;
 import com.compass.domain.chat.dto.ChatDtos.ThreadDto;
+import com.compass.domain.chat.entity.ChatMessage;
+import com.compass.domain.chat.entity.ChatThread;
+import com.compass.domain.chat.exception.ChatThreadNotFoundException;
+import com.compass.domain.chat.exception.UnauthorizedThreadAccessException;
+import com.compass.domain.chat.repository.ChatMessageRepository;
+import com.compass.domain.chat.repository.ChatThreadRepository;
 import com.compass.domain.chat.service.ChatModelService;
 import com.compass.domain.chat.service.ChatService;
+import com.compass.domain.user.entity.User;
+import com.compass.domain.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
+@Transactional(readOnly = true)
 public class ChatServiceImpl implements ChatService {
 
-    // In-memory DB Simulation (use ConcurrentHashMap for thread safety)
-    private final Map<String, ThreadDto> threadsDb = new ConcurrentHashMap<>();
-    private final Map<String, List<MessageDto>> messagesDb = new ConcurrentHashMap<>();
-
+    private final ChatThreadRepository chatThreadRepository;
+    private final ChatMessageRepository chatMessageRepository;
+    private final UserRepository userRepository;
     private final ChatModelService geminiChatService;
     private final ChatModelService openAiChatService;
 
-    public ChatServiceImpl(@Qualifier("geminiChatService") ChatModelService geminiChatService,
-                           @Qualifier("openAIChatService") ChatModelService openAiChatService) {
+    public ChatServiceImpl(
+            ChatThreadRepository chatThreadRepository,
+            ChatMessageRepository chatMessageRepository,
+            UserRepository userRepository,
+            @Qualifier("geminiChatService") ChatModelService geminiChatService,
+            @Qualifier("openAIChatService") ChatModelService openAiChatService) {
+        this.chatThreadRepository = chatThreadRepository;
+        this.chatMessageRepository = chatMessageRepository;
+        this.userRepository = userRepository;
         this.geminiChatService = geminiChatService;
         this.openAiChatService = openAiChatService;
     }
 
 
     @Override
+    @Transactional
     public ThreadDto createThread(String userId) {
-        String threadId = UUID.randomUUID().toString();
-        ThreadDto newThread = new ThreadDto(threadId, userId, LocalDateTime.now(), "아직 메시지가 없습니다.");
-
-        threadsDb.put(threadId, newThread);
-        messagesDb.put(threadId, new java.util.ArrayList<>());
-        return newThread;
+        log.debug("Creating new chat thread for user: {}", userId);
+        
+        // Parse userId to Long and find user
+        Long userIdLong = Long.parseLong(userId);
+        User user = userRepository.findById(userIdLong)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        
+        // Create new thread
+        ChatThread thread = ChatThread.builder()
+            .user(user)
+            .title("New Chat")
+            .build();
+        
+        thread = chatThreadRepository.save(thread);
+        log.info("Created new chat thread with ID: {} for user: {}", thread.getId(), userId);
+        
+        return new ThreadDto(
+            thread.getId(),
+            userId,
+            thread.getCreatedAt(),
+            thread.getLatestMessagePreview()
+        );
     }
 
     @Override
     public List<ThreadDto> getUserThreads(String userId, int skip, int limit) {
-        return threadsDb.values().stream()
-                .filter(thread -> userId.equals(thread.userId()))
-                .sorted(Comparator.comparing(ThreadDto::createdAt).reversed())
-                .skip(skip)
-                .limit(limit)
-                .map(thread -> {
-                    List<MessageDto> messages = messagesDb.getOrDefault(thread.id(), List.of());
-                    String preview = messages.isEmpty() ? "아직 메시지가 없습니다." : messages.get(messages.size() - 1).content();
-                    if (preview.length() > 50) {
-                        preview = preview.substring(0, 50) + "...";
-                    }
-                    return new ThreadDto(thread.id(), thread.userId(), thread.createdAt(), preview);
-                })
-                .collect(Collectors.toList());
+        log.debug("Getting threads for user: {}, skip: {}, limit: {}", userId, skip, limit);
+        
+        Long userIdLong = Long.parseLong(userId);
+        
+        // Use pagination
+        PageRequest pageable = PageRequest.of(
+            skip / limit, // page number
+            limit,
+            Sort.by(Sort.Direction.DESC, "lastMessageAt", "createdAt")
+        );
+        
+        List<ChatThread> threads = chatThreadRepository.findByUserId(userIdLong, pageable).getContent();
+        
+        return threads.stream()
+            .map(thread -> new ThreadDto(
+                thread.getId(),
+                userId,
+                thread.getCreatedAt(),
+                thread.getLatestMessagePreview()
+            ))
+            .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional
     public List<MessageDto> addMessageToThread(String threadId, String userId, MessageCreateDto messageDto) {
-        if (!threadsDb.containsKey(threadId) || !userId.equals(threadsDb.get(threadId).userId())) {
-            // In a real project, throw a specific exception here.
-            return null;
+        log.debug("Adding message to thread: {} for user: {}", threadId, userId);
+        
+        Long userIdLong = Long.parseLong(userId);
+        
+        // Verify thread exists and belongs to user
+        ChatThread thread = chatThreadRepository.findByIdAndUserId(threadId, userIdLong)
+            .orElseThrow(() -> new ChatThreadNotFoundException(threadId, userIdLong));
+        
+        // Create and save user message
+        ChatMessage userMessage = ChatMessage.builder()
+            .thread(thread)
+            .role("user")
+            .content(messageDto.content())
+            .timestamp(LocalDateTime.now())
+            .build();
+        
+        userMessage = chatMessageRepository.save(userMessage);
+        
+        // Generate AI response using Gemini
+        String aiResponseContent;
+        try {
+            aiResponseContent = geminiChatService.generateResponse(messageDto.content());
+        } catch (Exception e) {
+            log.error("Error generating AI response, using fallback", e);
+            aiResponseContent = "'''" + messageDto.content() + "'''에 대한 AI 응답입니다.";
         }
-
-        MessageDto userMsg = new MessageDto(
-                UUID.randomUUID().toString(),
-                threadId,
-                "user",
-                messageDto.content(),
-                System.currentTimeMillis()
+        
+        // Create and save AI message
+        ChatMessage aiMessage = ChatMessage.builder()
+            .thread(thread)
+            .role("assistant")
+            .content(aiResponseContent)
+            .timestamp(LocalDateTime.now())
+            .build();
+        
+        aiMessage = chatMessageRepository.save(aiMessage);
+        
+        // Update thread's last message time
+        thread.setLastMessageAt(aiMessage.getTimestamp());
+        chatThreadRepository.save(thread);
+        
+        // Convert to DTOs
+        MessageDto userDto = new MessageDto(
+            userMessage.getId().toString(),
+            threadId,
+            userMessage.getRole(),
+            userMessage.getContent(),
+            userMessage.getTimestampMillis()
         );
-        messagesDb.get(threadId).add(userMsg);
-
-        String aiResponseContent = "'''" + messageDto.content() + "'''에 대한 AI 응답입니다.";
-        MessageDto aiMsg = new MessageDto(
-                UUID.randomUUID().toString(),
-                threadId,
-                "ai",
-                aiResponseContent,
-                System.currentTimeMillis() + 500
+        
+        MessageDto aiDto = new MessageDto(
+            aiMessage.getId().toString(),
+            threadId,
+            aiMessage.getRole(),
+            aiMessage.getContent(),
+            aiMessage.getTimestampMillis()
         );
-        messagesDb.get(threadId).add(aiMsg);
-
-        return List.of(userMsg, aiMsg);
+        
+        return List.of(userDto, aiDto);
     }
 
     @Override
     public List<MessageDto> getMessages(String threadId, String userId, int limit, Long before) {
-        if (!threadsDb.containsKey(threadId) || !userId.equals(threadsDb.get(threadId).userId())) {
+        log.debug("Getting messages for thread: {} for user: {}, limit: {}, before: {}", 
+                  threadId, userId, limit, before);
+        
+        Long userIdLong = Long.parseLong(userId);
+        
+        // Verify thread exists and belongs to user
+        if (!chatThreadRepository.existsByIdAndUserId(threadId, userIdLong)) {
+            log.warn("Thread not found or unauthorized: {} for user: {}", threadId, userId);
             return null;
         }
-
-        List<MessageDto> threadMessages = messagesDb.getOrDefault(threadId, List.of());
-
-        var messageStream = before != null ?
-                threadMessages.stream().filter(m -> m.timestamp() < before) :
-                threadMessages.stream();
-
-        List<MessageDto> sortedMessages = messageStream
-                .sorted(Comparator.comparing(MessageDto::timestamp))
-                .collect(Collectors.toList());
-
-        int totalSize = sortedMessages.size();
-        int startIndex = Math.max(0, totalSize - limit);
-
-        return sortedMessages.subList(startIndex, totalSize);
+        
+        List<ChatMessage> messages;
+        
+        if (before != null) {
+            // Convert milliseconds to LocalDateTime
+            LocalDateTime beforeTime = LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(before),
+                java.time.ZoneId.systemDefault()
+            );
+            
+            PageRequest pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "timestamp"));
+            messages = chatMessageRepository.findByThreadIdAndTimestampBefore(threadId, beforeTime, pageable)
+                .getContent();
+        } else {
+            // Get latest messages
+            messages = chatMessageRepository.findLatestMessagesByThreadId(threadId, limit);
+        }
+        
+        // Convert to DTOs and reverse order (to show oldest first)
+        List<MessageDto> messageDtos = new ArrayList<>();
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            ChatMessage msg = messages.get(i);
+            messageDtos.add(new MessageDto(
+                msg.getId().toString(),
+                threadId,
+                msg.getRole(),
+                msg.getContent(),
+                msg.getTimestampMillis()
+            ));
+        }
+        
+        return messageDtos;
     }
     
     @Override
