@@ -50,7 +50,7 @@ public class AiEnhancedParser implements TripPlanningParser {
     public TripPlanningRequest parse(String userInput) {
         log.info("AI-enhanced parsing for input: {}", userInput);
         
-        // First, try pattern-based parsing
+        // Pattern-based parsing
         TripPlanningRequest request = baseParser.parse(userInput);
         
         // Check if AI enhancement is needed
