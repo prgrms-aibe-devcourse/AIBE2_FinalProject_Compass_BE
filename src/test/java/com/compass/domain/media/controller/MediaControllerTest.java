@@ -78,7 +78,7 @@ class MediaControllerTest extends BaseIntegrationTest {
             .createdAt(LocalDateTime.now())
             .build();
         
-        when(mediaService.uploadFile(any(), eq("testuser"))).thenReturn(mockResponse);
+        when(mediaService.uploadFile(any(), eq(1L))).thenReturn(mockResponse);
         
         // When & Then
         mockMvc.perform(multipart("/api/media/upload")
@@ -105,7 +105,7 @@ class MediaControllerTest extends BaseIntegrationTest {
             "invalid file content".getBytes()
         );
         
-        when(mediaService.uploadFile(any(), eq("testuser")))
+        when(mediaService.uploadFile(any(), eq(1L)))
             .thenThrow(new FileValidationException("허용되지 않는 파일 형식입니다."));
         
         // When & Then
@@ -163,7 +163,7 @@ class MediaControllerTest extends BaseIntegrationTest {
             .updatedAt(LocalDateTime.now())
             .build();
         
-        when(mediaService.getMediaById(eq(mediaId), eq("testuser"))).thenReturn(mockResponse);
+        when(mediaService.getMediaById(eq(mediaId), eq(1L))).thenReturn(mockResponse);
         
         // Mock 헤더 생성
         HttpHeaders headers = new HttpHeaders();
@@ -193,7 +193,7 @@ class MediaControllerTest extends BaseIntegrationTest {
         // Given
         Long mediaId = 999L;
         
-        when(mediaService.getMediaById(eq(mediaId), eq("testuser")))
+        when(mediaService.getMediaById(eq(mediaId), eq(1L)))
             .thenThrow(new FileValidationException("파일을 찾을 수 없습니다."));
         
         // When & Then
@@ -211,7 +211,7 @@ class MediaControllerTest extends BaseIntegrationTest {
         // Given
         Long mediaId = 1L;
         
-        when(mediaService.getMediaById(eq(mediaId), eq("testuser")))
+        when(mediaService.getMediaById(eq(mediaId), eq(1L)))
             .thenThrow(new FileValidationException("파일 조회 권한이 없습니다."));
         
         // When & Then
@@ -229,7 +229,7 @@ class MediaControllerTest extends BaseIntegrationTest {
         // Given
         Long mediaId = 1L;
         
-        when(mediaService.getMediaById(eq(mediaId), eq("testuser")))
+        when(mediaService.getMediaById(eq(mediaId), eq(1L)))
             .thenThrow(new FileValidationException("삭제된 파일입니다."));
         
         // When & Then

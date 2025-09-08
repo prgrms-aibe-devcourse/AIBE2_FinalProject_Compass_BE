@@ -1,6 +1,8 @@
 package com.compass.domain.media.service;
 
 import com.compass.domain.media.dto.MediaDto;
+import com.compass.domain.media.dto.MediaGetResponse;
+import com.compass.domain.media.dto.MediaUploadResponse;
 import com.compass.domain.media.entity.FileStatus;
 import com.compass.domain.media.entity.Media;
 import com.compass.domain.media.exception.FileValidationException;
@@ -36,7 +38,7 @@ public class MediaService {
     
     
     @Transactional
-    public MediaDto.UploadResponse uploadFile(MediaDto.UploadRequest request, Long userId) {
+    public MediaUploadResponse uploadFile(MediaDto.UploadRequest request, Long userId) {
         MultipartFile file = request.getFile();
         log.info("파일 업로드 시작 - 사용자: {}, 파일명: {}", userId, file.getOriginalFilename());
         
@@ -73,7 +75,7 @@ public class MediaService {
             
             log.info("파일 업로드 완료 - ID: {}, S3 URL: {}", savedMedia.getId(), s3Url);
             
-            return MediaDto.UploadResponse.from(savedMedia);
+            return MediaUploadResponse.from(savedMedia);
             
         } catch (Exception e) {
             log.error("파일 업로드 중 오류 발생", e);
@@ -136,7 +138,7 @@ public class MediaService {
      * 파일 정보를 조회합니다 (서명된 URL 포함)
      */
     @Transactional(readOnly = true)
-    public MediaDto.GetResponse getMediaById(Long mediaId, Long userId) {
+    public MediaGetResponse getMediaById(Long mediaId, Long userId) {
         log.info("파일 조회 시작 - ID: {}, 사용자: {}", mediaId, userId);
         
         // 파일 존재 여부 확인
@@ -158,7 +160,7 @@ public class MediaService {
         
         log.info("파일 조회 완료 - ID: {}, 사용자: {}", mediaId, userId);
         
-        return MediaDto.GetResponse.from(media, presignedUrl);
+        return MediaGetResponse.from(media, presignedUrl);
     }
     
     @Transactional(readOnly = true)
@@ -177,7 +179,7 @@ public class MediaService {
     /**
      * 미디어 조회 응답용 HTTP 헤더를 생성합니다.
      */
-    public HttpHeaders createMediaHeaders(MediaDto.GetResponse response) {
+    public HttpHeaders createMediaHeaders(MediaGetResponse response) {
         HttpHeaders headers = new HttpHeaders();
         
         // 캐싱 헤더 설정 (15분)

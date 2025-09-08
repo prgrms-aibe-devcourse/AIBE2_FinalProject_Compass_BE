@@ -1,6 +1,8 @@
 package com.compass.domain.media.controller;
 
 import com.compass.domain.media.dto.MediaDto;
+import com.compass.domain.media.dto.MediaGetResponse;
+import com.compass.domain.media.dto.MediaUploadResponse;
 import com.compass.domain.media.service.MediaService;
 import com.compass.config.jwt.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,15 +40,15 @@ public class MediaController {
     )
     @ApiResponses(value = {
         @ApiResponse(
-            responseCode = "200", 
+            responseCode = "200",
             description = "파일 업로드 성공",
-            content = @Content(schema = @Schema(implementation = MediaDto.UploadResponse.class))
+            content = @Content(schema = @Schema(implementation = MediaUploadResponse.class))
         ),
         @ApiResponse(responseCode = "400", description = "잘못된 파일 형식 또는 크기 초과"),
         @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
-    public ResponseEntity<MediaDto.UploadResponse> uploadFile(
+    public ResponseEntity<MediaUploadResponse> uploadFile(
             @Parameter(description = "업로드할 이미지 파일", required = true)
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "metadata", required = false) Map<String, Object> metadata,
@@ -61,7 +63,7 @@ public class MediaController {
                 .metadata(metadata)
                 .build();
         
-        MediaDto.UploadResponse response = mediaService.uploadFile(request, userId);
+        MediaUploadResponse response = mediaService.uploadFile(request, userId);
         
         return ResponseEntity.ok(response);
     }
@@ -73,16 +75,16 @@ public class MediaController {
     )
     @ApiResponses(value = {
         @ApiResponse(
-            responseCode = "200", 
+            responseCode = "200",
             description = "파일 조회 성공",
-            content = @Content(schema = @Schema(implementation = MediaDto.GetResponse.class))
+            content = @Content(schema = @Schema(implementation = MediaGetResponse.class))
         ),
         @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
         @ApiResponse(responseCode = "403", description = "파일 접근 권한 없음"),
         @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
-    public ResponseEntity<MediaDto.GetResponse> getMedia(
+    public ResponseEntity<MediaGetResponse> getMedia(
             @Parameter(description = "조회할 미디어 ID", required = true)
             @PathVariable Long id,
             @RequestHeader("Authorization") String authHeader) {
@@ -90,7 +92,7 @@ public class MediaController {
         Long userId = getUserIdFromToken(authHeader);
         log.info("파일 조회 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
         
-        MediaDto.GetResponse response = mediaService.getMediaById(id, userId);
+        MediaGetResponse response = mediaService.getMediaById(id, userId);
         
         // 캐싱 헤더 생성은 서비스에서 처리
         HttpHeaders headers = mediaService.createMediaHeaders(response);
