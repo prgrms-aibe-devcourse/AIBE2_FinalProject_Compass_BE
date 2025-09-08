@@ -3,11 +3,14 @@ package com.compass.domain.chat.service.impl;
 import com.compass.domain.chat.dto.ChatDtos.MessageCreateDto;
 import com.compass.domain.chat.dto.ChatDtos.MessageDto;
 import com.compass.domain.chat.dto.ChatDtos.ThreadDto;
+import com.compass.domain.chat.service.ChatModelService;
 import com.compass.domain.chat.service.ChatService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -20,6 +23,16 @@ public class ChatServiceImpl implements ChatService {
     // In-memory DB Simulation (use ConcurrentHashMap for thread safety)
     private final Map<String, ThreadDto> threadsDb = new ConcurrentHashMap<>();
     private final Map<String, List<MessageDto>> messagesDb = new ConcurrentHashMap<>();
+
+    private final ChatModelService geminiChatService;
+    private final ChatModelService openAiChatService;
+
+    public ChatServiceImpl(@Qualifier("geminiChatService") ChatModelService geminiChatService,
+                           @Qualifier("openAIChatService") ChatModelService openAiChatService) {
+        this.geminiChatService = geminiChatService;
+        this.openAiChatService = openAiChatService;
+    }
+
 
     @Override
     public ThreadDto createThread(String userId) {
@@ -65,7 +78,7 @@ public class ChatServiceImpl implements ChatService {
         );
         messagesDb.get(threadId).add(userMsg);
 
-        String aiResponseContent = "'" + messageDto.content() + "'에 대한 AI 응답입니다.";
+        String aiResponseContent = "'''" + messageDto.content() + "'''에 대한 AI 응답입니다.";
         MessageDto aiMsg = new MessageDto(
                 UUID.randomUUID().toString(),
                 threadId,
@@ -99,5 +112,26 @@ public class ChatServiceImpl implements ChatService {
 
         return sortedMessages.subList(startIndex, totalSize);
     }
-}
+    
+    @Override
+    public Map<String, Object> chatWithGemini(String message) {
+        String response = geminiChatService.generateResponse(message);
+        Map<String, Object> result = new HashMap<>();
+        result.put("model", geminiChatService.getModelName());
+        result.put("message", message);
+        result.put("response", response);
+        result.put("timestamp", System.currentTimeMillis());
+        return result;
+    }
 
+    @Override
+    public Map<String, Object> chatWithOpenAI(String message) {
+        String response = openAiChatService.generateResponse(message);
+        Map<String, Object> result = new HashMap<>();
+        result.put("model", openAiChatService.getModelName());
+        result.put("message", message);
+        result.put("response", response);
+        result.put("timestamp", System.currentTimeMillis());
+        return result;
+    }
+}
