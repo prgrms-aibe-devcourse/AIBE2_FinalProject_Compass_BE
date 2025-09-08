@@ -29,6 +29,18 @@ spring:
   redis:
     host: disabled
     port: 0
+
+# AI 기능 비활성화 (RDS 연결 테스트 목적)
+compass:
+  ai:
+    enabled: false
+
+# JWT 설정 (테스트 목적)
+jwt:
+  access-secret: test-access-secret-key-for-h2-testing-12345678901234567890
+  refresh-secret: test-refresh-secret-key-for-h2-testing-12345678901234567890
+  access-expiration: 3600000
+  refresh-expiration: 604800000
       
 logging:
   level:
