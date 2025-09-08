@@ -29,9 +29,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Unit tests for ChatMessageRepository
  */
 @DataJpaTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@ActiveProfiles("test-no-redis")
-@Tag("unit")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@ActiveProfiles("test")
+@Tag("integration")
 @DisplayName("ChatMessageRepository Unit Tests")
 class ChatMessageRepositoryTest {
 
