@@ -70,9 +70,9 @@ public class AuthService {
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
-        // Generate tokens
-        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), Collections.singletonList(user.getRole().name()));
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
+        // Generate tokens with userId
+        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getId(), Collections.singletonList(user.getRole().name()));
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail(), user.getId());
 
         log.info("User logged in successfully: {}", user.getEmail());
 

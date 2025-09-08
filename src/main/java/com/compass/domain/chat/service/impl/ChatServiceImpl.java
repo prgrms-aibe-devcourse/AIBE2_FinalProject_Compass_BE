@@ -16,6 +16,7 @@ import com.compass.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -63,10 +64,10 @@ public class ChatServiceImpl implements ChatService {
         User user = userRepository.findById(userIdLong)
             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         
-        // Create new thread
+        // Create new thread with empty title (will be set on first message)
         ChatThread thread = ChatThread.builder()
             .user(user)
-            .title("New Chat")
+            .title("새 대화") // Default title until first message
             .build();
         
         thread = chatThreadRepository.save(thread);
@@ -96,12 +97,19 @@ public class ChatServiceImpl implements ChatService {
         List<ChatThread> threads = chatThreadRepository.findByUserId(userIdLong, pageable).getContent();
         
         return threads.stream()
-            .map(thread -> new ThreadDto(
-                thread.getId(),
-                userId,
-                thread.getCreatedAt(),
-                thread.getLatestMessagePreview()
-            ))
+            .map(thread -> {
+                // Log for debugging
+                log.debug("Thread ID: {}, Title: {}, Preview: {}", 
+                         thread.getId(), thread.getTitle(), thread.getLatestMessagePreview());
+                return new ThreadDto(
+                    thread.getId(),
+                    userId,
+                    thread.getCreatedAt(),
+                    thread.getTitle() != null && !thread.getTitle().equals("새 대화") 
+                        ? thread.getTitle() 
+                        : thread.getLatestMessagePreview()
+                );
+            })
             .collect(Collectors.toList());
     }
 
@@ -126,13 +134,38 @@ public class ChatServiceImpl implements ChatService {
         
         userMessage = chatMessageRepository.save(userMessage);
         
-        // Generate AI response using Gemini
+        // Update thread title if it's the first user message
+        // Check if this is the first user message in the thread
+        long userMessageCount = chatMessageRepository.countByThreadId(threadId);
+        if (userMessageCount == 1) { // The message we just saved is the first one
+            thread.updateTitleFromFirstMessage(messageDto.content());
+            chatThreadRepository.save(thread);
+            log.info("Updated thread title to: {}", thread.getTitle());
+        }
+        
+        // Get recent messages for context (last 10 messages)
+        List<ChatMessage> recentMessages = chatMessageRepository.findLatestMessagesByThreadId(threadId, 10);
+        
+        // Build context from recent messages
+        StringBuilder contextBuilder = new StringBuilder();
+        if (!recentMessages.isEmpty()) {
+            contextBuilder.append("이전 대화 내용:\n");
+            for (int i = recentMessages.size() - 1; i >= 0; i--) {
+                ChatMessage msg = recentMessages.get(i);
+                contextBuilder.append(msg.getRole().equals("user") ? "사용자: " : "AI: ");
+                contextBuilder.append(msg.getContent()).append("\n");
+            }
+            contextBuilder.append("\n새로운 질문: ");
+        }
+        contextBuilder.append(messageDto.content());
+        
+        // Generate AI response using Gemini with context
         String aiResponseContent;
         try {
-            aiResponseContent = geminiChatService.generateResponse(messageDto.content());
+            aiResponseContent = geminiChatService.generateResponse(contextBuilder.toString());
         } catch (Exception e) {
             log.error("Error generating AI response, using fallback", e);
-            aiResponseContent = "'''" + messageDto.content() + "'''에 대한 AI 응답입니다.";
+            aiResponseContent = "죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요.";
         }
         
         // Create and save AI message
