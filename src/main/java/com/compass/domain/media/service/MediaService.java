@@ -1,11 +1,12 @@
 package com.compass.domain.media.service;
 
-import com.compass.domain.media.dto.MediaGetResponse;
-import com.compass.domain.media.dto.MediaUploadResponse;
+import com.compass.domain.media.dto.MediaDto;
 import com.compass.domain.media.entity.FileStatus;
 import com.compass.domain.media.entity.Media;
 import com.compass.domain.media.exception.FileValidationException;
 import com.compass.domain.media.repository.MediaRepository;
+import com.compass.domain.user.entity.User;
+import com.compass.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpHeaders;
@@ -28,13 +30,19 @@ import java.time.Duration;
 public class MediaService {
     
     private final MediaRepository mediaRepository;
+    private final UserRepository userRepository;
     private final FileValidationService fileValidationService;
     private final S3Service s3Service;
     
     
     @Transactional
-    public MediaUploadResponse uploadFile(MultipartFile file, String userId) {
+    public MediaDto.UploadResponse uploadFile(MediaDto.UploadRequest request, Long userId) {
+        MultipartFile file = request.getFile();
         log.info("파일 업로드 시작 - 사용자: {}, 파일명: {}", userId, file.getOriginalFilename());
+        
+        // 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new FileValidationException("사용자를 찾을 수 없습니다."));
         
         // 파일 검증
         fileValidationService.validateFile(file);
@@ -44,14 +52,14 @@ public class MediaService {
             String storedFilename = generateStoredFilename(file.getOriginalFilename());
             
             // S3에 파일 업로드
-            String s3Url = s3Service.uploadFile(file, userId, storedFilename);
+            String s3Url = s3Service.uploadFile(file, userId.toString(), storedFilename);
             
-            // 메타데이터 생성
-            Map<String, Object> metadata = createMetadata(file);
+            // 메타데이터 생성 (request에서 받은 것과 자동 생성된 것 합치기)
+            Map<String, Object> metadata = createMetadata(file, request.getMetadata());
             
             // Media 엔티티 생성 및 저장
             Media media = Media.builder()
-                    .userId(userId)
+                    .user(user)
                     .originalFilename(file.getOriginalFilename())
                     .storedFilename(storedFilename)
                     .s3Url(s3Url)
@@ -65,17 +73,7 @@ public class MediaService {
             
             log.info("파일 업로드 완료 - ID: {}, S3 URL: {}", savedMedia.getId(), s3Url);
             
-            return MediaUploadResponse.from(
-                    savedMedia.getId(),
-                    savedMedia.getOriginalFilename(),
-                    savedMedia.getStoredFilename(),
-                    savedMedia.getS3Url(),
-                    savedMedia.getFileSize(),
-                    savedMedia.getMimeType(),
-                    savedMedia.getStatus(),
-                    savedMedia.getMetadata(),
-                    savedMedia.getCreatedAt()
-            );
+            return MediaDto.UploadResponse.from(savedMedia);
             
         } catch (Exception e) {
             log.error("파일 업로드 중 오류 발생", e);
@@ -94,11 +92,11 @@ public class MediaService {
      * 파일을 삭제합니다 (S3에서 삭제하고 DB에서 삭제 표시)
      */
     @Transactional
-    public void deleteFile(Long mediaId, String userId) {
+    public void deleteFile(Long mediaId, Long userId) {
         Media media = mediaRepository.findById(mediaId)
                 .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
         
-        if (!media.getUserId().equals(userId)) {
+        if (!media.getUser().getId().equals(userId)) {
             throw new FileValidationException("파일 삭제 권한이 없습니다.");
         }
         
@@ -112,8 +110,10 @@ public class MediaService {
         log.info("파일 삭제 완료 - ID: {}, 사용자: {}", mediaId, userId);
     }
     
-    private Map<String, Object> createMetadata(MultipartFile file) {
+    private Map<String, Object> createMetadata(MultipartFile file, Map<String, Object> requestMetadata) {
         Map<String, Object> metadata = new HashMap<>();
+        
+        // 자동 생성 메타데이터
         metadata.put("uploadedAt", LocalDateTime.now().toString());
         metadata.put("originalSize", file.getSize());
         metadata.put("contentType", file.getContentType());
@@ -124,6 +124,11 @@ public class MediaService {
             metadata.put("imageProcessed", false);
         }
         
+        // 요청에서 받은 메타데이터 추가
+        if (requestMetadata != null && !requestMetadata.isEmpty()) {
+            metadata.putAll(requestMetadata);
+        }
+        
         return metadata;
     }
     
@@ -131,7 +136,7 @@ public class MediaService {
      * 파일 정보를 조회합니다 (서명된 URL 포함)
      */
     @Transactional(readOnly = true)
-    public MediaGetResponse getMediaById(Long mediaId, String userId) {
+    public MediaDto.GetResponse getMediaById(Long mediaId, Long userId) {
         log.info("파일 조회 시작 - ID: {}, 사용자: {}", mediaId, userId);
         
         // 파일 존재 여부 확인
@@ -139,7 +144,7 @@ public class MediaService {
                 .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
         
         // 권한 체크 (본인 파일인지 확인)
-        if (!media.getUserId().equals(userId)) {
+        if (!media.getUser().getId().equals(userId)) {
             throw new FileValidationException("파일 조회 권한이 없습니다.");
         }
         
@@ -153,22 +158,26 @@ public class MediaService {
         
         log.info("파일 조회 완료 - ID: {}, 사용자: {}", mediaId, userId);
         
-        return MediaGetResponse.from(
-                media.getId(),
-                media.getOriginalFilename(),
-                media.getMimeType(),
-                media.getFileSize(),
-                presignedUrl,
-                media.getMetadata(),
-                media.getCreatedAt(),
-                media.getUpdatedAt()
-        );
+        return MediaDto.GetResponse.from(media, presignedUrl);
+    }
+    
+    @Transactional(readOnly = true)
+    public List<MediaDto.ListResponse> getMediaListByUser(Long userId) {
+        log.info("사용자 파일 목록 조회 시작 - 사용자: {}", userId);
+        
+        List<Media> mediaList = mediaRepository.findByUserIdAndDeletedFalseOrderByCreatedAtDesc(userId);
+        
+        log.info("사용자 파일 목록 조회 완료 - 사용자: {}, 파일 수: {}", userId, mediaList.size());
+        
+        return mediaList.stream()
+                .map(MediaDto.ListResponse::from)
+                .collect(java.util.stream.Collectors.toList());
     }
     
     /**
      * 미디어 조회 응답용 HTTP 헤더를 생성합니다.
      */
-    public HttpHeaders createMediaHeaders(MediaGetResponse response) {
+    public HttpHeaders createMediaHeaders(MediaDto.GetResponse response) {
         HttpHeaders headers = new HttpHeaders();
         
         // 캐싱 헤더 설정 (15분)
@@ -187,5 +196,11 @@ public class MediaService {
         headers.setLastModified(response.getUpdatedAt().atZone(ZoneOffset.UTC).toInstant());
         
         return headers;
+    }
+    
+    public Long getUserIdByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new FileValidationException("사용자를 찾을 수 없습니다."));
+        return user.getId();
     }
 }

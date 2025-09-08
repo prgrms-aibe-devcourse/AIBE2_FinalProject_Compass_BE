@@ -10,28 +10,14 @@ Compass is an AI-powered personalized travel planning service built with Spring 
 
 ### Development & Build
 ```bash
-# Run tests (uses H2 in-memory database)
+# Run tests
 ./gradlew test
 
-# Run specific test class
-./gradlew test --tests "com.compass.domain.trip.controller.TripControllerTest"
+# Run single test class
+./gradlew test --tests "ClassNameTest"
 
-# Run MEDIA domain tests only
-./gradlew test --tests "com.compass.domain.media.*"
-
-# Run all domain-specific tests
-./gradlew test --tests "com.compass.domain.user.*"
-./gradlew test --tests "com.compass.domain.chat.*"  
-./gradlew test --tests "com.compass.domain.trip.*"
-
-# Run integration tests only
+# Run tests with specific pattern
 ./gradlew test --tests "*IntegrationTest"
-
-# Run tests with detailed output
-./gradlew test --info
-
-# Skip tests during build
-./gradlew build -x test
 
 # Build the application
 ./gradlew clean build
@@ -39,10 +25,7 @@ Compass is an AI-powered personalized travel planning service built with Spring 
 # Run application locally (ensure DB/Redis are running first)
 ./gradlew bootRun
 
-# Run with specific profile
-./gradlew bootRun --args='--spring.profiles.active=h2'
-
-# Run only PostgreSQL and Redis (recommended for local development)
+# Run only PostgreSQL and Redis (for local development with IDE)
 docker-compose up -d postgres redis
 
 # Run complete stack (PostgreSQL + Redis + Spring Boot)
@@ -59,14 +42,6 @@ docker-compose down
 
 # Complete cleanup (removes all data)
 docker-compose down -v
-
-# Debug specific services
-docker-compose logs postgres
-docker-compose logs redis
-
-# Connect to running containers
-docker-compose exec postgres bash
-docker-compose exec redis bash
 ```
 
 ### Database Access
@@ -78,28 +53,10 @@ docker exec -it compass-postgres psql -U compass_user -d compass
 docker exec -it compass-redis redis-cli
 ```
 
-### Application Health & Monitoring
-```bash
-# Check application health
-curl http://localhost:8080/actuator/health
-
-# View all actuator endpoints
-curl http://localhost:8080/actuator
-
-# Check Prometheus metrics
-curl http://localhost:8080/actuator/prometheus
-
-# View Swagger API documentation
-open http://localhost:8080/swagger-ui.html
-
-# Check application info
-curl http://localhost:8080/actuator/info
-```
-
 ## Architecture Overview
 
-### Four-Domain Architecture
-The codebase is organized into four main domains, each developed independently:
+### Three-Layer Domain Structure
+The codebase is organized into three main domains, each developed independently:
 
 1. **USER Domain** (`src/main/java/com/compass/domain/user/`)
    - Authentication/Authorization with JWT
@@ -111,6 +68,7 @@ The codebase is organized into four main domains, each developed independently:
    - Message CRUD operations
    - LLM integration (Gemini, GPT-4)
    - OCR functionality
+   - Function Calling with Spring AI
 
 3. **TRIP Domain** (`src/main/java/com/compass/domain/trip/`)
    - Travel planning
@@ -118,28 +76,19 @@ The codebase is organized into four main domains, each developed independently:
    - Weather API integration
    - Personalization pipeline
 
-4. **MEDIA Domain** (`src/main/java/com/compass/domain/media/`)
-   - File upload/download with AWS S3 integration
-   - Image validation and security scanning
-   - Presigned URL generation
-   - MIME type and file header validation
-
 ### Technology Stack
 - **Framework**: Spring Boot 3.x with Java 17
 - **Databases**: PostgreSQL 15 (main), Redis 7 (vector store & cache)
 - **AI/ML**: Spring AI 1.0.0-M5 with Gemini 2.0 Flash, GPT-4o-mini
 - **Security**: JWT-based authentication
-- **Storage**: AWS S3 for file storage with presigned URLs
 - **Monitoring**: Prometheus + Grafana with Micrometer
 - **Deployment**: Docker, AWS Elastic Beanstalk, AWS Lambda (MCP servers)
 
 ### Spring AI Integration
-Spring AI dependencies are **currently enabled** in `build.gradle`:
-- `spring-ai-openai-spring-boot-starter` - For OpenAI GPT models
-- `spring-ai-vertex-ai-gemini-spring-boot-starter` - For Google Gemini models  
-- `spring-ai-redis-store-spring-boot-starter` - For vector embeddings
-
-All Spring AI dependencies are active with version `1.0.0-M5`.
+Spring AI is currently active in `build.gradle`:
+- Lines 46-48: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
+- Lines 89-93: Dependency management for Spring AI BOM
+- Environment variables required for OpenAI/Google Cloud are loaded from `.env` file
 
 ### Key API Endpoints
 
@@ -153,16 +102,12 @@ All Spring AI dependencies are active with version `1.0.0-M5`.
 - GET `/api/chat/threads` - List chat threads
 - POST `/api/chat/threads/{id}/messages` - Send message
 - GET `/api/chat/threads/{id}/messages` - Get messages
+- POST `/api/chat/function` - Function calling with AI
 
 **Trip** (`/api/trips/*`):
 - POST `/api/trips` - Create trip plan
 - GET `/api/trips/{id}` - Get trip details
 - GET `/api/trips/recommend` - Get RAG recommendations
-
-**Media** (`/api/media/*`):
-- POST `/api/media/upload` - Upload image files (multipart/form-data)
-- GET `/api/media/{id}` - Get media info with presigned URL
-- GET `/api/media/health` - Media service health check
 
 ## Configuration
 
@@ -175,56 +120,18 @@ The `.env` file is required for local development. Team members can get it from:
 - Never commit `.env` file to Git (it's already in `.gitignore`)
 - The `.env` file contains all necessary API keys and configurations
 - Just place it in the project root directory and it will work
-- AWS S3 configurations and MEDIA validation rules are configurable via environment variables
 
 ### Spring Profiles
-- **default**: Local development with PostgreSQL/Redis
-- **h2**: Development/testing with H2 in-memory database
+- **default**: Local development with local DB/Redis
 - **docker**: Running inside Docker container
-- **test**: Test environment with test databases
-- **dev**: Development environment configuration
-
-### MEDIA Domain Configuration
-Key configuration sections in `application.yml`:
-```yaml
-# AWS S3 Configuration
-aws:
-  access-key-id: ${AWS_ACCESS_KEY_ID:}
-  secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
-  region: ${AWS_REGION:ap-northeast-2}
-  s3:
-    bucket-name: ${S3_BUCKET_NAME:compass-media-bucket}
-    base-url: ${S3_BASE_URL:https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com}
-
-# Media Validation Configuration
-media:
-  validation:
-    max-file-size: ${MEDIA_MAX_FILE_SIZE:10485760}  # 10MB
-    supported-extensions: [.jpg, .jpeg, .png, .webp, .gif]
-    supported-mime-types: [image/jpeg, image/png, image/webp, image/gif]
-    malicious-signatures: ["4D5A", "7F454C46", "3C73637269707424", "3C3F706870"]
-```
-
-**⚠️ IMPORTANT**: AWS S3 and Hypersistence Utils dependencies are required for MEDIA domain functionality but are NOT currently in build.gradle. You MUST add these dependencies if working on MEDIA features:
-
-```gradle
-dependencies {
-    // AWS S3 SDK (required for MEDIA domain)
-    implementation 'software.amazon.awssdk:s3:2.21.29'
-    implementation 'software.amazon.awssdk:auth:2.21.29'
-
-    // Hypersistence Utils for JSON handling (required for MEDIA domain)
-    implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.3'
-}
-```
-
-**Without these dependencies, MEDIA domain will fail to compile.**
+- **test**: Test environment with H2 and embedded Redis
+- **h2**: H2 database profile for development/testing
 
 ## Development Guidelines
 
 ### Branch Strategy
 - Main branch: `main`
-- Feature branches: `feature/domain-feature` (e.g., `feature/user-auth`)
+- Feature branches: `feature/domain-feature` (e.g., `feature/user-auth`, `feature/chat-function`)
 - Fix branches: `fix/domain-issue` (e.g., `fix/chat-message-error`)
 
 ### Commit Convention
@@ -238,63 +145,58 @@ dependencies {
 ### Testing Approach
 - Unit tests with JUnit 5 and Mockito
 - Integration tests for API endpoints
-- Use test containers when needed for database testing
-- Performance testing with k6 scripts
+- Embedded Redis for testing (`it.ozimov:embedded-redis:0.7.3`)
+- H2 database for test environment
+- Test files located in `src/test/java/com/compass/`
+- Run specific tests: `./gradlew test --tests "ClassName*"`
 
 ### Code Structure Patterns
-- Each domain follows a layered architecture:
-  - `controller/` - REST API endpoints
-  - `service/` - Business logic
-  - `repository/` - Data access
-  - `entity/` - JPA entities
-  - `dto/` - Data transfer objects
-  - `exception/` - Domain-specific exceptions
-  - `config/` - Domain-specific configuration (MEDIA domain has S3Configuration, MediaValidationProperties)
-
-### MEDIA Domain Specific Architecture
-The MEDIA domain implements enterprise-grade file handling with:
-- **Security-First Design**: Multi-layer file validation with malicious content detection
-- **AWS S3 Integration**: Full S3 lifecycle management with presigned URLs
-- **Configurable Validation**: External configuration via `MediaValidationProperties` and `application.yml`
-- **Exception Handling**: Domain-specific exception hierarchy with `@Order(1)` precedence
-- **Caching Headers**: HTTP caching with ETag and Last-Modified headers
+Each domain follows a layered architecture:
+- `controller/` - REST API endpoints
+- `service/` - Business logic
+- `repository/` - Data access
+- `entity/` - JPA entities
+- `dto/` - Data transfer objects
+- `exception/` - Domain-specific exceptions
+- `function/` - Spring AI function calling implementations (CHAT domain)
+- `prompt/` - Prompt templates for AI interactions (CHAT domain)
+- `parser/` - Input/output parsers for AI responses (CHAT domain)
 
 ### Database Schema
 - Users table with authentication details
 - Chat threads and messages with user associations
 - Trip plans with JSONB for flexible data storage
-- Media table with S3 integration (file metadata, status tracking)
 - Redis for vector embeddings and caching
 
 ## CI/CD Pipeline
 
-GitHub Actions workflow (`.github/workflows/ci.yml`):
-1. Runs on push/PR to main/develop branches
-2. Sets up PostgreSQL and Redis test containers
-3. Runs tests with `./gradlew test`
-4. Builds JAR with `./gradlew build`
-5. Uploads test results and JAR artifacts
+GitHub Actions workflows:
+- **ci.yml**: Runs on push/PR to main/develop branches
+  1. Sets up PostgreSQL and Redis test containers
+  2. Runs tests with `./gradlew test`
+  3. Builds JAR with `./gradlew build`
+  4. Uploads test results and JAR artifacts
+- **docker-build.yml**: Docker image building
+- **deploy.yml**: Deployment automation
 
 ## Important Notes
 
-1. **Spring AI**: Currently **enabled** in build.gradle with full implementation
-2. **Function Calling**: Implemented with 17 travel-related functions across Tour, Weather, Hotel, and Perplexity APIs
-3. **Testing Environment**: Tests use H2 in-memory database with PostgreSQL compatibility mode
-4. **Docker Development**: Use `docker-compose up -d postgres redis` for DB only when developing with IDE
-5. **Health Check**: Available at `http://localhost:8080/health`
-6. **Actuator Endpoints**: Prometheus metrics at `/actuator/prometheus`
-7. **Swagger UI**: Available at `http://localhost:8080/swagger-ui.html`
-8. **Git Operations**: Do NOT perform any git commits or pushes - developer will handle all git operations manually
-9. **Current Implementation Status**:
-   - USER domain: Authentication/OAuth2 with JWT
-   - CHAT domain: Function calling, prompt templates, multi-LLM support
-   - TRIP domain: CRUD operations, Spring AI integration
-   - MEDIA domain: AWS S3 integration, file validation, security scanning
-10. **LLM Configuration**:
-    - Primary Agent: Gemini (Google Vertex AI)
-    - Secondary Agent: GPT-4o-mini (OpenAI)
-    - Framework: Spring AI abstractions only
-    - Function Calling: 17+ travel functions implemented
+1. **Spring AI**: Currently active and configured for Gemini 2.0 Flash and GPT-4o-mini
+2. **Docker Development**: Use `docker-compose up -d postgres redis` for DB only when developing with IDE
+3. **Health Check**: Available at `http://localhost:8080/health`
+4. **Actuator Endpoints**: Prometheus metrics at `/actuator/prometheus`
+5. **Swagger UI**: Available at `/swagger-ui.html` when running locally
+6. **Git Operations**: Do NOT perform any git commits or pushes - developer will handle all git operations manually
+7. **Developer Role**: Current developer is CHAT2 team member responsible for:
+   - LLM integration (Gemini, GPT-4)
+   - Function Calling implementation
+   - OCR functionality
+   - RAG personalization
+8. **CHAT Domain LLM Configuration**:
+   - Primary Agent: Gemini 2.0 Flash (for general chat operations and function calling)
+   - Secondary Agent: GPT-4o-mini (for OpenAI compatibility)
+   - Framework: Spring AI (use Spring AI abstractions, not direct API calls)
+   - Function Calling: Enabled with travel-related functions (flights, hotels, weather, attractions)
 
 ## Development Methodology
 
@@ -309,72 +211,57 @@ Follow this strict development sequence for implementing features:
 
 **Important**: This order ensures proper layered architecture. Do NOT skip steps.
 
-### Domain Development Best Practices
-When working on any domain (USER, CHAT, TRIP, MEDIA):
-1. **Domain Isolation**: Only modify files within your assigned domain unless absolutely necessary
-2. **Configuration First**: Use `@ConfigurationProperties` for external configuration (see MediaValidationProperties)  
-3. **Exception Precedence**: Use `@Order` annotation for domain-specific exception handlers
-4. **Service Separation**: Keep business logic separate (e.g., MediaService.createMediaHeaders() vs Controller logic)
-5. **Test Coverage**: Maintain 100% test coverage for critical functionality like security validation
-6. **Security Scanning**: Always validate input files/data with multiple validation layers
-7. **BaseIntegrationTest Usage**: All integration tests should extend `BaseIntegrationTest` for consistent test environment
-8. **GlobalExceptionHandler Compatibility**: Domain exception handlers must use `GlobalExceptionHandler.ErrorResponse` for consistent API responses
+### Database ERD Updates
+- Any structural changes to the database must be reflected in `/docs/DATABASE_ERD.md`
+- Update both the Mermaid diagram and table specifications
+- Keep DDL scripts synchronized with entity changes
 
-### Database Management
-- Database schema defined in JPA entities with proper relationships
-- H2 in-memory database for testing (PostgreSQL compatibility mode)
-- PostgreSQL for production/development environments
-- Redis for vector embeddings and caching
-- Any structural changes should be reflected in `/docs/DATABASE_ERD.md`
+## Function Calling Architecture
 
-### Common Components for Domain Integration
-When integrating new domains or modifying existing ones, use these shared components:
+The CHAT domain implements Spring AI Function Calling with the following structure:
 
-1. **BaseEntity** (`com.compass.common.entity.BaseEntity`)
-   - Provides `createdAt` and `updatedAt` timestamps
-   - All domain entities should extend this class
+### Key Components
+- **FunctionCallingConfiguration** (`chat/config/`): Bean definitions for travel functions
+- **TravelFunctions** (`chat/function/`): Implementation of travel-related functions
+- **FunctionCallingChatService** (`chat/service/`): Orchestrates AI conversations with function calls
+- **Model classes** (`chat/function/model/`): Request/Response DTOs for each function
 
-2. **BaseIntegrationTest** (`com.compass.config.BaseIntegrationTest`)
-   - Provides consistent test environment setup
-   - Includes embedded Redis, H2 database, and Spring Security test configuration
-   - All `@SpringBootTest` classes should extend this
+### Available Functions
+- Flight search
+- Hotel search
+- Restaurant search
+- Attraction search
+- Weather information
+- Cultural experiences
+- Leisure activities
+- Cafe search
+- Exhibition search
 
-3. **GlobalExceptionHandler** (`com.compass.common.exception.GlobalExceptionHandler`)
-   - Provides standardized error response structure with `ErrorResponse` class
-   - Domain-specific exception handlers should use `GlobalExceptionHandler.ErrorResponse` for consistency
-
-4. **Security Integration**
-   - JWT authentication is configured globally
-   - Domain endpoints require authentication unless explicitly configured in `SecurityConfig`
-   - Use `@WithMockUser` for authenticated test scenarios
+### Prompt Templates
+The system uses a hierarchical prompt template structure:
+- **AbstractPromptTemplate**: Base template with common functionality
+- **Travel-specific templates**: 
+  - TravelPlanningPrompt
+  - TravelRecommendationPrompt
+  - DailyItineraryPrompt
+  - BudgetOptimizationPrompt
+  - DestinationDiscoveryPrompt
+  - LocalExperiencePrompt
 
 ## Project Status
 
-This is an **advanced Spring Boot project** with significant implementation completed:
-
-### ✅ Fully Implemented
-- Spring Boot 3.x with Java 17 configured
+The project has evolved from initial setup to a functional AI travel assistant with:
+- Spring Boot application configured with Spring AI
 - Docker Compose for local development
 - PostgreSQL and Redis integration
-- JWT authentication with OAuth2 (Google, Naver, Kakao)
-- Spring AI integration with function calling
-- Comprehensive testing setup (JUnit 5, H2, Mockito)
-- CI/CD pipeline with GitHub Actions
-- Swagger/OpenAPI documentation
-- Prometheus monitoring with Micrometer
+- JWT authentication system
+- Function Calling implementation for travel services
+- Prompt template system for various travel scenarios
+- Integration tests for AI functionalities
+- CI/CD pipeline setup
 
-### 🚧 Domain Implementation Status
-1. **USER Domain**: ✅ Complete (Auth, JWT, OAuth2, profiles)
-2. **CHAT Domain**: ✅ Complete (Function calling, prompt templates, multi-LLM)
-3. **TRIP Domain**: ✅ Complete (CRUD, Spring AI integration, testing)
-4. **MEDIA Domain**: ✅ Complete (S3 integration, file validation, security scanning)
-
-### 📋 Current Architecture Features
-- Multi-layer domain structure with proper separation
-- Spring AI function calling with 17+ travel functions
-- Hybrid MCP architecture (AWS Lambda + Internal APIs)
-- Redis vector store for RAG personalization
-- Comprehensive exception handling with domain-specific precedence
-- Full integration testing suite with BaseIntegrationTest
-- AWS S3 integration for file storage with enterprise-grade security
-- Configurable validation rules via external properties
+Current focus areas:
+- Enhancing Function Calling capabilities
+- Implementing RAG-based personalization
+- Optimizing prompt templates for better responses
+- Expanding travel-related functions

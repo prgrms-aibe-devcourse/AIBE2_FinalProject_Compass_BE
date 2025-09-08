@@ -1,6 +1,7 @@
 package com.compass.domain.media.entity;
 
 import com.compass.common.entity.BaseEntity;
+import com.compass.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -21,8 +22,9 @@ public class Media extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "user_id", nullable = false)
-    private String userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
     
     @Column(name = "original_filename", nullable = false, length = 500)
     private String originalFilename;
@@ -51,10 +53,10 @@ public class Media extends BaseEntity {
     private Boolean deleted = false;
     
     @Builder
-    public Media(String userId, String originalFilename, String storedFilename, 
+    public Media(User user, String originalFilename, String storedFilename, 
                 String s3Url, Long fileSize, String mimeType, FileStatus status, 
                 Map<String, Object> metadata) {
-        this.userId = userId;
+        this.user = user;
         this.originalFilename = originalFilename;
         this.storedFilename = storedFilename;
         this.s3Url = s3Url;

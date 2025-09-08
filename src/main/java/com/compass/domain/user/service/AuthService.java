@@ -30,7 +30,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    public UserDto signup(SignupRequestDto signupRequest) {
+    public UserDto.SignUpResponse signup(SignupRequestDto signupRequest) {
         // Check if email already exists
         if (userRepository.findByEmail(signupRequest.getEmail()).isPresent()) {
             throw new DuplicateEmailException("Email already exists: " + signupRequest.getEmail());
@@ -49,18 +49,14 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         log.info("User registered successfully with email: {}", savedUser.getEmail());
 
-        return UserDto.builder()
+        return UserDto.SignUpResponse.builder()
                 .id(savedUser.getId())
                 .email(savedUser.getEmail())
                 .nickname(savedUser.getNickname())
-                .profileImageUrl(savedUser.getProfileImageUrl())
-                .provider(savedUser.getProvider())
-                .createdAt(savedUser.getCreatedAt())
-                .updatedAt(savedUser.getUpdatedAt())
                 .build();
     }
 
-    public JwtDto login(LoginRequestDto loginRequest) {
+    public UserDto.LoginResponse login(LoginRequestDto loginRequest) {
         // Find user by email
         User user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
@@ -71,16 +67,14 @@ public class AuthService {
         }
 
         // Generate tokens
-        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), Collections.singletonList(user.getRole().name()));
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
+        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail());
+        String refreshToken = jwtTokenProvider.createRefreshToken();
 
         log.info("User logged in successfully: {}", user.getEmail());
 
-        return JwtDto.builder()
+        return UserDto.LoginResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
-                .tokenType("Bearer")
-                .expiresIn(jwtTokenProvider.getExpiration(accessToken))
                 .build();
     }
 
@@ -98,16 +92,14 @@ public class AuthService {
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
 
         // Generate new tokens
-        String newAccessToken = jwtTokenProvider.createAccessToken(user.getEmail(), Collections.singletonList(user.getRole().name()));
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
+        String newAccessToken = jwtTokenProvider.createAccessToken(user.getEmail());
+        String newRefreshToken = jwtTokenProvider.createRefreshToken();
 
         log.info("Token refreshed for user: {}", user.getEmail());
 
         return JwtDto.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
-                .tokenType("Bearer")
-                .expiresIn(jwtTokenProvider.getExpiration(newAccessToken))
                 .build();
     }
 }

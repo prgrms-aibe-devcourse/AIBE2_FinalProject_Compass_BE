@@ -74,6 +74,13 @@ dependencies {
 
     // Swagger/OpenAPI
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+    
+    // AWS SDK for S3
+    implementation 'software.amazon.awssdk:s3:2.20.162'
+    implementation 'software.amazon.awssdk:auth:2.20.162'
+    
+    // Hypersistence Utils for JSON support
+    implementation 'io.hypersistence:hypersistence-utils-hibernate-62:3.6.1'
 
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -83,20 +90,12 @@ dependencies {
 
     // Embedded Redis for testing
     testImplementation 'it.ozimov:embedded-redis:0.7.3'
-
-    // AWS SDK v2 for S3 (MEDIA domain)
-    implementation 'software.amazon.awssdk:s3:2.20.56'
-    implementation 'software.amazon.awssdk:url-connection-client:2.20.56'
-
-    // Hibernate Types for JSON support (MEDIA domain)
-    implementation 'io.hypersistence:hypersistence-utils-hibernate-62:3.5.1'
 }
 
 // Spring AI BOM
 dependencyManagement {
     imports {
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
-        mavenBom "software.amazon.awssdk:bom:2.20.56"
     }
 }
 
