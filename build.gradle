@@ -110,6 +110,22 @@ tasks.named('test') {
     }
 }
 
+// 단위 테스트만 실행 (Redis 없이)
+task unitTest(type: Test) {
+    useJUnitPlatform {
+        includeTags 'unit'
+    }
+    systemProperty 'spring.profiles.active', 'test-no-redis'
+}
+
+// 통합 테스트만 실행 (Redis 필요)
+task integrationTest(type: Test) {
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+    systemProperty 'spring.profiles.active', 'test'
+}
+
 // JAR 파일 이름 설정
 bootJar {
     archiveFileName = 'compass-backend.jar'

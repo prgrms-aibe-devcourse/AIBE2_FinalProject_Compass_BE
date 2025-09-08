@@ -42,8 +42,8 @@ public class NaturalLanguageParsingService {
             
             // Configure Gemini for parsing
             VertexAiGeminiChatOptions options = VertexAiGeminiChatOptions.builder()
-                    .withTemperature(0.3)  // Lower temperature for consistent parsing
-                    .withMaxOutputTokens(1000)
+                    .temperature(0.3)  // Lower temperature for consistent parsing
+                    .maxOutputTokens(1000)
                     .build();
             
             Prompt prompt = new Prompt(parsingPrompt, options);

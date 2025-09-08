@@ -10,20 +10,28 @@ Compass is an AI-powered personalized travel planning service built with Spring 
 
 ### Development & Build
 ```bash
-# Run tests
-./gradlew test
+# Run tests (requires JAVA_HOME set to Java 17)
+JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test
 
-# Run single test class
-./gradlew test --tests "ClassNameTest"
+# Run unit tests only (Redis 불필요) - RECOMMENDED FOR DEVELOPMENT
+JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew unitTest
 
-# Run tests with specific pattern
-./gradlew test --tests "*IntegrationTest"
+# Run integration tests only (Redis 필요)
+JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew integrationTest
 
-# Build the application
-./gradlew clean build
+# Run a single test class
+JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test --tests SimpleKeywordDetectorTest
 
-# Run application locally (ensure DB/Redis are running first)
-./gradlew bootRun
+# Build without tests (faster)
+JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew clean build -x test
+
+# Run application locally with environment variables
+export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home
+export $(cat .env | grep -v '^#' | xargs) && ./gradlew bootRun
+
+# Run on different port (to avoid conflicts)
+export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home
+export $(cat .env | grep -v '^#' | xargs) && ./gradlew bootRun --args='--server.port=8081'
 
 # Run only PostgreSQL and Redis (for local development with IDE)
 docker-compose up -d postgres redis
@@ -86,8 +94,8 @@ The codebase is organized into three main domains, each developed independently:
 
 ### Spring AI Integration
 Spring AI is currently active in `build.gradle`:
-- Lines 46-48: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
-- Lines 89-93: Dependency management for Spring AI BOM
+- Lines 42-44: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
+- Lines 88-92: Dependency management for Spring AI BOM
 - Environment variables required for OpenAI/Google Cloud are loaded from `.env` file
 
 ### Key API Endpoints
@@ -124,8 +132,9 @@ The `.env` file is required for local development. Team members can get it from:
 ### Spring Profiles
 - **default**: Local development with local DB/Redis
 - **docker**: Running inside Docker container
-- **test**: Test environment with H2 and embedded Redis
-- **h2**: H2 database profile for development/testing
+- **test**: Test environment with test databases
+- **test-no-redis**: Unit test environment without Redis (for CI/CD)
+- **local-no-redis**: Local development without Redis
 
 ## Development Guidelines
 
@@ -145,10 +154,13 @@ The `.env` file is required for local development. Team members can get it from:
 ### Testing Approach
 - Unit tests with JUnit 5 and Mockito
 - Integration tests for API endpoints
-- Embedded Redis for testing (`it.ozimov:embedded-redis:0.7.3`)
-- H2 database for test environment
+- **Test categorization with @Tag annotation**:
+  - `@Tag("unit")` - Unit tests that don't require Redis
+  - `@Tag("integration")` - Integration tests that require Redis
+- Use test containers when needed for database testing
+- Performance testing with k6 scripts
 - Test files located in `src/test/java/com/compass/`
-- Run specific tests: `./gradlew test --tests "ClassName*"`
+- **Redis transition strategy**: Tests can run without Redis using `unitTest` task
 
 ### Code Structure Patterns
 Each domain follows a layered architecture:
@@ -170,14 +182,12 @@ Each domain follows a layered architecture:
 
 ## CI/CD Pipeline
 
-GitHub Actions workflows:
-- **ci.yml**: Runs on push/PR to main/develop branches
-  1. Sets up PostgreSQL and Redis test containers
-  2. Runs tests with `./gradlew test`
-  3. Builds JAR with `./gradlew build`
-  4. Uploads test results and JAR artifacts
-- **docker-build.yml**: Docker image building
-- **deploy.yml**: Deployment automation
+GitHub Actions workflow (`.github/workflows/ci.yml`):
+1. Runs on push/PR to main/develop branches
+2. Sets up PostgreSQL and Redis test containers
+3. Runs tests with `./gradlew test`
+4. Builds JAR with `./gradlew build`
+5. Uploads test results and JAR artifacts
 
 ## Important Notes
 
@@ -210,6 +220,38 @@ Follow this strict development sequence for implementing features:
 5. **Testing**: Write unit and integration tests
 
 **Important**: This order ensures proper layered architecture. Do NOT skip steps.
+
+### Testing Requirements
+**MANDATORY**: After implementing any feature based on requirements definition:
+
+1. **Unit Test Creation**:
+   - Write unit tests for all new entities, services, and controllers
+   - **Add @Tag("unit") or @Tag("integration") to every test class**
+   - Minimum coverage: 80% for new code
+   - Use JUnit 5 and Mockito for testing
+
+2. **CI Pipeline Validation**:
+   - Run `./gradlew unitTest` for Redis-independent tests
+   - Run `./gradlew test` to ensure all tests pass (when Redis available)
+   - Verify compilation with `./gradlew compileJava`
+   - Check that new code doesn't break existing tests
+
+3. **Test Result Reporting**:
+   - Always report test results after implementation
+   - Include: Total tests, Passed, Failed, Skipped
+   - Document any known issues with explanations
+
+4. **Test Files Location**:
+   - Unit tests: `src/test/java/com/compass/domain/[domain]/`
+   - Integration tests: `src/test/java/com/compass/integration/`
+
+5. **Quality Assurance Workflow**:
+   - After unit tests pass, run CI pipeline validation
+   - Double-check all tests are passing
+   - If all tests pass, create issue template for the completed feature
+   - Report completion with test results and issue template
+
+**Important**: Never mark a feature as complete without running tests and reporting results.
 
 ### Database ERD Updates
 - Any structural changes to the database must be reflected in `/docs/DATABASE_ERD.md`
@@ -248,20 +290,53 @@ The system uses a hierarchical prompt template structure:
   - DestinationDiscoveryPrompt
   - LocalExperiencePrompt
 
+## CHAT Domain Service Architecture
+
+The CHAT domain has evolved to use a prompt template-based approach with specialized services:
+
+### Core Services
+- **ChatModelService**: Manages LLM interactions (Gemini 2.0 Flash, GPT-4o-mini)
+- **PromptTemplateService**: Orchestrates prompt template selection and processing
+- **TravelTemplateService**: Generates travel-specific responses using templates
+- **FunctionCallingChatService**: Handles function calling for external API integration
+- **NaturalLanguageParsingService**: Parses user input to extract travel parameters
+- **PromptEngineeringService**: Optimizes prompts for better LLM responses
+- **SimpleKeywordDetector**: Automatically selects appropriate templates based on user input
+
+### Processing Flow
+1. User message → NaturalLanguageParsingService (extract parameters)
+2. Parameters → SimpleKeywordDetector (select template)
+3. Template → PromptTemplateService (build enriched prompt)
+4. Prompt → ChatModelService (get LLM response)
+5. Response → FunctionCallingChatService (if external data needed)
+6. Final response → User
+
+### New API Endpoints
+- POST `/api/chat/travel` - Template-based travel chat with personalization
+- GET `/api/chat/templates` - List available prompt templates
+- GET `/api/chat/templates/{name}` - Get template details
+
 ## Project Status
 
 The project has evolved from initial setup to a functional AI travel assistant with:
 - Spring Boot application configured with Spring AI
 - Docker Compose for local development
-- PostgreSQL and Redis integration
+- PostgreSQL and Redis integration (with Redis-optional testing)
 - JWT authentication system
 - Function Calling implementation for travel services
-- Prompt template system for various travel scenarios
+- **Advanced prompt template system with keyword detection**
+- **Personalization using UserContext and TravelHistory**
 - Integration tests for AI functionalities
-- CI/CD pipeline setup
+- **CI/CD pipeline with Redis-independent testing**
+
+Current Implementation Status (CHAT2 Team):
+- ✅ REQ-PROMPT-001, 002, 003: Template system completed
+- ✅ REQ-LLM-004: Personalization models implemented
+- ✅ REQ-AI-003: Basic itinerary templates (Day Trip, 1N2D, 2N3D, 3N4D) implemented
+- ✅ CI/CD issues resolved with test separation strategy
+- ✅ Unit tests: 100% passing (SimpleKeywordDetectorTest, TravelHistoryTest, ItineraryTemplatesTest)
 
 Current focus areas:
-- Enhancing Function Calling capabilities
 - Implementing RAG-based personalization
-- Optimizing prompt templates for better responses
-- Expanding travel-related functions
+- Integrating Function Calling with prompt templates
+- Expanding follow-up question generation

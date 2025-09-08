@@ -21,16 +21,16 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/signup")
-    public ResponseEntity<UserDto.SignUpResponse> signup(@Valid @RequestBody SignupRequestDto signupRequest) {
+    public ResponseEntity<UserDto> signup(@Valid @RequestBody SignupRequestDto signupRequest) {
         log.info("Signup request received for email: {}", signupRequest.getEmail());
-        UserDto.SignUpResponse userDto = authService.signup(signupRequest);
+        UserDto userDto = authService.signup(signupRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(userDto);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<UserDto.LoginResponse> login(@Valid @RequestBody LoginRequestDto loginRequest) {
+    public ResponseEntity<JwtDto> login(@Valid @RequestBody LoginRequestDto loginRequest) {
         log.info("Login request received for email: {}", loginRequest.getEmail());
-        UserDto.LoginResponse jwtDto = authService.login(loginRequest);
+        JwtDto jwtDto = authService.login(loginRequest);
         return ResponseEntity.ok(jwtDto);
     }
 
