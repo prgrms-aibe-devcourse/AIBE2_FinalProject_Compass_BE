@@ -45,4 +45,11 @@ public interface PromptTemplate {
      * Get optional parameter names
      */
     String[] getOptionalParameters();
+    
+    /**
+     * Check if this template supports the given user input
+     * @param userInput The user's input message
+     * @return true if this template can handle the input
+     */
+    boolean supports(String userInput);
 }

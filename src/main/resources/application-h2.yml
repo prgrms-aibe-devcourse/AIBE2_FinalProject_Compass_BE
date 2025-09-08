@@ -1,0 +1,51 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+        globally_quoted_identifiers: false
+    defer-datasource-initialization: true
+    show-sql: true
+    
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      
+  # Security 비활성화 (테스트 목적)
+  security:
+    enabled: false
+    
+  # Redis 비활성화 (테스트 목적)
+  redis:
+    host: disabled
+    port: 0
+
+# AI 기능 비활성화 (RDS 연결 테스트 목적)
+compass:
+  ai:
+    enabled: false
+
+# JWT 설정 (테스트 목적)
+jwt:
+  access-secret: test-access-secret-key-for-h2-testing-12345678901234567890
+  refresh-secret: test-refresh-secret-key-for-h2-testing-12345678901234567890
+  access-expiration: 3600000
+  refresh-expiration: 604800000
+      
+logging:
+  level:
+    com.compass: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

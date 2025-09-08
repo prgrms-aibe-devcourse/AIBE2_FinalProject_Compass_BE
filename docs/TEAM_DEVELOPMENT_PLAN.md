@@ -4,7 +4,7 @@
 - **USER**: 인증/인가, 사용자 프로필 관리
 - **TRIP1**: 여행 계획 기본 기능, 개인화 알고리즘
 - **CHAT1**: 채팅 기본 기능, 인텐트 라우팅
-- **CHAT2+TRIP2** (통합 담당): LLM 통합, Function Calling, Lambda MCP, AI 여행 계획 생성
+- **CHAT2+TRIP2** (통합 담당): LLM 통합, 프롬프트 엔지니어링, 개인화 시스템, AI 여행 계획 생성
 - **MEDIA**: 이미지 업로드, S3 저장, OCR 처리
 
 ---
@@ -69,23 +69,23 @@
 | REQ-CHAT-006 | 메시지 입력 검증 | @Valid, 최대 1000자 제한 | 3 |
 |  | → 빈 메시지 방지, 길이 제한 검증, XSS 방지 새니타이징, SQL 인젝션 방어 |  |  |
 
-### 🤖 CHAT2+TRIP2 - LLM 통합 및 AI 여행 계획 (11개)
+### 🤖 CHAT2+TRIP2 - 프롬프트 엔지니어링 및 AI 여행 계획 (11개)
 | 요구사항ID | 기능명 | 설명 | 우선순위 | 의존성 |
 |------------|--------|------|---------|--------|
 | REQ-LLM-001 | Spring AI 설정 | dependency 추가, 기본 설정 | 1 | 독립 |
 |  | → build.gradle 의존성 추가, application.yml AI 설정, 빈 초기화 및 테스트 |  |  |  |
 | REQ-LLM-002 | Gemini 연동 | Vertex AI Gemini 2.0 Flash 연결 | 1 | 독립 |
 |  | → Google Cloud 인증 설정, Vertex AI 클라이언트 초기화, 연결 테스트 |  |  |  |
-| REQ-AI-003 | 기본 일정 템플릿 | 2박3일, 3박4일 JSON 템플릿 구축 | 1 | 독립 |
-|  | → 여행 기간별 표준 템플릿 JSON 파일 생성, 시간대별 활동 매핑, 로드 로직 |  |  |  |
-| REQ-LLM-005 | Function Calling 설정 | Spring AI Function 프레임워크 | 1 | 독립 |
-|  | → @Bean으로 함수 등록, LLM에 함수 스키마 전달, 자동 호출 체인 구성 |  |  |  |
-| REQ-AI-001 | AI 여행 계획 Function | createTravelPlan() 함수 구현 | 1 | 독립 |
-|  | → 입력 파라미터 받아 AI 일정 생성, 템플릿 병합, 구조화된 응답 반환 |  |  |  |
-| REQ-AI-002 | 사용자 입력 파싱 | NER 기반 엔티티 추출 | 2 | 독립 |
-|  | → 자연어에서 여행 정보 추출, 날짜 파싱("3월 말" → Date), 예산 정규화 |  |  |  |
-| REQ-LLM-004 | 프롬프트 템플릿 | 여행 계획 프롬프트 생성 | 2 | TRIP1 |
-|  | → 사용자 선호도 받아 맞춤 프롬프트 생성, 변수 치환, 다국어 지원 |  |  |  |
+| REQ-AI-003 | 기본 일정 템플릿 | 당일치기, 1박2일, 2박3일, 3박4일 JSON 템플릿 구축 | 1 | 독립 |
+|  | → 여행 기간별 표준 템플릿 JSON 파일 생성 (당일치기 포함), 시간대별 활동 매핑, 로드 로직 |  |  |  |
+| REQ-PROMPT-001 | 프롬프트 엔지니어링 서비스 | PromptEngineeringService 구현 | 1 | 독립 |
+|  | → 프롬프트 템플릿 시스템 구축, 동적 컨텍스트 주입, 개인화 변수 처리 |  |  |  |
+| REQ-PROMPT-002 | 키워드 감지 시스템 | SimpleKeywordDetector 구현 | 1 | 독립 |
+|  | → 간단한 키워드 매칭으로 적절한 템플릿 선택, 의도 파악 지원 |  |  |  |
+| REQ-PROMPT-003 | 템플릿 라이브러리 | 20+ 여행 시나리오별 템플릿 | 2 | 독립 |
+|  | → 가족/커플/비즈니스/배낭 등 상황별 템플릿, 동적 변수 치환, 개인화 지원 |  |  |  |
+| REQ-LLM-004 | 개인화 컨텍스트 주입 | DB 기반 사용자 컨텍스트 로드 | 2 | TRIP1 |
+|  | → UserPreference, UserContext, TravelHistory 테이블 조회, 프롬프트에 통합 |  |  |  |
 | REQ-LLM-006 | 대화 컨텍스트 관리 | 최근 10개 메시지 유지 | 2 | CHAT1 |
 |  | → 대화 이력 큐 관리, 8K 토큰 제한 체크, 오래된 메시지 자동 제거 |  |  |  |
 | REQ-PERS-007 | 콜드 스타트 해결 | 신규 사용자 온보딩 메시지 | 3 | 독립 |
@@ -166,27 +166,27 @@
 | REQ-INTENT-003 | 의도별 프롬프트 | 템플릿 선택 로직 | 2 |
 |  | → 의도별 최적화된 프롬프트 템플릿, 변수 치환 로직, 동적 생성 |  |  |
 
-### 🤖 CHAT2+TRIP2 - Lambda MCP + LLM 고도화 (15개)
+### 🤖 CHAT2+TRIP2 - 개인화 DB + 최소 Function Calling (15개)
 | 요구사항ID | 기능명 | 설명 | 우선순위 | 의존성 |
 |------------|--------|------|---------|--------|
-| REQ-MCP-001 | Lambda 프로젝트 설정 | Serverless Framework 설정 | 1 | 독립 |
-|  | → serverless.yml 설정, Node.js 18 환경, MCP 프로토콜 구현, 로컬 테스트 |  |  |  |
-| REQ-MCP-002 | Tour API MCP | 관광지/맛집/액티비티 5개 함수 | 1 | 독립 |
-|  | → 관광/맛집/활동 API 래핑, 위치 기반 검색, JSON 응답 포맷팅 |  |  |  |
-| REQ-MCP-003 | Weather API MCP | 날씨/예보/경보 3개 함수 | 1 | 독립 |
-|  | → 날씨 API 통합, 5일 예보, 악천후 경보, 캐싱 전략 구현 |  |  |  |
-| REQ-MCP-004 | Hotel API MCP | 검색/가격/리뷰 4개 함수 | 1 | 독립 |
-|  | → 숙박 검색/가격/리뷰 API, 필터링 로직, 가격 비교 기능 |  |  |  |
-| REQ-MCP-005 | DynamoDB 캐싱 | TTL 기반 캐시 테이블 | 2 | 독립 |
-|  | → 캐시 테이블 생성, 24시간 TTL, 중복 API 호출 방지, 히트율 모니터링 |  |  |  |
+| REQ-DB-001 | UserPreference 테이블 | 사용자 여행 선호도 저장 | 1 | 독립 |
+|  | → 여행 스타일, 예산 수준, 관심 카테고리, 음식 선호, JSONB 구조 |  |  |  |
+| REQ-DB-002 | UserContext 테이블 | 사용자 컨텍스트 정보 | 1 | 독립 |
+|  | → 나이대, 동행 유형, 신체 조건, 특별 요구사항, 과거 피드백 |  |  |  |
+| REQ-DB-003 | TravelHistory 테이블 | 여행 이력 및 학습 데이터 | 1 | 독립 |
+|  | → 방문 장소, 만족도 평점, 재방문 의향, 키워드 추출, 패턴 분석 |  |  |  |
+| REQ-FC-001 | 최소 Function Calling | 날씨/호텔 검색만 구현 | 1 | 독립 |
+|  | → getCurrentWeather(), searchHotels() 2개 함수만 구현, 실시간 정보 제공 |  |  |  |
+| REQ-PROMPT-004 | 프롬프트 학습 시스템 | A/B 테스트 및 개선 | 2 | 독립 |
+|  | → 템플릿 성능 측정, 사용자 만족도 추적, 자동 개선 제안 |  |  |  |
 | REQ-LLM-003 | OpenAI 연동 | GPT-4o-mini 모델 설정 | 1 | 독립 |
 |  | → OpenAI API 키 설정, 스트리밍 처리, 청크 병합, 타임아웃 처리 |  |  |  |
 | REQ-LLM-007 | 토큰 사용량 추적 | 모델별 사용량 집계 | 2 | 독립 |
 |  | → 요청/응답 토큰 카운팅, DB 저장, 비용 계산, 대시보드 데이터 |  |  |  |
-| REQ-MCP-006 | Spring AI-Lambda 통합 | Function Calling 연동 | 1 | 독립 |
-|  | → Lambda 호출 클라이언트, Function 래퍼 구현, 자동 파라미터 매핑 |  |  |  |
-| REQ-AI-004 | Lambda MCP 호출 통합 | 병렬 Lambda 호출 관리 | 1 | 독립 |
-|  | → CompletableFuture로 병렬 처리, 결과 병합, 에러 핸들링, 타임아웃 관리 |  |  |  |
+| REQ-PROMPT-005 | 동적 템플릿 선택 | 컨텍스트 기반 템플릿 매칭 | 1 | 독립 |
+|  | → 사용자 입력 + DB 컨텍스트로 최적 템플릿 자동 선택, 신뢰도 점수 |  |  |  |
+| REQ-PROMPT-006 | 템플릿 변수 주입 | 개인화 변수 처리 시스템 | 1 | 독립 |
+|  | → {{변수}} 형식 파싱, DB 데이터 매핑, 기본값 처리, 검증 로직 |  |  |  |
 | REQ-LLM-008 | LLM 폴백 처리 | 의도별 모델 라우팅 | 2 | CHAT1 |
 |  | → 모델 실패 시 대체 모델 사용, 재시도 로직, 서킷 브레이커 패턴 |  |  |  |
 | REQ-CTX-001 | 사용자 프로필 로드 | 선호도 기반 커스터마이징 | 2 | TRIP1 |
@@ -272,7 +272,7 @@
 | REQ-INTENT-010 | 정보 알리미 에이전트 | 날씨/환율 정보 제공 | 2 |
 |  | → Lambda MCP로 실시간 날씨/환율 조회, 여행 팁/비자 정보 제공 |  |  |  |
 
-### 🤖 CHAT2+TRIP2 - 개인화 + Lambda 최적화 (27개)
+### 🤖 CHAT2+TRIP2 - 개인화 + 프롬프트 고도화 (27개)
 
 #### 개인화 시스템 (14개)
 | 요구사항ID | 기능명 | 설명 | 우선순위 | 의존성 |
@@ -324,21 +324,21 @@
 | REQ-TRIP-010 | 여행 체크리스트 | 준비물 관리 기능 | 3 | TRIP1 |
 |  | → 여행 준비물 체크리스트, 체크 상태 관리, 기본 템플릿 제공 |  |  |  |  |
 
-#### Lambda 최적화 (6개)
+#### 프롬프트 고도화 (6개)
 | 요구사항ID | 기능명 | 설명 | 우선순위 | 의존성 |
 |------------|--------|------|---------|--------|
-| REQ-MCP-007 | Cold Start 최적화 | Provisioned Concurrency 설정 | 1 | 독립 |
-|  | → AWS Lambda Provisioned Concurrency 5개 설정, 워밍 스케줄러, 1초 이내 응답 목표 |  |  |  |  |
-| REQ-MCP-010 | API Gateway 보안 | API Key, Rate Limiting | 1 | 독립 |
-|  | → API Key 기반 인증, 분당 100회 제한, IP 화이트리스트, DDoS 방어 |  |  |  |  |
-| REQ-MCP-011 | 병렬 처리 최적화 | CompletableFuture 체인 | 1 | 독립 |
-|  | → 3개 API 병렬 호출, CompletableFuture.allOf() 사용, 2초 타임아웃, 결과 병합 |  |  |  |  |
-| REQ-MCP-008 | 에러 핸들링 | Exponential Backoff 재시도 | 2 | 독립 |
-|  | → 지수 백오프(1초-2초-4초) 재시도, 최대 3회, Circuit Breaker 패턴 적용 |  |  |  |  |
-| REQ-MCP-009 | CloudWatch 모니터링 | 메트릭 및 알람 설정 | 2 | 독립 |
-|  | → Lambda 실행 시간/에러율 모니터링, 임계치 초과 시 SNS 알림, 대시보드 구성 |  |  |  |  |
-| REQ-MCP-012 | 배포 자동화 | GitHub Actions CI/CD | 3 | 독립 |
-|  | → main 브랜치 푸시 시 자동 배포, serverless deploy 스크립트, 테스트 후 배포 |  |  |  |  |
+| REQ-PROMPT-007 | 멀티턴 대화 지원 | 대화 컨텍스트 유지 및 진화 | 1 | 독립 |
+|  | → 이전 대화 요약, 컨텍스트 진화, 장기 기억, 일관성 유지 |  |  |  |  |
+| REQ-PROMPT-008 | 감정 인식 프롬프트 | 사용자 감정 상태 반영 | 1 | 독립 |
+|  | → 텍스트 감정 분석, 톤 조절, 공감적 응답, 맞춤형 제안 |  |  |  |  |
+| REQ-PROMPT-009 | 다국어 템플릿 | 한/영/일/중 프롬프트 지원 | 1 | 독립 |
+|  | → 언어별 템플릿 관리, 문화적 뉘앙스 반영, 자동 번역 폴백 |  |  |  |  |
+| REQ-PROMPT-010 | 프롬프트 체이닝 | 복잡한 요청 단계별 처리 | 2 | 독립 |
+|  | → 요청 분해, 순차 처리, 중간 결과 활용, 최종 통합 |  |  |  |  |
+| REQ-PROMPT-011 | 프롬프트 버전 관리 | 템플릿 버전 및 롤백 | 2 | 독립 |
+|  | → Git 기반 버전 관리, A/B 테스트, 성능 비교, 자동 롤백 |  |  |  |  |
+| REQ-PROMPT-012 | 프롬프트 최적화 | 토큰 효율성 개선 | 3 | 독립 |
+|  | → 압축 기법, 중복 제거, 핵심 정보 추출, 비용 최적화 |  |  |  |  |
 
 ### 🔧 공통 작업
 - REQ-NFR-005: 수평 확장 가능 구조
@@ -383,7 +383,7 @@
 | USER | 6 | 5 | 미정 | **11+개** |
 | TRIP1 | 5 | 6 | 7 | **18개** |
 | CHAT1 | 5 | 5 | 10 | **20개** |
-| CHAT2+TRIP2 | 11 | 15 | 27 | **53개** |
+| CHAT2+TRIP2 (프롬프트) | 11 | 15 | 27 | **53개** |
 | MEDIA | 5 | 6 | 7 | **18개** |
 | **합계** | **32** | **37** | **51+** | **120+개** |
 
@@ -421,9 +421,9 @@
 
 ```mermaid
 graph LR
-    A[사용자 입력] --> B[CHAT2: LLM 처리]
-    B --> C[TRIP2: 입력 파싱]
-    C --> D[TRIP2: AI 함수 호출]
+    A[사용자 입력] --> B[CHAT2: 프롬프트 엔진]
+    B --> C[TRIP2: 템플릿 선택]
+    C --> D[TRIP2: 개인화 주입]
     D --> E[TRIP1: 계획 저장]
     E --> F[사용자에게 응답]
 ```
@@ -456,9 +456,11 @@ graph LR
    - 테마: "도시 여행", "KPOP 테마 여행"
    
 3. **기본 일정 템플릿**
+   - 당일치기 템플릿
+   - 1박 2일 템플릿
    - 2박 3일 템플릿
    - 3박 4일 템플릿
-   - 일별 관광지 3-4개 추천
+   - 일별 관광지 3-4개 추천 (당일치기는 5-6개)
 
 #### CHAT2 (MVP)
 1. **Function Calling 설정**
@@ -487,79 +489,108 @@ graph LR
 
 ---
 
-## 💻 TRIP2 - Spring AI Function Calling 구현 예시
+## 💻 CHAT2+TRIP2 - 프롬프트 엔지니어링 구현 예시
 
-### TravelPlanFunction.java
+### PromptEngineeringService.java
 ```java
-package com.compass.trip.function;
+package com.compass.chat.service;
 
-import com.compass.trip.dto.TravelRequest;
-import com.compass.trip.dto.TravelPlan;
-import com.compass.trip.service.TripService;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Description;
-import java.util.function.Function;
+import com.compass.chat.prompt.PromptTemplateLibrary;
+import com.compass.chat.detector.SimpleKeywordDetector;
+import com.compass.trip.entity.UserPreference;
+import com.compass.trip.entity.UserContext;
+import com.compass.trip.entity.TravelHistory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.ChatClient;
+import org.springframework.ai.chat.ChatResponse;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.stereotype.Service;
 
-@Configuration
-public class TravelPlanFunction {
+import java.util.Map;
+import java.util.HashMap;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PromptEngineeringService {
     
-    private final TripService tripService;
+    private final ChatClient chatClient;
+    private final PromptTemplateLibrary templateLibrary;
+    private final SimpleKeywordDetector keywordDetector;
+    private final UserPreferenceService preferenceService;
+    private final UserContextService contextService;
+    private final TravelHistoryService historyService;
     
-    public TravelPlanFunction(TripService tripService) {
-        this.tripService = tripService;
+    /**
+     * 프롬프트 엔진으로 여행 계획 생성
+     */
+    public String generateTravelPlan(String userMessage, Long userId) {
+        // 1. 키워드 감지로 템플릿 추천
+        String templateType = keywordDetector.detectTemplate(userMessage);
+        log.info("감지된 템플릿 유형: {}", templateType);
+        
+        // 2. DB에서 개인화 컨텍스트 로드
+        Map<String, Object> context = loadPersonalizationContext(userId);
+        
+        // 3. 동적 템플릿 선택 및 변수 주입
+        String prompt = templateLibrary.getTemplate(templateType)
+            .withVariable("userRequest", userMessage)
+            .withVariable("preferences", context.get("preferences"))
+            .withVariable("context", context.get("context"))
+            .withVariable("history", context.get("history"))
+            .build();
+        
+        // 4. LLM 호출 (Gemini 2.0 Flash)
+        ChatResponse response = chatClient.call(new Prompt(prompt));
+        
+        // 5. 학습 데이터 수집 (A/B 테스트용)
+        trackTemplatePerformance(templateType, response);
+        
+        return response.getResult().getOutput().getContent();
     }
     
-    @Bean
-    @Description("사용자의 여행 요청을 분석하여 AI 기반 여행 계획을 생성합니다")
-    public Function<TravelRequest, TravelPlan> createTravelPlan() {
-        return request -> {
-            // 1. 입력 파싱 및 검증
-            validateRequest(request);
-            
-            // 2. AI를 통한 여행 계획 생성
-            TravelPlan plan = generatePlanWithAI(request);
-            
-            // 3. 데이터베이스 저장 (TRIP1 협업)
-            plan = tripService.saveTravelPlan(plan);
-            
-            return plan;
-        };
+    /**
+     * 개인화 컨텍스트 로드
+     */
+    private Map<String, Object> loadPersonalizationContext(Long userId) {
+        Map<String, Object> context = new HashMap<>();
+        
+        // UserPreference 테이블에서 선호도 로드
+        UserPreference preference = preferenceService.findByUserId(userId);
+        context.put("preferences", Map.of(
+            "travelStyle", preference.getTravelStyle(),
+            "budget", preference.getBudgetLevel(),
+            "interests", preference.getInterests(),
+            "foodPreferences", preference.getFoodPreferences()
+        ));
+        
+        // UserContext 테이블에서 컨텍스트 로드
+        UserContext userContext = contextService.findByUserId(userId);
+        context.put("context", Map.of(
+            "ageGroup", userContext.getAgeGroup(),
+            "travelCompanion", userContext.getTravelCompanion(),
+            "specialRequirements", userContext.getSpecialRequirements()
+        ));
+        
+        // TravelHistory 테이블에서 학습 데이터 로드
+        TravelHistory history = historyService.findByUserId(userId);
+        context.put("history", Map.of(
+            "visitedPlaces", history.getVisitedPlaces(),
+            "satisfactionScores", history.getSatisfactionScores(),
+            "preferredPatterns", history.getPatterns()
+        ));
+        
+        return context;
     }
     
-    @Bean
-    @Description("여행 일정을 최적화하고 상세 정보를 추가합니다")
-    public Function<TravelPlan, TravelPlan> optimizeTravelPlan() {
-        return plan -> {
-            // 이동 경로 최적화
-            plan = optimizeRoute(plan);
-            
-            // 시간대별 일정 조정
-            plan = adjustScheduleByTime(plan);
-            
-            // 예산 최적화
-            plan = optimizeBudget(plan);
-            
-            return plan;
-        };
-    }
-    
-    @Bean
-    @Description("사용자 선호도를 기반으로 여행지를 추천합니다")
-    public Function<UserPreferenceRequest, RecommendationResponse> recommendDestinations() {
-        return request -> {
-            // 사용자 프로필 로드
-            UserProfile profile = loadUserProfile(request.getUserId());
-            
-            // 선호도 기반 추천
-            List<Destination> recommendations = generateRecommendations(
-                profile,
-                request.getTravelStyle(),
-                request.getBudget()
-            );
-            
-            return new RecommendationResponse(recommendations);
-        };
+    /**
+     * 템플릿 성능 추적
+     */
+    private void trackTemplatePerformance(String templateType, ChatResponse response) {
+        // A/B 테스트 및 성능 개선을 위한 데이터 수집
+        log.info("템플릿 {} 사용, 응답 시간: {}ms", 
+                templateType, response.getMetadata().get("duration"));
     }
 }
 ```
@@ -629,60 +660,93 @@ spring:
       api-key: ${OPENAI_API_KEY}
       chat:
         options:
-          model: gpt-4
+          model: gpt-4o-mini
           temperature: 0.7
     
     vertex-ai:
       gemini:
         project-id: ${GCP_PROJECT_ID}
-        location: asia-northeast3
-        model: gemini-pro
+        location: us-central1
+        model: gemini-2.0-flash
     
-    # Function Calling 설정
+    # 최소 Function Calling 설정 (날씨, 호텔만)
     function:
       calling:
         enabled: true
-        packages:
-          - com.compass.trip.function
-          - com.compass.chat.function
+        functions:
+          - getCurrentWeather
+          - searchHotels
 ```
 
-### 실제 사용 예시 (CHAT2에서 호출)
+### SimpleKeywordDetector.java
 ```java
-@Service
-public class ChatService {
+package com.compass.chat.detector;
+
+import org.springframework.stereotype.Component;
+import java.util.Map;
+import java.util.HashMap;
+
+@Component
+public class SimpleKeywordDetector {
     
-    private final ChatClient chatClient;
+    private final Map<String, String[]> templateKeywords;
     
-    public String processMessage(String userMessage) {
-        // CHAT2가 LLM과 통신하면서 필요시 TRIP2의 Function을 자동 호출
-        ChatResponse response = chatClient.call(
-            new Prompt(
-                userMessage,
-                ChatOptionsBuilder.builder()
-                    .withFunction("createTravelPlan")      // TRIP2 function
-                    .withFunction("optimizeTravelPlan")    // TRIP2 function
-                    .withFunction("recommendDestinations") // TRIP2 function
-                    .build()
-            )
-        );
+    public SimpleKeywordDetector() {
+        this.templateKeywords = new HashMap<>();
         
-        return response.getResult().getOutput().getContent();
+        // 템플릿별 키워드 정의
+        templateKeywords.put("family_trip", new String[]{
+            "가족", "아이", "부모님", "할머니", "할아버지", "family"
+        });
+        
+        templateKeywords.put("couple_trip", new String[]{
+            "커플", "연인", "두명", "허니문", "로맨틱", "couple"
+        });
+        
+        templateKeywords.put("business_trip", new String[]{
+            "비즈니스", "출장", "회의", "미팅", "business"
+        });
+        
+        templateKeywords.put("backpack_trip", new String[]{
+            "배낭", "혹자", "혁자", "저예산", "게스트하우스", "backpack"
+        });
+        
+        templateKeywords.put("kpop_trip", new String[]{
+            "kpop", "아이돌", "BTS", "블랙핑크", "스트레이키즈", "콘서트"
+        });
+    }
+    
+    /**
+     * 사용자 메시지에서 키워드를 감지하여 템플릿 추천
+     */
+    public String detectTemplate(String userMessage) {
+        String lowerMessage = userMessage.toLowerCase();
+        
+        for (Map.Entry<String, String[]> entry : templateKeywords.entrySet()) {
+            for (String keyword : entry.getValue()) {
+                if (lowerMessage.contains(keyword.toLowerCase())) {
+                    return entry.getKey();
+                }
+            }
+        }
+        
+        // 기본 템플릿
+        return "general_trip";
     }
 }
 ```
 
 ### 협업 구조
 ```
-CHAT2 (LLM 통합 담당)
-  ├── Spring AI 기본 설정
-  ├── Gemini/OpenAI 연동
-  └── Function Calling 프레임워크 설정
+CHAT2 (프롬프트 엔진 담당)
+  ├── PromptEngineeringService
+  ├── SimpleKeywordDetector
+  └── 프롬프트 템플릿 관리
       ↓
-TRIP2 (여행 Function 구현)
-  ├── createTravelPlan() - AI 여행 계획 생성
-  ├── optimizeTravelPlan() - 일정 최적화
-  └── recommendDestinations() - 여행지 추천
+TRIP2 (개인화 DB 구현)
+  ├── UserPreference 테이블
+  ├── UserContext 테이블
+  └── TravelHistory 테이블
       ↓
 TRIP1 (여행 API 구현)
   ├── POST /api/trips - 계획 저장

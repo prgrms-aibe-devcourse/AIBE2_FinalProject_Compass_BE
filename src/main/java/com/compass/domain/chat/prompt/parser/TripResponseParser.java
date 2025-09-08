@@ -2,9 +2,13 @@ package com.compass.domain.chat.prompt.parser;
 
 import com.compass.domain.trip.Trip;
 import com.compass.domain.trip.TripDetail;
+import com.compass.domain.trip.TripStatus;
+import com.compass.domain.user.entity.User;
+import com.compass.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -19,13 +23,19 @@ import java.util.List;
  * LLM 응답을 Trip/TripDetail 엔티티로 파싱하는 헬퍼 클래스
  */
 @Component
-public class TripResponseParser {
-    
+public class TripResponseParser {    
     private static final Logger logger = LoggerFactory.getLogger(TripResponseParser.class);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     
+    // Use constructor injection for Spring-managed beans
+    public TripResponseParser(ObjectMapper objectMapper, UserRepository userRepository) {
+        this.objectMapper = objectMapper;
+        this.userRepository = userRepository;
+    }
+
     /**
      * JSON 형식의 LLM 응답을 Trip 엔티티로 변환
      * 
@@ -40,9 +50,13 @@ public class TripResponseParser {
             String jsonContent = extractJsonFromResponse(llmResponse);
             JsonNode root = objectMapper.readTree(jsonContent);
             
+            // Find the User entity by userId
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+
             // Trip 엔티티 생성
             Trip trip = Trip.builder()
-                .userId(userId)
+                .user(user) // Pass the User object, not the ID
                 .threadId(threadId)
                 .title(root.path("title").asText())
                 .destination(root.path("destination").asText())
@@ -50,7 +64,7 @@ public class TripResponseParser {
                 .endDate(LocalDate.parse(root.path("endDate").asText(), DATE_FORMATTER))
                 .numberOfPeople(root.path("numberOfPeople").asInt())
                 .totalBudget(root.path("totalBudget").asInt())
-                .status("PLANNING")
+                .status(TripStatus.PLANNING) // Use the enum for type safety
                 .tripMetadata(root.path("tripMetadata").toString())
                 .build();
             

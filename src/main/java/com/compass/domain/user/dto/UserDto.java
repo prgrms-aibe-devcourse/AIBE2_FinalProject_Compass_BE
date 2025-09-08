@@ -7,13 +7,27 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-public class UserDto {
+import java.time.LocalDateTime;
 
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserDto {
+    private Long id;
+    private String email;
+    private String nickname;
+    private String profileImageUrl;
+    private String provider;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    // Nested classes for other DTOs
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SignUpRequest {
-        @Email(message = "Invalid email format.")
+        @Email(message = "잘못된 이메일 형식입니다.")
         @NotBlank(message = "Email is required.")
         private String email;
 
@@ -47,5 +61,6 @@ public class UserDto {
     @Builder
     public static class LoginResponse {
         private String accessToken;
+        private String refreshToken;
     }
 }

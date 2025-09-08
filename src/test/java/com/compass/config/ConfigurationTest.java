@@ -1,24 +1,21 @@
 package com.compass.config;
 
+import com.compass.config.jwt.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.beans.factory.annotation.Autowired;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Basic configuration test to ensure the test environment is properly set up
- */
-@SpringBootTest
-@ActiveProfiles("test")
 @DisplayName("Configuration Tests")
-public class ConfigurationTest {
+public class ConfigurationTest extends BaseIntegrationTest {
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
 
     @Test
-    @DisplayName("Test environment configuration")
-    void testEnvironmentConfiguration() {
-        // This test verifies that the test environment can be loaded
-        assertTrue(true, "Test environment is properly configured");
+    @DisplayName("애플리케이션 컨텍스트가 성공적으로 로드되어야 한다")
+    void contextLoads() {
+        assertThat(jwtTokenProvider).isNotNull();
     }
 }

@@ -61,3 +61,12 @@ test-output/
 
 # Docker
 docker-compose.override.yml
+
+# Project Documentation
+CLAUDE.md
+
+# Frontend Directory
+frontend/
+FE/
+compass-frontend/
+compass-fe/

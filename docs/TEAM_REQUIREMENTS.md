@@ -17,7 +17,7 @@
 - **USER**: 인증/인가, Redis JWT 관리
 - **TRIP1**: 여행 계획 기본 기능, 선호도 관리, 개인화 알고리즘
 - **CHAT1**: 채팅 기본 기능, 인텐트 라우팅
-- **CHAT2+TRIP2** (통합 담당): LLM 통합, Function Calling, Lambda MCP, AI 여행 계획 생성
+- **CHAT2+TRIP2** (통합 담당): LLM 통합, 프롬프트 엔지니어링, RAG 개인화, AI 여행 계획 생성
 - **MEDIA**: 이미지 업로드, S3 저장, OCR 처리
 
 ---
@@ -174,7 +174,7 @@
 
 ---
 
-### 🤖 CHAT2+TRIP2 (LLM 통합 + Function Calling + Lambda MCP)
+### 🤖 CHAT2+TRIP2 (LLM 통합 + 프롬프트 엔지니어링 + 개인화)
 
 #### MVP (Week 1) - 11개 작업 (독립 개발 가능 우선)
 | 요구사항ID | 기능명 | 세부 설명 | 우선순위 | 의존성 | 상태 |
@@ -183,16 +183,16 @@
 |  |  | → build.gradle 의존성 추가, application.yml AI 설정, 빈 초기화 및 테스트 |  |  |  |
 | REQ-LLM-002 | Gemini 연동 | Vertex AI Gemini 2.0 Flash 모델 연결, us-central1 리전 | 1 | 독립 | ✅ 완료 |
 |  |  | → Google Cloud 인증 설정, Vertex AI 클라이언트 초기화, 연결 테스트 |  |  |  |
-| REQ-AI-003 | 기본 일정 템플릿 | 2박3일, 3박4일 JSON 템플릿, 시간대별 기본 일정 | 1 | 독립 | |
-|  |  | → 여행 기간별 표준 템플릿 JSON 파일 생성, 시간대별 활동 매핑, 로드 로직 |  |  |  |
-| REQ-LLM-005 | Function Calling 설정 | Spring AI FunctionCallback 프레임워크, 자동 함수 탐색 | 1 | 독립 | |
-|  |  | → @Bean으로 함수 등록, LLM에 함수 스키마 전달, 자동 호출 체인 구성 |  |  |  |
-| REQ-AI-001 | AI 여행 계획 Function | createTravelPlan() 함수 구현, 템플릿 기반 일정 보강 | 1 | 독립 | |
-|  |  | → 입력 파라미터 받아 AI 일정 생성, 템플릿 병합, 구조화된 응답 반환 |  |  |  |
-| REQ-AI-002 | 사용자 입력 파싱 | NER 기반 엔티티 추출 (목적지/날짜/예산/인원) | 2 | 독립 | |
-|  |  | → 자연어에서 여행 정보 추출, 날짜 파싱("3월 말" → Date), 예산 정규화 |  |  |  |
-| REQ-LLM-004 | 프롬프트 템플릿 | 여행 계획/일정 최적화/추천 프롬프트 | 2 | TRIP1 | |
-|  |  | → 사용자 선호도 받아 맞춤 프롬프트 생성, 변수 치환, 다국어 지원 |  |  |  |
+| REQ-AI-003 | 기본 일정 템플릿 | 당일치기, 1박2일, 2박3일, 3박4일 JSON 템플릿, 시간대별 기본 일정 | 1 | 독립 | |
+|  |  | → 여행 기간별 표준 템플릿 JSON 파일 생성 (당일치기 포함), 시간대별 활동 매핑, 로드 로직 |  |  |  |
+| REQ-PROMPT-001 | 프롬프트 엔지니어링 서비스 | PromptEngineeringService 구현, 템플릿 관리 | 1 | 독립 | |
+|  |  | → 프롬프트 템플릿 시스템 구축, 동적 컨텍스트 주입, 개인화 변수 처리 |  |  |  |
+| REQ-PROMPT-002 | 키워드 감지 시스템 | SimpleKeywordDetector 구현, 템플릿 추천 | 1 | 독립 | |
+|  |  | → 간단한 키워드 매칭으로 적절한 템플릿 선택, 의도 파악 지원 |  |  |  |
+| REQ-PROMPT-003 | 개인화 컨텍스트 로더 | DB 기반 사용자 컨텍스트 주입 | 2 | 독립 | |
+|  |  | → UserPreference, UserContext, TravelHistory 테이블 조회, 프롬프트에 통합 |  |  |  |
+| REQ-LLM-004 | 프롬프트 템플릿 라이브러리 | 20+ 여행 시나리오별 템플릿 | 2 | TRIP1 | |
+|  |  | → 가족/커플/비즈니스/배낭여행 등 상황별 템플릿, 동적 변수 치환, 개인화 지원 |  |  |  |
 | REQ-LLM-006 | 대화 컨텍스트 관리 | 최근 10개 메시지 유지, 토큰 제한 관리 | 2 | CHAT1 | |
 |  |  | → 대화 이력 큐 관리, 8K 토큰 제한 체크, 오래된 메시지 자동 제거 |  |  |  |
 | REQ-PERS-007 | 콜드 스타트 해결 | 신규 사용자 온보딩 메시지, 초기 선호도 수집 | 3 | 독립 | |
@@ -202,27 +202,27 @@
 | REQ-MON-002 | 에러 로깅 | 예외 처리 및 스택 트레이스 로깅 | 3 | 독립 | |
 |  |  | → LLM 에러 분류, 재시도 가능 여부 판단, 사용자 친화적 에러 메시지 |  |  |  |
 
-#### 1차 고도화 (Week 2) - 15개 작업 (Lambda MCP + Multi-LLM)
+#### 1차 고도화 (Week 2) - 15개 작업 (개인화 DB + 최소 Function Calling)
 | 요구사항ID | 기능명 | 세부 설명 | 우선순위 | 의존성 | 상태 |
 |------------|---------|---------|------|--------|------|
-| REQ-MCP-001 | Lambda 프로젝트 설정 | Serverless Framework, AWS Lambda 프로젝트 구조 | 1 | 독립 | |
-|  |  | → serverless.yml 설정, Node.js 18 환경, MCP 프로토콜 구현, 로컬 테스트 |  |  |  |
-| REQ-MCP-002 | Tour API MCP | getTourSpots/getRestaurants/getActivities 5개 함수 | 1 | 독립 | |
-|  |  | → 관광/맛집/활동 API 래핑, 위치 기반 검색, JSON 응답 포맷팅 |  |  |  |
-| REQ-MCP-003 | Weather API MCP | getCurrentWeather/getWeatherForecast 3개 함수 | 1 | 독립 | |
-|  |  | → 날씨 API 통합, 5일 예보, 악천후 경보, 캐싱 전략 구현 |  |  |  |
-| REQ-MCP-004 | Hotel API MCP | searchHotels/getHotelPricing/getReviews 4개 함수 | 1 | 독립 | |
-|  |  | → 숙박 검색/가격/리뷰 API, 필터링 로직, 가격 비교 기능 |  |  |  |
-| REQ-MCP-005 | DynamoDB 캐싱 | TTL 기반 캐시 테이블, location+date+type 키 전략 | 2 | 독립 | |
-|  |  | → 캐시 테이블 생성, 24시간 TTL, 중복 API 호출 방지, 히트율 모니터링 |  |  |  |
+| REQ-DB-001 | UserPreference 테이블 | 사용자 여행 선호도 저장 | 1 | 독립 | |
+|  |  | → 여행 스타일, 예산 수준, 관심 카테고리, 음식 선호, JSONB 구조 |  |  |  |
+| REQ-DB-002 | UserContext 테이블 | 사용자 컨텍스트 정보 | 1 | 독립 | |
+|  |  | → 나이대, 동행 유형, 신체 조건, 특별 요구사항, 과거 피드백 |  |  |  |
+| REQ-DB-003 | TravelHistory 테이블 | 여행 이력 및 학습 데이터 | 1 | 독립 | |
+|  |  | → 방문 장소, 만족도 평점, 재방문 의향, 키워드 추출, 패턴 분석 |  |  |  |
+| REQ-FC-001 | 최소 Function Calling | 날씨/호텔 검색만 구현 | 1 | 독립 | |
+|  |  | → getCurrentWeather(), searchHotels() 2개 함수만 구현, 실시간 정보 제공 |  |  |  |
+| REQ-PROMPT-004 | 프롬프트 학습 시스템 | A/B 테스트 및 개선 | 2 | 독립 | |
+|  |  | → 템플릿 성능 측정, 사용자 만족도 추적, 자동 개선 제안 |  |  |  |
 | REQ-LLM-003 | OpenAI 연동 | GPT-4o-mini 모델 설정, 스트리밍 응답 | 1 | 독립 | |
 |  |  | → OpenAI API 키 설정, 스트리밍 처리, 청크 병합, 타임아웃 처리 |  |  |  |
 | REQ-LLM-007 | 토큰 사용량 추적 | 모델별 사용량 집계, 일일/월별 리포트 | 2 | 독립 | |
 |  |  | → 요청/응답 토큰 카운팅, DB 저장, 비용 계산, 대시보드 데이터 |  |  |  |
-| REQ-MCP-006 | Spring AI-Lambda 통합 | Function Calling에서 Lambda 자동 호출 | 1 | 독립 | |
-|  |  | → Lambda 호출 클라이언트, Function 래퍼 구현, 자동 파라미터 매핑 |  |  |  |
-| REQ-AI-004 | Lambda MCP 호출 통합 | 병렬 Lambda 호출 관리, 응답 집계 | 1 | 독립 | |
-|  |  | → CompletableFuture로 병렬 처리, 결과 병합, 에러 핸들링, 타임아웃 관리 |  |  |  |
+| REQ-PROMPT-005 | 동적 템플릿 선택 | 컨텍스트 기반 템플릿 매칭 | 1 | 독립 | |
+|  |  | → 사용자 입력 + DB 컨텍스트로 최적 템플릿 자동 선택, 신뢰도 점수 |  |  |  |
+| REQ-PROMPT-006 | 템플릿 변수 주입 | 개인화 변수 처리 시스템 | 1 | 독립 | |
+|  |  | → {{변수}} 형식 파싱, DB 데이터 매핑, 기본값 처리, 검증 로직 |  |  |  |
 | REQ-LLM-008 | LLM 폴백 처리 | 의도별 모델 라우팅, exponential backoff | 2 | CHAT1 | |
 |  |  | → 모델 실패 시 대체 모델 사용, 재시도 로직, 서킷 브레이커 패턴 |  |  |  |
 | REQ-CTX-001 | 사용자 프로필 로드 | 선호도 기반 프롬프트 커스터마이징 | 2 | TRIP1 | |
@@ -236,7 +236,7 @@
 | REQ-PERS-008 | 암묵적 선호도 수집 | 키워드 추출, 백그라운드 업데이트 큐 | 3 | TRIP1 | |
 |  |  | → 대화에서 선호 키워드 감지, 비동기 업데이트, 학습 루프 구현 |  |  |  |
 
-#### 2차 고도화 (Week 3) - 27개 작업 (개인화 + Lambda 최적화)
+#### 2차 고도화 (Week 3) - 27개 작업 (고급 개인화 + RAG 파이프라인)
 
 ##### 개인화 시스템 (14개)
 | 요구사항ID | 기능명 | 세부 설명 | 우선순위 | 의존성 | 상태 |
@@ -288,21 +288,21 @@
 | REQ-TRIP-010 | 여행 체크리스트 | 준비물 관리 기능 | 3 | TRIP1 | |
 |  |  | → 여행 준비물 리스트, 체크 상태 관리, 기본 템플릿 제공, 알림 |  |  |  |
 
-##### Lambda 최적화 (6개)
+##### 프롬프트 고도화 (6개)
 | 요구사항ID | 기능명 | 세부 설명 | 우선순위 | 의존성 | 상태 |
 |------------|---------|---------|------|--------|------|
-| REQ-MCP-007 | Cold Start 최적화 | Provisioned Concurrency 설정, Lambda 워밍 | 1 | 독립 | |
-|  |  | → 상시 웨 인스턴스 유지, 주기적 워밍, 응답 시간 1초 이내 목표 |  |  |  |
-| REQ-MCP-010 | API Gateway 보안 | API Key 관리, Rate Limiting (분당 100 요청) | 1 | 독립 | |
-|  |  | → API 키 발급/관리, 요청 제한 설정, IP 화이트리스트, 로깅 |  |  |  |
-| REQ-MCP-011 | 병렬 처리 최적화 | CompletableFuture 체인, 최대 5개 동시 호출 | 1 | 독립 | |
-|  |  | → 비동기 병렬 처리, 결과 집계, 부분 실패 처리, 타임아웃 관리 |  |  |  |
-| REQ-MCP-008 | 에러 핸들링 | Exponential Backoff 재시도 로직 | 2 | 독립 | |
-|  |  | → 지수 백오프 재시도, 최대 3회, 서킷 브레이커, 폴백 처리 |  |  |  |
-| REQ-MCP-009 | CloudWatch 모니터링 | 메트릭 및 알람 설정 | 2 | 독립 | |
-|  |  | → Lambda 메트릭 수집, 성공률/응답시간 추적, 알람 설정, 대시보드 |  |  |  |
-| REQ-MCP-012 | 배포 자동화 | GitHub Actions CI/CD 파이프라인 | 3 | 독립 | |
-|  |  | → PR 자동 테스트, 브랜치별 배포, 롤백 기능, 모니터링 통합 |  |  |  |
+| REQ-PROMPT-007 | 멀티턴 대화 지원 | 대화 컨텍스트 유지 및 진화 | 1 | 독립 | |
+|  |  | → 이전 대화 요약, 컨텍스트 진화, 장기 기억, 일관성 유지 |  |  |  |
+| REQ-PROMPT-008 | 감정 인식 프롬프트 | 사용자 감정 상태 반영 | 1 | 독립 | |
+|  |  | → 텍스트 감정 분석, 톤 조절, 공감적 응답, 맞춤형 제안 |  |  |  |
+| REQ-PROMPT-009 | 다국어 템플릿 | 한/영/일/중 프롬프트 지원 | 1 | 독립 | |
+|  |  | → 언어별 템플릿 관리, 문화적 뉘앙스 반영, 자동 번역 폴백 |  |  |  |
+| REQ-PROMPT-010 | 프롬프트 체이닝 | 복잡한 요청 단계별 처리 | 2 | 독립 | |
+|  |  | → 요청 분해, 순차 처리, 중간 결과 활용, 최종 통합 |  |  |  |
+| REQ-PROMPT-011 | 프롬프트 버전 관리 | 템플릿 버전 및 롤백 | 2 | 독립 | |
+|  |  | → Git 기반 버전 관리, A/B 테스트, 성능 비교, 자동 롤백 |  |  |  |
+| REQ-PROMPT-012 | 프롬프트 최적화 | 토큰 효율성 개선 | 3 | 독립 | |
+|  |  | → 압축 기법, 중복 제거, 핵심 정보 추출, 비용 최적화 |  |  |  |
 
 
 ---
@@ -400,31 +400,31 @@
 ## 🏗️ 기술 스택 및 통합 구조
 
 ### CHAT2+TRIP2 통합 담당
-#### LLM Integration
-- **Primary**: Gemini 2.0 Flash (Vertex AI)
-- **Secondary**: GPT-4o-mini (OpenAI)
-- **Framework**: Spring AI with Function Calling
+#### AI Architecture
+- **Primary**: Gemini 2.0 Flash (Vertex AI) - 프롬프트 엔지니어링
+- **Secondary**: GPT-4o-mini (OpenAI) - 폴백 처리
+- **Framework**: Spring AI with Prompt Engineering (80%) + Minimal Function Calling (20%)
 
-#### Lambda MCP Architecture
-- **Tour API**: 관광지/맛집/숙박 (5개 함수)
-- **Weather API**: 날씨/예보/경보 (3개 함수)
-- **Hotel API**: 검색/예약/가격/리뷰 (4개 함수)
+#### Personalization System
+- **UserPreference**: 여행 스타일, 예산, 관심사
+- **UserContext**: 나이대, 동행 유형, 특별 요구사항
+- **TravelHistory**: 과거 여행 패턴 학습
+- **Template Library**: 20+ 시나리오별 프롬프트 템플릿
 
 ### 협업 구조
 ```
 CHAT2+TRIP2 (통합 AI 모듈)
-  ├── LLM 통합
-  │   ├── Spring AI 설정
-  │   ├── Gemini/OpenAI 연동
-  │   └── Function Calling 프레임워크
-  ├── AI Functions
-  │   ├── createTravelPlan()
-  │   ├── optimizeTravelPlan()
-  │   └── recommendDestinations()
-  └── Lambda MCP
-      ├── Tour API MCP
-      ├── Weather API MCP
-      └── Hotel API MCP
+  ├── 프롬프트 엔지니어링
+  │   ├── PromptEngineeringService
+  │   ├── 템플릿 라이브러리 (20+ templates)
+  │   └── SimpleKeywordDetector
+  ├── 개인화 시스템
+  │   ├── UserPreference 관리
+  │   ├── UserContext 로딩
+  │   └── TravelHistory 학습
+  └── 최소 Function Calling
+      ├── getCurrentWeather()
+      └── searchHotels()
           ↓
 TRIP1 (여행 API)
   ├── POST /api/trips (여행 계획 저장)
