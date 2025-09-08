@@ -15,7 +15,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/chat/templates")
+@RequestMapping("/api/chat/travel-templates")
 @RequiredArgsConstructor
 public class TravelTemplateController {
     
@@ -23,7 +23,7 @@ public class TravelTemplateController {
     
     /**
      * Get all available template summaries
-     * GET /api/chat/templates
+     * GET /api/chat/travel-templates
      */
     @GetMapping
     public ResponseEntity<List<Map<String, String>>> getTemplateSummaries() {
@@ -33,7 +33,7 @@ public class TravelTemplateController {
     
     /**
      * Get a specific template by ID
-     * GET /api/chat/templates/{templateId}
+     * GET /api/chat/travel-templates/{templateId}
      */
     @GetMapping("/{templateId}")
     public ResponseEntity<Map<String, Object>> getTemplate(@PathVariable String templateId) {
@@ -45,7 +45,7 @@ public class TravelTemplateController {
     
     /**
      * Get template variables
-     * GET /api/chat/templates/{templateId}/variables
+     * GET /api/chat/travel-templates/{templateId}/variables
      */
     @GetMapping("/{templateId}/variables")
     public ResponseEntity<List<String>> getTemplateVariables(@PathVariable String templateId) {
@@ -60,7 +60,7 @@ public class TravelTemplateController {
     
     /**
      * Recommend a template based on nights
-     * GET /api/chat/templates/recommend?nights=2
+     * GET /api/chat/travel-templates/recommend?nights=2
      */
     @GetMapping("/recommend")
     public ResponseEntity<Map<String, Object>> recommendTemplate(@RequestParam int nights) {
@@ -72,7 +72,7 @@ public class TravelTemplateController {
     
     /**
      * Fill a template with user values
-     * POST /api/chat/templates/{templateId}/fill
+     * POST /api/chat/travel-templates/{templateId}/fill
      */
     @PostMapping("/{templateId}/fill")
     public ResponseEntity<Map<String, Object>> fillTemplate(
