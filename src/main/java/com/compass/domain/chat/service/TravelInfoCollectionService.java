@@ -101,7 +101,7 @@ public class TravelInfoCollectionService {
         newState = collectionRepository.save(newState);
         
         // 다음 질문 생성
-        return questionGenerator.generateNextQuestion(newState);
+        return flowEngine.generateNextQuestion(newState);
     }
     
     /**
@@ -258,7 +258,7 @@ public class TravelInfoCollectionService {
             collectionRepository.save(state);
         }
         
-        return questionGenerator.generateNextQuestion(state);
+        return flowEngine.generateNextQuestion(state);
     }
     
     /**

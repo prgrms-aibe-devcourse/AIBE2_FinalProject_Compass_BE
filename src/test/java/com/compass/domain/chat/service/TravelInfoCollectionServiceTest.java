@@ -112,8 +112,8 @@ class TravelInfoCollectionServiceTest {
         
         FollowUpQuestionDto expectedQuestion = FollowUpQuestionDto.builder()
                 .sessionId("TIC_TEST1234")
-                .primaryQuestion("어디로 여행을 가시나요?")
-                .currentStep(TravelInfoCollectionState.CollectionStep.DESTINATION)
+                .primaryQuestion("어디에서 출발하시나요? 🛫")
+                .currentStep(TravelInfoCollectionState.CollectionStep.ORIGIN)
                 .build();
         when(flowEngine.generateNextQuestion(any(TravelInfoCollectionState.class)))
                 .thenReturn(expectedQuestion);
@@ -123,7 +123,7 @@ class TravelInfoCollectionServiceTest {
         
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getPrimaryQuestion()).contains("어디로 여행");
+        assertThat(result.getPrimaryQuestion()).contains("어디에서 출발");
         verify(collectionRepository).save(any(TravelInfoCollectionState.class));
         verify(flowEngine).generateNextQuestion(any(TravelInfoCollectionState.class));
     }
@@ -151,7 +151,7 @@ class TravelInfoCollectionServiceTest {
         // Then
         assertThat(result).isNotNull();
         verify(collectionRepository, never()).save(any(TravelInfoCollectionState.class));
-        verify(questionGenerator).generateNextQuestion(testState);
+        verify(flowEngine).generateNextQuestion(testState);
     }
     
     @Test
