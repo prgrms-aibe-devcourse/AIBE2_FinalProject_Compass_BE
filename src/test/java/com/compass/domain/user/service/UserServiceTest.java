@@ -179,6 +179,39 @@ class UserServiceTest {
         verify(redisTemplate, never()).opsForValue();
     }
 
+    @Test
+    @DisplayName("이메일로 프로필 조회 성공")
+    void getUserProfileByEmail_success() {
+        // given
+        String email = "profile@example.com";
+        User mockUser = User.builder() // ID는 데이터베이스에서 자동 생성되므로 빌더에서 설정하지 않습니다.
+                .email(email)
+                .nickname("profileUser")
+                .build();
+        ReflectionTestUtils.setField(mockUser, "id", 1L); // DB에 저장된 상태를 모방하기 위해 ID를 수동으로 설정합니다.
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));;
+
+        // when
+        UserDto result = userService.getUserProfileByEmail(email);
+
+        // then
+        assertThat(result.getEmail()).isEqualTo(email);
+        assertThat(result.getNickname()).isEqualTo("profileUser");
+    }
+
+    @Test
+    @DisplayName("프로필 조회 실패 - 존재하지 않는 사용자")
+    void getUserProfileByEmail_fail_userNotFound() {
+        // given
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.getUserProfileByEmail(email));
+        assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+    }
+
 
 
 }
