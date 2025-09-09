@@ -3,6 +3,7 @@ package com.compass.domain.chat.service;
 import com.compass.domain.chat.dto.FollowUpQuestionDto;
 import com.compass.domain.chat.dto.TravelInfoStatusDto;
 import com.compass.domain.chat.dto.TripPlanningRequest;
+import com.compass.domain.chat.engine.QuestionFlowEngine;
 import com.compass.domain.chat.entity.ChatThread;
 import com.compass.domain.chat.entity.TravelInfoCollectionState;
 import com.compass.domain.chat.repository.ChatThreadRepository;
@@ -38,6 +39,7 @@ public class TravelInfoCollectionService {
     private final ChatThreadRepository chatThreadRepository;
     private final FollowUpQuestionGenerator questionGenerator;
     private final NaturalLanguageParsingService parsingService;
+    private final QuestionFlowEngine flowEngine;
     private final ObjectMapper objectMapper;
     
     private static final int SESSION_TIMEOUT_HOURS = 24;
@@ -116,26 +118,21 @@ public class TravelInfoCollectionService {
             throw new IllegalStateException("이미 완료된 수집 세션입니다");
         }
         
-        // 응답에서 정보 추출 및 업데이트
-        boolean updated = extractAndUpdateInfo(state, userResponse);
-        
-        if (!updated) {
-            // 현재 단계에 맞는 정보를 수동으로 파싱
-            parseResponseByStep(state, userResponse);
-        }
+        // 플로우 엔진을 통해 응답 처리
+        state = flowEngine.processResponse(state, userResponse);
         
         // 저장
         state.setLastQuestionAsked(userResponse);
         state = collectionRepository.save(state);
         
-        // 모든 정보가 수집되었는지 확인
-        if (state.isAllRequiredInfoCollected()) {
+        // 플로우 완료 여부 확인
+        if (flowEngine.isFlowComplete(state)) {
             state.setCurrentStep(TravelInfoCollectionState.CollectionStep.CONFIRMATION);
-            return questionGenerator.generateNextQuestion(state);
+            return flowEngine.generateNextQuestion(state);
         }
         
-        // 다음 질문 생성
-        return questionGenerator.generateNextQuestion(state);
+        // 플로우 엔진을 통해 다음 질문 생성
+        return flowEngine.generateNextQuestion(state);
     }
     
     /**
@@ -289,14 +286,14 @@ public class TravelInfoCollectionService {
             }
             
             // 기간
-            if (parsedInfo.containsKey("nights") && !state.isDurationCollected()) {
+            if (parsedInfo.containsKey("nights") && parsedInfo.get("nights") != null && !state.isDurationCollected()) {
                 state.setDurationNights(((Number) parsedInfo.get("nights")).intValue());
                 state.setDurationCollected(true);
                 updated = true;
             }
             
             // 동행자
-            if (parsedInfo.containsKey("numberOfTravelers") && !state.isCompanionsCollected()) {
+            if (parsedInfo.containsKey("numberOfTravelers") && parsedInfo.get("numberOfTravelers") != null && !state.isCompanionsCollected()) {
                 state.setNumberOfTravelers(((Number) parsedInfo.get("numberOfTravelers")).intValue());
                 state.setCompanionType((String) parsedInfo.get("groupType"));
                 state.setCompanionsCollected(true);
