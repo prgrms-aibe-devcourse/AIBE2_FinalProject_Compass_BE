@@ -122,32 +122,13 @@ public class NaturalLanguageParsingService {
     private Map<String, Object> createFallbackParsing(String userInput) {
         Map<String, Object> fallback = new HashMap<>();
         
-        // Basic keyword detection fallback
-        String lowerInput = userInput.toLowerCase();
+        // TravelParsingUtils를 활용하여 중복 제거
+        String destination = com.compass.domain.chat.util.TravelParsingUtils.parseDestination(userInput);
+        fallback.put("destination", destination != null ? destination : "Seoul");
         
-        // Detect destination
-        if (lowerInput.contains("서울") || lowerInput.contains("seoul")) {
-            fallback.put("destination", "Seoul");
-        } else if (lowerInput.contains("부산") || lowerInput.contains("busan")) {
-            fallback.put("destination", "Busan");
-        } else if (lowerInput.contains("제주") || lowerInput.contains("jeju")) {
-            fallback.put("destination", "Jeju");
-        } else {
-            fallback.put("destination", "Seoul"); // Default
-        }
-        
-        // Detect nights
-        if (lowerInput.contains("당일")) {
-            fallback.put("nights", 0);
-        } else if (lowerInput.contains("1박")) {
-            fallback.put("nights", 1);
-        } else if (lowerInput.contains("2박")) {
-            fallback.put("nights", 2);
-        } else if (lowerInput.contains("3박")) {
-            fallback.put("nights", 3);
-        } else {
-            fallback.put("nights", 2); // Default
-        }
+        // 기간 파싱
+        int nights = com.compass.domain.chat.util.TravelParsingUtils.parseDurationNights(userInput);
+        fallback.put("nights", nights);
         
         // Set defaults for other fields
         fallback.put("travelStyle", "relaxed");
