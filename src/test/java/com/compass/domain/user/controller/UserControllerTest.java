@@ -18,7 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
-
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -210,5 +210,43 @@ class UserControllerTest extends BaseIntegrationTest {
 
         // then
         resultActions.andExpect(status().isBadRequest());
+    }
+
+
+    @Test
+    @DisplayName("내 프로필 조회 성공")
+    void getMyProfile_success() throws Exception {
+        // given
+        User savedUser = userRepository.save(User.builder()
+                .email("profile@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("profileUser")
+                .role(Role.USER)
+                .build());
+
+        String accessToken = jwtTokenProvider.createAccessToken(savedUser.getEmail());
+
+        // when
+        ResultActions resultActions = mockMvc.perform(get("/api/users/profile")
+                .header("Authorization", "Bearer " + accessToken));
+
+        // then
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("profile@example.com"))
+                .andExpect(jsonPath("$.nickname").value("profileUser"));
+    }
+
+    @Test
+    @DisplayName("내 프로필 조회 실패 - 인증되지 않은 사용자")
+    void getMyProfile_fail_unauthorized() throws Exception {
+        // given
+        // No token is provided
+
+        // when
+        ResultActions resultActions = mockMvc.perform(get("/api/users/profile"));
+
+        // then
+        resultActions.andExpect(status().isUnauthorized());
     }
 }

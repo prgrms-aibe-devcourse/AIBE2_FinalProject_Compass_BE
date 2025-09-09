@@ -6,6 +6,7 @@ import com.compass.domain.user.entity.User;
 import com.compass.domain.user.enums.Role;
 import com.compass.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -69,6 +71,7 @@ public class UserService {
                 .refreshToken(refreshToken)
                 .build();
     }
+
     public void logout(String accessToken) {
         // 1. 토큰 유효성 검증
         if (!jwtTokenProvider.validateAccessToken(accessToken)) {
@@ -81,4 +84,15 @@ public class UserService {
         // 3. Redis에 (Key: "blacklist:{accessToken}", Value: "logout") 저장 및 만료 시간 설정
         redisTemplate.opsForValue().set(BLACKLIST_PREFIX + accessToken, "logout", expiration, TimeUnit.MILLISECONDS);
     }
+
+
+    @Transactional(readOnly = true)
+    public UserDto getUserProfileByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+        log.info("Fetched profile for user: {}", user.getEmail());
+        return UserDto.from(user);
+    }
+
+
 }

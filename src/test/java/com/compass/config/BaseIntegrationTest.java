@@ -26,10 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
         "spring.data.redis.lettuce.pool.min-idle=0",
         
         // JWT 설정 (CI 환경 필수)
-        "jwt.access-secret=test-access-secret-key-for-ci-integration-test-12345678901234567890",
-        "jwt.refresh-secret=test-refresh-secret-key-for-ci-integration-test-12345678901234567890", 
-        "jwt.access-expiration=3600000",
-        "jwt.refresh-expiration=604800000",
+        "spring.security.jwt.secret=test-access-secret-key-for-ci-integration-test-12345678901234567890",
+        "spring.security.jwt.refresh-secret=test-refresh-secret-key-for-ci-integration-test-12345678901234567890",
+        "spring.security.jwt.access-expiration=3600000",
+        "spring.security.jwt.refresh-expiration=604800000",
         
         // AI 설정 (CI 환경 호환)
         "spring.ai.vertex.ai.gemini.project-id=test-project",
@@ -41,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
         "spring.jpa.defer-datasource-initialization=true",
+        "spring.sql.init.mode=never", // 테스트 시에는 data.sql을 실행 x
         
         // 로깅 설정 (CI 환경 디버깅)
         "logging.level.redis.embedded=WARN",

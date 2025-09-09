@@ -1,4 +1,7 @@
 spring:
+  config:
+    import: "optional:dotenv:.env" # .env 파일을 읽어옵니다.
+
   application:
     name: compass-backend
     
@@ -18,15 +21,16 @@ spring:
     show-sql: false
     
   redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    password: ${REDIS_PASSWORD}
+
   security:
     user:
       name: user
       password: password
     jwt:
-      access-secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-key-for-access-token}
+      secret: ${JWT_SECRET:your-256-bit-secret-key-for-access-token}
       refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-key-for-refresh-token}
       access-expiration: 3600000  # 1 hour
       refresh-expiration: 604800000  # 7 days
@@ -94,6 +98,7 @@ management:
         enabled: true
     tags:
       application: ${spring.application.name}
+
       
 logging:
   level:
