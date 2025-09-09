@@ -41,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
         "spring.jpa.defer-datasource-initialization=true",
+        "spring.sql.init.mode=never", // 테스트 시에는 data.sql을 실행 x
         
         // 로깅 설정 (CI 환경 디버깅)
         "logging.level.redis.embedded=WARN",
