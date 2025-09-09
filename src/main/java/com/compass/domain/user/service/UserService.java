@@ -94,5 +94,14 @@ public class UserService {
         return UserDto.from(user);
     }
 
+    @Transactional
+    public UserDto updateUserProfileByEmail(String email, UserDto.ProfileUpdateRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+        user.updateProfile(request.getNickname(), request.getProfileImageUrl());
+        log.info("Updated profile for user: {}", user.getEmail());
+        return UserDto.from(user);
+    }
+
 
 }

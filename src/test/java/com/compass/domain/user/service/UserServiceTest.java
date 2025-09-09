@@ -212,6 +212,45 @@ class UserServiceTest {
         assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
     }
 
+    @Test
+    @DisplayName("이메일로 프로필 수정 성공")
+    void updateUserProfileByEmail_success() {
+        // given
+        String email = "update@example.com";
+        User mockUser = User.builder()
+                .email(email)
+                .nickname("oldNickname")
+                .build();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        UserDto.ProfileUpdateRequest updateRequest = new UserDto.ProfileUpdateRequest();
+        ReflectionTestUtils.setField(updateRequest, "nickname", "newNickname");
+        ReflectionTestUtils.setField(updateRequest, "profileImageUrl", "http://new.image/url");
+
+        // when
+        UserDto result = userService.updateUserProfileByEmail(email, updateRequest);
+
+        // then
+        assertThat(result.getNickname()).isEqualTo("newNickname");
+        assertThat(result.getProfileImageUrl()).isEqualTo("http://new.image/url");
+        verify(userRepository).findByEmail(email);
+    }
+
+    @Test
+    @DisplayName("이메일로 프로필 수정 실패 - 존재하지 않는 사용자")
+    void updateUserProfileByEmail_fail_userNotFound() {
+        // given
+        String email = "nonexistent@example.com";
+        UserDto.ProfileUpdateRequest updateRequest = new UserDto.ProfileUpdateRequest();
+        ReflectionTestUtils.setField(updateRequest, "nickname", "newNickname");
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateUserProfileByEmail(email, updateRequest));
+        assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+    }
 
 
 }
