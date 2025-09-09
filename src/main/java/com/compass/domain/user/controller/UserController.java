@@ -49,7 +49,7 @@ public class UserController {
             return ResponseEntity.ok(response);
         }
         return ResponseEntity.badRequest().build(); // 간단하게 400 Bad Request만 반환
-    } // 삭제 예정
+    } // 삭제 예정1
 
     @GetMapping("/profile")
     @Operation(summary = "내 프로필 조회", description = "현재 로그인된 사용자의 프로필 정보를 조회합니다.")
