@@ -18,6 +18,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -48,7 +49,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String targetUrl;
         if (user.getRole() == Role.GUEST) {
             // 신규 회원이므로 추가 정보를 입력받는 페이지로 리다이렉트
-            String accessToken = jwtTokenProvider.createAccessToken(user.getEmail());
+            String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getId(), Collections.singletonList(user.getRole().name()));
             targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/signup") // 프론트엔드 추가 정보 입력 URL
                     .queryParam("token", accessToken)
                     .build()
@@ -57,8 +58,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             log.info("신규 유저입니다. 추가 정보 입력 페이지로 리다이렉트합니다. URL: {}", targetUrl);
         } else {
             // 기존 회원이므로 로그인 성공 처리 후 메인 페이지 등으로 리다이렉트
-            String accessToken = jwtTokenProvider.createAccessToken(user.getEmail());
-            String refreshToken = jwtTokenProvider.createRefreshToken();
+            String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getId(), Collections.singletonList(user.getRole().name()));
+            String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail(), user.getId());
 
             // Redis에 Refresh Token 저장 (DB 저장 로직 대체)
             long refreshTokenExpiration = jwtTokenProvider.getRefreshTokenExpiration();

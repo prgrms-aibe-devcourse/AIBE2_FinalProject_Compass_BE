@@ -72,6 +72,19 @@ public class JwtTokenProvider {
                 .signWith(accessKey, SignatureAlgorithm.HS256)
                 .compact();
     }
+    
+    public String createAccessToken(String username, Long userId, List<String> roles) {
+        Claims claims = Jwts.claims().setSubject(username);
+        claims.put("roles", roles);
+        claims.put("userId", userId.toString());
+        Date now = new Date();
+        return Jwts.builder()
+                .setClaims(claims)
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + accessTokenExpiration))
+                .signWith(accessKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
 
     public String createRefreshToken() {
         Date now = new Date();
@@ -84,6 +97,18 @@ public class JwtTokenProvider {
     
     public String createRefreshToken(String username) {
         Claims claims = Jwts.claims().setSubject(username);
+        Date now = new Date();
+        return Jwts.builder()
+                .setClaims(claims)
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + refreshTokenExpiration))
+                .signWith(refreshKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+    
+    public String createRefreshToken(String username, Long userId) {
+        Claims claims = Jwts.claims().setSubject(username);
+        claims.put("userId", userId.toString());
         Date now = new Date();
         return Jwts.builder()
                 .setClaims(claims)

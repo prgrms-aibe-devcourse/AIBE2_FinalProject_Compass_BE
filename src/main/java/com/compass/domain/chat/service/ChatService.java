@@ -1,5 +1,6 @@
 package com.compass.domain.chat.service;
 
+import com.compass.domain.chat.dto.ChatDtos;
 import com.compass.domain.chat.dto.ChatDtos.MessageCreateDto;
 import com.compass.domain.chat.dto.ChatDtos.MessageDto;
 import com.compass.domain.chat.dto.ChatDtos.ThreadDto;

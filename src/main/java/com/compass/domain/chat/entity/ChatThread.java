@@ -61,7 +61,7 @@ public class ChatThread {
             updatedAt = LocalDateTime.now();
         }
         if (title == null || title.isBlank()) {
-            title = "New Chat";
+            title = "새 대화";
         }
     }
     
@@ -86,6 +86,21 @@ public class ChatThread {
     public String getLatestMessagePreview() {
         // Don't access the messages collection directly to avoid lazy loading issues
         // This should be populated by the service layer if needed
-        return "New conversation";
+        if (title != null && !title.equals("새 대화") && !title.isBlank()) {
+            return title;
+        }
+        return "새 대화";
+    }
+    
+    /**
+     * Update thread title based on first message
+     */
+    public void updateTitleFromFirstMessage(String firstMessage) {
+        if (firstMessage != null && !firstMessage.isEmpty()) {
+            // Take first 50 characters of the message as title
+            this.title = firstMessage.length() > 50 
+                ? firstMessage.substring(0, 50) + "..." 
+                : firstMessage;
+        }
     }
 }
