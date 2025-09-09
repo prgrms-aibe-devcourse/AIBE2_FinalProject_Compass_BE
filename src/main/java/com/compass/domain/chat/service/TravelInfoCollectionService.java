@@ -12,10 +12,12 @@ import com.compass.domain.user.entity.User;
 import com.compass.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.compass.domain.chat.constant.TravelConstants;
+import com.compass.domain.chat.util.TravelParsingUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,7 +33,6 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class TravelInfoCollectionService {
     
     private final TravelInfoCollectionRepository collectionRepository;
@@ -41,12 +42,27 @@ public class TravelInfoCollectionService {
     private final NaturalLanguageParsingService parsingService;
     private final QuestionFlowEngine flowEngine;
     private final ObjectMapper objectMapper;
+    private TravelInfoCollectionCacheService cacheService;
     
-    private static final int SESSION_TIMEOUT_HOURS = 24;
-    private static final Pattern DATE_PATTERN = Pattern.compile("(\\d{1,2})월\\s*(\\d{1,2})일");
-    private static final Pattern NIGHTS_PATTERN = Pattern.compile("(\\d+)박\\s*(\\d+)?일");
-    private static final Pattern TRAVELERS_PATTERN = Pattern.compile("(\\d+)\\s*명");
-    private static final Pattern BUDGET_PATTERN = Pattern.compile("(\\d+)\\s*만\\s*원");
+    @Autowired
+    public TravelInfoCollectionService(
+            TravelInfoCollectionRepository collectionRepository,
+            UserRepository userRepository,
+            ChatThreadRepository chatThreadRepository,
+            FollowUpQuestionGenerator questionGenerator,
+            NaturalLanguageParsingService parsingService,
+            QuestionFlowEngine flowEngine,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) TravelInfoCollectionCacheService cacheService) {
+        this.collectionRepository = collectionRepository;
+        this.userRepository = userRepository;
+        this.chatThreadRepository = chatThreadRepository;
+        this.questionGenerator = questionGenerator;
+        this.parsingService = parsingService;
+        this.flowEngine = flowEngine;
+        this.objectMapper = objectMapper;
+        this.cacheService = cacheService;
+    }
     
     /**
      * 새로운 정보 수집 세션 시작
@@ -64,9 +80,16 @@ public class TravelInfoCollectionService {
                     .orElse(null);
         }
         
+        // Redis 캐시에서 먼저 확인 (REQ-FOLLOW-004)
+        String tempSessionId = user.getId() + "_temp";
+        Optional<TravelInfoCollectionState> cachedState = Optional.empty();
+        if (cacheService != null) {
+            cachedState = cacheService.getTravelContext(tempSessionId);
+        }
+        
         // 기존 미완료 세션 확인
-        Optional<TravelInfoCollectionState> existingState = 
-                collectionRepository.findFirstByUserAndIsCompletedFalseOrderByCreatedAtDesc(user);
+        Optional<TravelInfoCollectionState> existingState = cachedState.isPresent() ? 
+                cachedState : collectionRepository.findFirstByUserAndIsCompletedFalseOrderByCreatedAtDesc(user);
         
         if (existingState.isPresent()) {
             // 타임아웃 체크
@@ -100,6 +123,11 @@ public class TravelInfoCollectionService {
         
         newState = collectionRepository.save(newState);
         
+        // Redis에 캐싱 (REQ-FOLLOW-004: 30분 TTL)
+        if (cacheService != null) {
+            cacheService.saveTravelContext(newState.getSessionId(), newState);
+        }
+        
         // 다음 질문 생성
         return flowEngine.generateNextQuestion(newState);
     }
@@ -111,8 +139,19 @@ public class TravelInfoCollectionService {
     public FollowUpQuestionDto processFollowUpResponse(String sessionId, String userResponse) {
         log.info("Processing follow-up response for session: {}", sessionId);
         
-        TravelInfoCollectionState state = collectionRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
+        // Redis 캐시에서 먼저 조회 (REQ-FOLLOW-004)
+        TravelInfoCollectionState state = null;
+        if (cacheService != null) {
+            Optional<TravelInfoCollectionState> cached = cacheService.getTravelContext(sessionId);
+            if (cached.isPresent()) {
+                state = cached.get();
+            }
+        }
+        
+        if (state == null) {
+            state = collectionRepository.findBySessionId(sessionId)
+                    .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
+        }
         
         if (state.isCompleted()) {
             throw new IllegalStateException("이미 완료된 수집 세션입니다");
@@ -124,6 +163,12 @@ public class TravelInfoCollectionService {
         // 저장
         state.setLastQuestionAsked(userResponse);
         state = collectionRepository.save(state);
+        
+        // Redis 캐시 업데이트 (REQ-FOLLOW-004)
+        if (cacheService != null) {
+            cacheService.saveTravelContext(state.getSessionId(), state);
+            cacheService.refreshTTL(state.getSessionId());
+        }
         
         // 플로우 완료 여부 확인
         if (flowEngine.isFlowComplete(state)) {
@@ -367,7 +412,22 @@ public class TravelInfoCollectionService {
      * 날짜 파싱
      */
     private void parseDates(TravelInfoCollectionState state, String response) {
-        Matcher matcher = DATE_PATTERN.matcher(response);
+        // TravelParsingUtils 사용
+        TravelParsingUtils.DateRange dateRange = TravelParsingUtils.parseDateRange(response);
+        
+        if (dateRange != null) {
+            state.setStartDate(dateRange.startDate());
+            state.setEndDate(dateRange.endDate());
+            state.setDatesCollected(true);
+            state.setDurationNights(dateRange.getNights());
+            state.setDurationCollected(true);
+            state.setCurrentStep(TravelInfoCollectionState.CollectionStep.COMPANIONS);
+            return;
+        }
+        
+        // 기존 파싱 로직 유지 (형식이 다른 경우)
+        Pattern datePattern = Pattern.compile("(\\d{1,2})월\\s*(\\d{1,2})일");
+        Matcher matcher = datePattern.matcher(response);
         List<LocalDate> dates = new ArrayList<>();
         int currentYear = LocalDate.now().getYear();
         
@@ -399,25 +459,19 @@ public class TravelInfoCollectionService {
      * 기간 파싱
      */
     private void parseDuration(TravelInfoCollectionState state, String response) {
-        // "2박3일" 패턴 파싱
-        Matcher matcher = NIGHTS_PATTERN.matcher(response);
-        if (matcher.find()) {
-            int nights = Integer.parseInt(matcher.group(1));
-            state.setDurationNights(nights);
-            state.setDurationCollected(true);
-            
-            // 시작 날짜가 있으면 종료 날짜 계산
-            if (state.getStartDate() != null && state.getEndDate() == null) {
-                state.setEndDate(state.getStartDate().plusDays(nights));
-                state.setDatesCollected(true);
-            }
-            
-            state.setCurrentStep(TravelInfoCollectionState.CollectionStep.COMPANIONS);
-        } else if (response.contains("당일")) {
-            state.setDurationNights(0);
-            state.setDurationCollected(true);
-            state.setCurrentStep(TravelInfoCollectionState.CollectionStep.COMPANIONS);
+        // TravelParsingUtils 사용
+        int nights = TravelParsingUtils.parseDurationNights(response);
+        
+        state.setDurationNights(nights);
+        state.setDurationCollected(true);
+        
+        // 시작 날짜가 있으면 종료 날짜 계산
+        if (state.getStartDate() != null && state.getEndDate() == null) {
+            state.setEndDate(state.getStartDate().plusDays(nights));
+            state.setDatesCollected(true);
         }
+        
+        state.setCurrentStep(TravelInfoCollectionState.CollectionStep.COMPANIONS);
     }
     
     /**
@@ -439,21 +493,13 @@ public class TravelInfoCollectionService {
         } else if (lowerResponse.contains("가족")) {
             state.setCompanionType("family");
             // 인원 수 파싱 시도
-            Matcher matcher = TRAVELERS_PATTERN.matcher(response);
-            if (matcher.find()) {
-                state.setNumberOfTravelers(Integer.parseInt(matcher.group(1)));
-            } else {
-                state.setNumberOfTravelers(3); // 기본값
-            }
+            int travelerCount = TravelParsingUtils.parseTravelerCount(response, "family");
+            state.setNumberOfTravelers(travelerCount);
             state.setCompanionsCollected(true);
         } else if (lowerResponse.contains("친구")) {
             state.setCompanionType("friends");
-            Matcher matcher = TRAVELERS_PATTERN.matcher(response);
-            if (matcher.find()) {
-                state.setNumberOfTravelers(Integer.parseInt(matcher.group(1)));
-            } else {
-                state.setNumberOfTravelers(2); // 기본값
-            }
+            int travelerCount = TravelParsingUtils.parseTravelerCount(response, "friends");
+            state.setNumberOfTravelers(travelerCount);
             state.setCompanionsCollected(true);
         }
         
@@ -484,9 +530,8 @@ public class TravelInfoCollectionService {
         }
         
         // 구체적인 금액 파싱
-        Matcher matcher = BUDGET_PATTERN.matcher(response);
-        if (matcher.find()) {
-            int amount = Integer.parseInt(matcher.group(1)) * 10000; // 만원 단위를 원으로 변환
+        Integer amount = TravelParsingUtils.parseMoneyAmount(response);
+        if (amount != null) {
             state.setBudgetPerPerson(amount);
             state.setBudgetCurrency("KRW");
             state.setBudgetCollected(true);
@@ -554,6 +599,6 @@ public class TravelInfoCollectionService {
      * 세션 만료 확인
      */
     private boolean isSessionExpired(TravelInfoCollectionState state) {
-        return state.getCreatedAt().plusHours(SESSION_TIMEOUT_HOURS).isBefore(LocalDateTime.now());
+        return state.getCreatedAt().plusHours(TravelConstants.SESSION_TIMEOUT_HOURS).isBefore(LocalDateTime.now());
     }
 }
