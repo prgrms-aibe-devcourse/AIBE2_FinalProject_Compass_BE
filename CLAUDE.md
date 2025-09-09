@@ -63,8 +63,8 @@ docker exec -it compass-redis redis-cli
 
 ## Architecture Overview
 
-### Three-Layer Domain Structure
-The codebase is organized into three main domains, each developed independently:
+### Four-Domain Architecture
+The codebase is organized into four main domains, each developed independently:
 
 1. **USER Domain** (`src/main/java/com/compass/domain/user/`)
    - Authentication/Authorization with JWT
@@ -74,9 +74,10 @@ The codebase is organized into three main domains, each developed independently:
 2. **CHAT Domain** (`src/main/java/com/compass/domain/chat/`)
    - Chat thread management
    - Message CRUD operations
-   - LLM integration (Gemini, GPT-4)
-   - OCR functionality
+   - LLM integration (Gemini 2.0 Flash, GPT-4o-mini)
    - Function Calling with Spring AI
+   - Prompt template system with keyword detection
+   - Personalization using UserContext and TravelHistory
 
 3. **TRIP Domain** (`src/main/java/com/compass/domain/trip/`)
    - Travel planning
@@ -84,18 +85,26 @@ The codebase is organized into three main domains, each developed independently:
    - Weather API integration
    - Personalization pipeline
 
+4. **MEDIA Domain** (`src/main/java/com/compass/domain/media/`)
+   - File upload/download with S3 integration
+   - OCR text extraction using Google Vision API
+   - Image validation and security scanning
+   - Metadata storage in JSONB format
+
 ### Technology Stack
 - **Framework**: Spring Boot 3.x with Java 17
 - **Databases**: PostgreSQL 15 (main), Redis 7 (vector store & cache)
-- **AI/ML**: Spring AI 1.0.0-M5 with Gemini 2.0 Flash, GPT-4o-mini
+- **AI/ML**: Spring AI 1.0.0-M5 with Gemini 2.0 Flash, GPT-4o-mini, Google Vision API
 - **Security**: JWT-based authentication
+- **Storage**: AWS S3 for file storage
 - **Monitoring**: Prometheus + Grafana with Micrometer
 - **Deployment**: Docker, AWS Elastic Beanstalk, AWS Lambda (MCP servers)
 
 ### Spring AI Integration
 Spring AI is currently active in `build.gradle`:
-- Lines 42-44: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
-- Lines 88-92: Dependency management for Spring AI BOM
+- Lines 46-48: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
+- Lines 83: Google Cloud Vision API dependency for OCR
+- Lines 99-103: Dependency management for Spring AI BOM
 - Environment variables required for OpenAI/Google Cloud are loaded from `.env` file
 
 ### Key API Endpoints
@@ -116,6 +125,14 @@ Spring AI is currently active in `build.gradle`:
 - POST `/api/trips` - Create trip plan
 - GET `/api/trips/{id}` - Get trip details
 - GET `/api/trips/recommend` - Get RAG recommendations
+
+**Media** (`/api/media/*`):
+- POST `/api/media/upload` - Upload images with automatic OCR
+- GET `/api/media/{id}` - Get media file with presigned URL
+- GET `/api/media/list` - List user's uploaded files
+- POST `/api/media/{id}/ocr` - Process OCR for existing image
+- GET `/api/media/{id}/ocr` - Get OCR results
+- DELETE `/api/media/{id}` - Delete media file
 
 ## Configuration
 
@@ -170,14 +187,23 @@ Each domain follows a layered architecture:
 - `entity/` - JPA entities
 - `dto/` - Data transfer objects
 - `exception/` - Domain-specific exceptions
+- `config/` - Domain-specific configuration
 - `function/` - Spring AI function calling implementations (CHAT domain)
 - `prompt/` - Prompt templates for AI interactions (CHAT domain)
 - `parser/` - Input/output parsers for AI responses (CHAT domain)
+
+#### MEDIA Domain Specific Structure
+The MEDIA domain includes additional specialized services:
+- `OCRService` - Google Vision API integration for text extraction
+- `S3Service` - AWS S3 file upload/download operations
+- `FileValidationService` - Enterprise-grade security validation (388 lines)
+- JSONB metadata storage for OCR results and file information
 
 ### Database Schema
 - Users table with authentication details
 - Chat threads and messages with user associations
 - Trip plans with JSONB for flexible data storage
+- Media table with S3 URLs and JSONB metadata for OCR results
 - Redis for vector embeddings and caching
 
 ## CI/CD Pipeline
@@ -197,11 +223,11 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 4. **Actuator Endpoints**: Prometheus metrics at `/actuator/prometheus`
 5. **Swagger UI**: Available at `/swagger-ui.html` when running locally
 6. **Git Operations**: Do NOT perform any git commits or pushes - developer will handle all git operations manually
-7. **Developer Role**: Current developer is CHAT2 team member responsible for:
-   - LLM integration (Gemini, GPT-4)
-   - Function Calling implementation
-   - OCR functionality
-   - RAG personalization
+7. **Developer Role**: Current developer is MEDIA domain specialist responsible for:
+   - File upload/download with S3 integration
+   - OCR functionality with Google Vision API
+   - Image validation and security scanning
+   - Metadata management in JSONB format
 8. **CHAT Domain LLM Configuration**:
    - Primary Agent: Gemini 2.0 Flash (for general chat operations and function calling)
    - Secondary Agent: GPT-4o-mini (for OpenAI compatibility)
@@ -336,6 +362,30 @@ The CHAT domain has evolved to use a prompt template-based approach with special
 - GET `/api/chat/templates` - List available prompt templates
 - GET `/api/chat/templates/{name}` - Get template details
 
+## MEDIA Domain Architecture
+
+The MEDIA domain provides enterprise-grade file management and OCR capabilities:
+
+### Key Features
+- **Automatic OCR Processing**: Images uploaded via `/api/media/upload` automatically get OCR processed
+- **On-Demand OCR**: Existing images can be processed via `POST /api/media/{id}/ocr`
+- **Security Validation**: 388-line FileValidationService scans for malicious files, Image Bombs, and path traversal attacks
+- **S3 Integration**: Seamless file upload/download with AWS S3
+- **Metadata Persistence**: OCR results stored in PostgreSQL JSONB field
+- **Error Resilience**: OCR failures don't block image uploads (graceful degradation)
+
+### Service Architecture
+- **MediaService**: Orchestrates file operations and OCR processing
+- **OCRService**: Google Vision API integration for text extraction
+- **S3Service**: AWS S3 operations with download capability
+- **FileValidationService**: Multi-layer security validation
+
+### OCR Implementation Details
+- **Primary Method**: `extractTextFromImage(MultipartFile)` - Processes uploaded files
+- **Secondary Method**: `extractTextFromBytes(byte[], filename)` - Processes S3 files
+- **Results Include**: Extracted text, confidence score, word count, line count, processing timestamp
+- **Storage Format**: JSONB metadata with comprehensive OCR result structure
+
 ## Project Status
 
 The project has evolved from initial setup to a functional AI travel assistant with:
@@ -349,7 +399,19 @@ The project has evolved from initial setup to a functional AI travel assistant w
 - Integration tests for AI functionalities
 - **CI/CD pipeline with Redis-independent testing**
 
-Current Implementation Status (CHAT2 Team):
+Current Implementation Status:
+
+**MEDIA Domain**: ✅ **COMPLETED**
+- ✅ REQ-MEDIA-001: File upload with MultipartFile validation (10MB limit)
+- ✅ REQ-MEDIA-002: S3 integration with AWS SDK
+- ✅ REQ-MEDIA-003: Image upload API POST `/api/media/upload`
+- ✅ REQ-MEDIA-004: Image query API GET `/api/media/{id}`
+- ✅ REQ-MEDIA-005: File validation (format/size) with security scanning
+- ✅ REQ-MEDIA-006: OCR text extraction with Google Vision API
+- ✅ Test Coverage: 23/23 core functionality tests passing
+- ✅ Enterprise-grade security with FileValidationService (388 lines)
+
+**CHAT Domain**:
 - ✅ REQ-PROMPT-001, 002, 003: Template system completed
 - ✅ REQ-LLM-004: Personalization models implemented
 - ✅ REQ-AI-003: Basic itinerary templates (Day Trip, 1N2D, 2N3D, 3N4D) implemented

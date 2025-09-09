@@ -152,6 +152,108 @@ public class MediaController {
         return ResponseEntity.ok().build();
     }
     
+    @PostMapping("/{id}/ocr")
+    @Operation(
+        summary = "OCR 처리",
+        description = "기존 이미지 파일에 대해 OCR 텍스트 추출을 수행하고 결과를 메타데이터에 저장합니다."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "OCR 처리 성공"),
+        @ApiResponse(responseCode = "400", description = "이미지 파일이 아니거나 OCR 처리 실패"),
+        @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+        @ApiResponse(responseCode = "403", description = "파일 처리 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<Map<String, Object>> processOCR(
+            @Parameter(description = "OCR 처리할 미디어 ID", required = true)
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader) {
+        
+        Long userId = getUserIdFromToken(authHeader);
+        log.info("OCR 처리 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
+        
+        mediaService.processOCRForMedia(id, userId);
+        Map<String, Object> ocrResult = mediaService.getOCRResult(id, userId);
+        
+        return ResponseEntity.ok(ocrResult);
+    }
+    
+    @GetMapping("/{id}/ocr")
+    @Operation(
+        summary = "OCR 결과 조회",
+        description = "이미지 파일의 OCR 텍스트 추출 결과를 조회합니다."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "OCR 결과 조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+        @ApiResponse(responseCode = "403", description = "파일 조회 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음 또는 OCR 결과 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getOCRResult(
+            @Parameter(description = "OCR 결과를 조회할 미디어 ID", required = true)
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader) {
+        
+        Long userId = getUserIdFromToken(authHeader);
+        log.info("OCR 결과 조회 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
+        
+        Map<String, Object> ocrResult = mediaService.getOCRResult(id, userId);
+        
+        return ResponseEntity.ok(ocrResult);
+    }
+
+    @GetMapping("/{id}/thumbnail")
+    @Operation(
+        summary = "썸네일 조회",
+        description = "업로드된 이미지 파일의 썸네일을 조회하고 서명된 URL을 반환합니다."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "썸네일 조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+        @ApiResponse(responseCode = "403", description = "파일 접근 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "썸네일이 없거나 파일을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getThumbnail(
+            @Parameter(description = "썸네일을 조회할 미디어 ID", required = true)
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader) {
+
+        Long userId = getUserIdFromToken(authHeader);
+        log.info("썸네일 조회 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
+
+        Map<String, Object> thumbnailResult = mediaService.getThumbnailResult(id, userId);
+
+        return ResponseEntity.ok(thumbnailResult);
+    }
+
+    @GetMapping("/{id}/thumbnail/url")
+    @Operation(
+        summary = "썸네일 URL 조회",
+        description = "업로드된 이미지 파일의 썸네일 Presigned URL을 반환합니다."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "썸네일 URL 조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+        @ApiResponse(responseCode = "403", description = "파일 접근 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "썸네일이 없거나 파일을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getThumbnailUrl(
+            @Parameter(description = "썸네일 URL을 조회할 미디어 ID", required = true)
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader) {
+
+        Long userId = getUserIdFromToken(authHeader);
+        log.info("썸네일 URL 조회 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
+
+        Map<String, Object> thumbnailUrlResult = mediaService.getThumbnailUrlResult(id, userId);
+
+        return ResponseEntity.ok(thumbnailUrlResult);
+    }
+
     @GetMapping("/health")
     @Operation(summary = "미디어 서비스 상태 확인", description = "미디어 서비스가 정상 작동하는지 확인합니다.")
     public ResponseEntity<String> healthCheck() {
