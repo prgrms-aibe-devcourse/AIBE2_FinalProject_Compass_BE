@@ -3,11 +3,13 @@ package com.compass.domain.chat.service;
 import com.compass.domain.chat.dto.FollowUpQuestionDto;
 import com.compass.domain.chat.dto.TravelInfoStatusDto;
 import com.compass.domain.chat.dto.TripPlanningRequest;
+import com.compass.domain.chat.dto.ValidationResult;
 import com.compass.domain.chat.engine.QuestionFlowEngine;
 import com.compass.domain.chat.entity.ChatThread;
 import com.compass.domain.chat.entity.TravelInfoCollectionState;
 import com.compass.domain.chat.repository.ChatThreadRepository;
 import com.compass.domain.chat.repository.TravelInfoCollectionRepository;
+import com.compass.domain.chat.util.TravelInfoValidator;
 import com.compass.domain.user.entity.User;
 import com.compass.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -43,6 +45,7 @@ public class TravelInfoCollectionService {
     private final QuestionFlowEngine flowEngine;
     private final ObjectMapper objectMapper;
     private TravelInfoCollectionCacheService cacheService;
+    private TravelInfoValidator validator;
     
     @Autowired
     public TravelInfoCollectionService(
@@ -53,7 +56,8 @@ public class TravelInfoCollectionService {
             NaturalLanguageParsingService parsingService,
             QuestionFlowEngine flowEngine,
             ObjectMapper objectMapper,
-            @Autowired(required = false) TravelInfoCollectionCacheService cacheService) {
+            @Autowired(required = false) TravelInfoCollectionCacheService cacheService,
+            @Autowired(required = false) TravelInfoValidator validator) {
         this.collectionRepository = collectionRepository;
         this.userRepository = userRepository;
         this.chatThreadRepository = chatThreadRepository;
@@ -62,6 +66,7 @@ public class TravelInfoCollectionService {
         this.flowEngine = flowEngine;
         this.objectMapper = objectMapper;
         this.cacheService = cacheService;
+        this.validator = validator;
     }
     
     /**
@@ -182,6 +187,7 @@ public class TravelInfoCollectionService {
     
     /**
      * 수집 완료 처리
+     * REQ-FOLLOW-005: 완료 전 필수 필드 검증
      */
     @Transactional
     public TripPlanningRequest completeCollection(String sessionId) {
@@ -190,13 +196,36 @@ public class TravelInfoCollectionService {
         TravelInfoCollectionState state = collectionRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
         
-        if (!state.isAllRequiredInfoCollected()) {
-            throw new IllegalStateException("아직 모든 정보가 수집되지 않았습니다");
+        // REQ-FOLLOW-005: 검증 수행
+        if (validator != null) {
+            ValidationResult validationResult = validator.validate(state, ValidationResult.ValidationLevel.STRICT);
+            
+            if (!validationResult.isValid()) {
+                log.warn("Collection cannot be completed due to validation errors: {}", 
+                        validationResult.getUserFriendlyMessage());
+                throw new IllegalStateException("검증 실패: " + validationResult.getUserFriendlyMessage());
+            }
+        } else {
+            // Fallback: 기본 검증
+            if (!state.isAllRequiredInfoCollected()) {
+                String missingFields = state.getMissingFieldsMessage();
+                log.warn("Collection cannot be completed - missing fields: {}", missingFields);
+                throw new IllegalStateException(missingFields);
+            }
+            
+            if (!state.hasValidData()) {
+                throw new IllegalStateException("입력된 정보에 유효하지 않은 데이터가 있습니다");
+            }
         }
         
         // 완료 처리
         state.markAsCompleted();
         collectionRepository.save(state);
+        
+        // Redis 캐시 삭제 (완료 시)
+        if (cacheService != null) {
+            cacheService.deleteTravelContext(sessionId);
+        }
         
         // TripPlanningRequest로 변환
         return convertToTripPlanningRequest(state);
@@ -290,6 +319,46 @@ public class TravelInfoCollectionService {
         state.setCompleted(true);
         state.setCompletedAt(LocalDateTime.now());
         collectionRepository.save(state);
+        
+        // Redis 캐시 삭제 (취소 시)
+        if (cacheService != null) {
+            cacheService.deleteTravelContext(sessionId);
+        }
+    }
+    
+    /**
+     * 현재 수집 상태 검증
+     * REQ-FOLLOW-005: 실시간 검증 피드백 제공
+     */
+    @Transactional(readOnly = true)
+    public ValidationResult validateCurrentState(String sessionId) {
+        log.info("Validating current state for session: {}", sessionId);
+        
+        TravelInfoCollectionState state = collectionRepository.findBySessionId(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
+        
+        if (validator != null) {
+            return validator.validate(state, ValidationResult.ValidationLevel.STANDARD);
+        }
+        
+        // Fallback: 기본 검증 결과
+        ValidationResult result = ValidationResult.builder()
+                .valid(state.isAllRequiredInfoCollected() && state.hasValidData())
+                .completionPercentage(state.getCompletionPercentage())
+                .validationLevel(ValidationResult.ValidationLevel.BASIC)
+                .build();
+        
+        if (!result.isValid()) {
+            state.getIncompleteFields().forEach(field -> 
+                result.addIncompleteField(field)
+            );
+            
+            if (!state.hasValidData()) {
+                result.addFieldError("data", "입력된 정보에 유효하지 않은 데이터가 있습니다");
+            }
+        }
+        
+        return result;
     }
     
     // === Private Helper Methods ===

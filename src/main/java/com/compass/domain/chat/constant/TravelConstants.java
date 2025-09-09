@@ -54,4 +54,14 @@ public final class TravelConstants {
     public static final String GROUP_TYPE_COUPLE = "couple";
     public static final String GROUP_TYPE_FAMILY = "family";
     public static final String GROUP_TYPE_FRIENDS = "friends";
+    
+    // 검증 관련 상수
+    public static final int MIN_STRING_LENGTH = 2;
+    public static final int MAX_DURATION_DAYS = 365;
+    public static final int MIN_DURATION_DAYS = 1;
+    public static final int MAX_TRAVELERS = 20;
+    public static final int MIN_TRAVELERS = 1;
+    public static final int MIN_BUDGET = 10000;       // 1만원
+    public static final int MAX_BUDGET = 10000000;    // 1000만원
+    public static final int MAX_ADVANCE_BOOKING_DAYS = 365;  // 최대 1년 후까지 예약 가능
 }
