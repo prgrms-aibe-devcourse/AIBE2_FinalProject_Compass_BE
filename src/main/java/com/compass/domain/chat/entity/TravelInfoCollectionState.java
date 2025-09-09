@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import com.compass.domain.chat.constant.TravelConstants;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TravelInfoCollectionState {
+public class TravelInfoCollectionState implements Serializable {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
