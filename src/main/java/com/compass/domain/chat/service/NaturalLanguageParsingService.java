@@ -15,6 +15,7 @@ import java.util.Map;
 
 /**
  * Natural Language Parsing Service using LLM
+ * REQ-FOLLOW-003: LLM 활용 자연어 처리
  * 자연어 입력을 구조화된 JSON으로 변환
  */
 @Service
@@ -141,5 +142,169 @@ public class NaturalLanguageParsingService {
         logger.warn("Using fallback parsing for input: {}", userInput);
         
         return fallback;
+    }
+    
+    /**
+     * 단계별 특화 파싱 - 목적지
+     * REQ-FOLLOW-003: LLM을 활용한 정확한 목적지 추출
+     */
+    public String parseDestination(String userInput) {
+        try {
+            if (geminiChatModel == null) {
+                return com.compass.domain.chat.util.TravelParsingUtils.parseDestination(userInput);
+            }
+            
+            String prompt = """
+                Extract the travel destination from this text.
+                Text: "%s"
+                
+                Return ONLY the destination name without any explanation.
+                If no destination is found, return "UNKNOWN".
+                """.formatted(userInput);
+            
+            VertexAiGeminiChatOptions options = VertexAiGeminiChatOptions.builder()
+                    .temperature(0.1)
+                    .maxOutputTokens(50)
+                    .build();
+            
+            ChatResponse response = geminiChatModel.call(new Prompt(prompt, options));
+            String destination = response.getResult().getOutput().getContent().trim();
+            
+            return destination.equals("UNKNOWN") ? null : destination;
+            
+        } catch (Exception e) {
+            logger.error("Failed to parse destination with LLM, falling back", e);
+            return com.compass.domain.chat.util.TravelParsingUtils.parseDestination(userInput);
+        }
+    }
+    
+    /**
+     * 단계별 특화 파싱 - 날짜
+     * REQ-FOLLOW-003: LLM을 활용한 날짜 범위 추출
+     */
+    public com.compass.domain.chat.util.TravelParsingUtils.DateRange parseDates(String userInput) {
+        try {
+            if (geminiChatModel == null) {
+                return com.compass.domain.chat.util.TravelParsingUtils.parseDateRange(userInput);
+            }
+            
+            String prompt = """
+                Extract travel dates from this text.
+                Text: "%s"
+                Today's date: %s
+                
+                Return in format: YYYY-MM-DD ~ YYYY-MM-DD
+                If only duration is mentioned, calculate from today.
+                If no dates found, return "UNKNOWN".
+                """.formatted(userInput, java.time.LocalDate.now());
+            
+            VertexAiGeminiChatOptions options = VertexAiGeminiChatOptions.builder()
+                    .temperature(0.1)
+                    .maxOutputTokens(50)
+                    .build();
+            
+            ChatResponse response = geminiChatModel.call(new Prompt(prompt, options));
+            String dateStr = response.getResult().getOutput().getContent().trim();
+            
+            if (dateStr.equals("UNKNOWN")) {
+                return null;
+            }
+            
+            return com.compass.domain.chat.util.TravelParsingUtils.parseDateRange(dateStr);
+            
+        } catch (Exception e) {
+            logger.error("Failed to parse dates with LLM, falling back", e);
+            return com.compass.domain.chat.util.TravelParsingUtils.parseDateRange(userInput);
+        }
+    }
+    
+    /**
+     * 단계별 특화 파싱 - 동행자
+     * REQ-FOLLOW-003: LLM을 활용한 동행자 정보 추출
+     */
+    public Map<String, Object> parseCompanions(String userInput) {
+        try {
+            if (geminiChatModel == null) {
+                return parseFallbackCompanions(userInput);
+            }
+            
+            String prompt = """
+                Extract companion information from this text.
+                Text: "%s"
+                
+                Return JSON format:
+                {
+                  "numberOfTravelers": number,
+                  "groupType": "solo|couple|family|friends"
+                }
+                """.formatted(userInput);
+            
+            VertexAiGeminiChatOptions options = VertexAiGeminiChatOptions.builder()
+                    .temperature(0.1)
+                    .maxOutputTokens(100)
+                    .build();
+            
+            ChatResponse response = geminiChatModel.call(new Prompt(prompt, options));
+            return parseJsonResponse(response.getResult().getOutput().getContent());
+            
+        } catch (Exception e) {
+            logger.error("Failed to parse companions with LLM, falling back", e);
+            return parseFallbackCompanions(userInput);
+        }
+    }
+    
+    /**
+     * 단계별 특화 파싱 - 예산
+     * REQ-FOLLOW-003: LLM을 활용한 예산 정보 추출
+     */
+    public Map<String, Object> parseBudget(String userInput) {
+        try {
+            if (geminiChatModel == null) {
+                return parseFallbackBudget(userInput);
+            }
+            
+            String prompt = """
+                Extract budget information from this text.
+                Text: "%s"
+                
+                Return JSON format:
+                {
+                  "budgetLevel": "budget|moderate|luxury",
+                  "budgetPerPerson": number or null,
+                  "currency": "KRW"
+                }
+                """.formatted(userInput);
+            
+            VertexAiGeminiChatOptions options = VertexAiGeminiChatOptions.builder()
+                    .temperature(0.1)
+                    .maxOutputTokens(100)
+                    .build();
+            
+            ChatResponse response = geminiChatModel.call(new Prompt(prompt, options));
+            return parseJsonResponse(response.getResult().getOutput().getContent());
+            
+        } catch (Exception e) {
+            logger.error("Failed to parse budget with LLM, falling back", e);
+            return parseFallbackBudget(userInput);
+        }
+    }
+    
+    private Map<String, Object> parseFallbackCompanions(String userInput) {
+        Map<String, Object> result = new HashMap<>();
+        int count = com.compass.domain.chat.util.TravelParsingUtils.parseTravelerCount(userInput, "unknown");
+        String type = com.compass.domain.chat.util.TravelParsingUtils.parseGroupType(userInput);
+        result.put("numberOfTravelers", count);
+        result.put("groupType", type);
+        return result;
+    }
+    
+    private Map<String, Object> parseFallbackBudget(String userInput) {
+        Map<String, Object> result = new HashMap<>();
+        String level = com.compass.domain.chat.util.TravelParsingUtils.parseBudgetLevel(userInput);
+        Integer amount = com.compass.domain.chat.util.TravelParsingUtils.parseMoneyAmount(userInput);
+        result.put("budgetLevel", level);
+        result.put("budgetPerPerson", amount);
+        result.put("currency", "KRW");
+        return result;
     }
 }

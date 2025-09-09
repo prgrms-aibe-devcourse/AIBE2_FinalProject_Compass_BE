@@ -5,6 +5,7 @@ import com.compass.domain.chat.dto.ValidationResult;
 import com.compass.domain.chat.entity.TravelInfoCollectionState;
 import com.compass.domain.chat.processor.ResponseProcessor;
 import com.compass.domain.chat.service.FollowUpQuestionGenerator;
+import com.compass.domain.chat.service.ClarificationQuestionGenerator;
 import com.compass.domain.chat.util.TravelInfoValidator;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
     
     private final List<ResponseProcessor> processors;
     private final FollowUpQuestionGenerator questionGenerator;
+    private final ClarificationQuestionGenerator clarificationGenerator;
     private final Map<TravelInfoCollectionState.CollectionStep, ResponseProcessor> processorMap = new HashMap<>();
     
     @Autowired(required = false)
@@ -49,6 +51,18 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
     public FollowUpQuestionDto generateNextQuestion(TravelInfoCollectionState state) {
         log.info("Generating next question for session: {}, current step: {}", 
                 state.getSessionId(), state.getCurrentStep());
+        
+        // REQ-FOLLOW-006: 파싱 실패 시 재질문 생성
+        if (state.isParsingFailed()) {
+            log.info("Parsing failed for field: {}, generating clarification question", state.getFailedField());
+            return clarificationGenerator.generateClarificationQuestion(
+                state, 
+                state.getFailedField(),
+                state.getLastQuestionAsked(),
+                state.getRetryCount()
+            );
+        }
+        
         return questionGenerator.generateNextQuestion(state);
     }
     
@@ -61,16 +75,35 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
             currentStep = state.getNextRequiredStep();
         }
         
+        // 이전 파싱 실패 상태 초기화
+        state.setParsingFailed(false);
+        state.setFailedField(null);
+        
         // Strategy Pattern 적용: 적절한 프로세서 선택
         ResponseProcessor processor = processorMap.get(currentStep);
         if (processor != null) {
             processor.process(state, userResponse);
+            
+            // REQ-FOLLOW-006: 파싱 실패 체크
+            if (state.isParsingFailed()) {
+                // 파싱 실패 시 재시도 횟수 증가
+                state.setRetryCount(state.getRetryCount() + 1);
+                state.setLastQuestionAsked(userResponse);
+                log.info("Parsing failed, retry count: {}", state.getRetryCount());
+                // 다음 단계로 진행하지 않음
+                return state;
+            } else {
+                // 파싱 성공 시 재시도 횟수 초기화
+                state.setRetryCount(0);
+            }
         } else {
             log.warn("No processor found for step: {}", currentStep);
         }
         
-        // 다음 단계로 이동
-        state.setCurrentStep(state.getNextRequiredStep());
+        // 파싱 성공 시에만 다음 단계로 이동
+        if (!state.isParsingFailed()) {
+            state.setCurrentStep(state.getNextRequiredStep());
+        }
         
         return state;
     }

@@ -118,6 +118,16 @@ public class TravelInfoCollectionState {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
     
+    // REQ-FOLLOW-006: 파싱 실패 추적 필드
+    @Transient
+    private boolean parsingFailed;
+    
+    @Transient
+    private String failedField;
+    
+    @Transient
+    private int retryCount;
+    
     /**
      * 정보 수집 단계
      */

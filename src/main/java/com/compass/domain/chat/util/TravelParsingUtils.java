@@ -132,6 +132,13 @@ public class TravelParsingUtils {
     }
     
     /**
+     * 동행자 타입 파싱 (parseGroupType 별칭)
+     */
+    public static String parseGroupType(String text) {
+        return parseCompanionType(text);
+    }
+    
+    /**
      * 동행자 타입 파싱
      */
     public static String parseCompanionType(String text) {
