@@ -274,6 +274,13 @@ public class TravelInfoCollectionService {
             
             boolean updated = false;
             
+            // 출발지
+            if (parsedInfo.containsKey("origin") && !state.isOriginCollected()) {
+                state.setOrigin((String) parsedInfo.get("origin"));
+                state.setOriginCollected(true);
+                updated = true;
+            }
+            
             // 목적지
             if (parsedInfo.containsKey("destination") && !state.isDestinationCollected()) {
                 state.setDestination((String) parsedInfo.get("destination"));
@@ -325,11 +332,24 @@ public class TravelInfoCollectionService {
      */
     private void parseResponseByStep(TravelInfoCollectionState state, String response) {
         switch (state.getCurrentStep()) {
+            case ORIGIN -> parseOrigin(state, response);
             case DESTINATION -> parseDestination(state, response);
             case DATES -> parseDates(state, response);
             case DURATION -> parseDuration(state, response);
             case COMPANIONS -> parseCompanions(state, response);
             case BUDGET -> parseBudget(state, response);
+        }
+    }
+    
+    /**
+     * 출발지 파싱
+     */
+    private void parseOrigin(TravelInfoCollectionState state, String response) {
+        String origin = response.trim();
+        if (!origin.isEmpty()) {
+            state.setOrigin(origin);
+            state.setOriginCollected(true);
+            state.setCurrentStep(TravelInfoCollectionState.CollectionStep.DESTINATION);
         }
     }
     
@@ -509,8 +529,8 @@ public class TravelInfoCollectionService {
             request.setTravelStyle(state.getBudgetLevel());
         }
         
-        // Origin은 기본값 설정 (추후 사용자 프로필에서 가져올 수 있음)
-        request.setOrigin("Seoul");
+        // Origin은 수집된 값 사용
+        request.setOrigin(state.getOrigin());
         
         // 추가 정보가 있으면 preferences에 추가
         if (state.getAdditionalPreferences() != null) {

@@ -186,6 +186,8 @@ class TravelInfoCollectionServiceTest {
     @DisplayName("모든 정보가 수집되면 수집을 완료할 수 있다")
     void testCompleteCollection() {
         // Given
+        testState.setOrigin("서울");
+        testState.setOriginCollected(true);
         testState.setDestination("제주도");
         testState.setDestinationCollected(true);
         testState.setStartDate(LocalDate.now().plusDays(7));
@@ -244,7 +246,7 @@ class TravelInfoCollectionServiceTest {
         // Then
         assertThat(result).isNotNull();
         assertThat(result.getSessionId()).isEqualTo("TIC_TEST1234");
-        assertThat(result.getCompletionPercentage()).isEqualTo(20); // 1/5 = 20%
+        assertThat(result.getCompletionPercentage()).isEqualTo(16); // 1/6 = 16%
         assertThat(result.getFieldStatus().isDestinationCollected()).isTrue();
     }
     

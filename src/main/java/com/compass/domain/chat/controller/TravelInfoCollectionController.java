@@ -4,6 +4,7 @@ import com.compass.domain.chat.dto.FollowUpQuestionDto;
 import com.compass.domain.chat.dto.TravelInfoStatusDto;
 import com.compass.domain.chat.dto.TripPlanningRequest;
 import com.compass.domain.chat.service.TravelInfoCollectionService;
+import com.compass.config.jwt.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +37,7 @@ import java.util.Map;
 public class TravelInfoCollectionController {
     
     private final TravelInfoCollectionService collectionService;
+    private final JwtTokenProvider jwtTokenProvider;
     
     /**
      * 정보 수집 시작
@@ -49,12 +52,12 @@ public class TravelInfoCollectionController {
     })
     public ResponseEntity<FollowUpQuestionDto> startCollection(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody @Valid CollectionStartRequest request) {
+            @RequestBody @Valid CollectionStartRequest request,
+            HttpServletRequest httpRequest) {
         
         log.info("Starting info collection for user: {}", userDetails.getUsername());
         
-        // 실제로는 JWT에서 userId를 추출해야 함
-        Long userId = extractUserId(userDetails);
+        Long userId = extractUserId(httpRequest);
         
         FollowUpQuestionDto firstQuestion = collectionService.startInfoCollection(
                 userId,
@@ -120,9 +123,10 @@ public class TravelInfoCollectionController {
         @ApiResponse(responseCode = "401", description = "인증 실패")
     })
     public ResponseEntity<TravelInfoStatusDto> getMyCollectionStatus(
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest httpRequest) {
         
-        Long userId = extractUserId(userDetails);
+        Long userId = extractUserId(httpRequest);
         
         return collectionService.getCurrentUserStatus(userId)
                 .map(ResponseEntity::ok)
@@ -283,12 +287,18 @@ public class TravelInfoCollectionController {
     }
     
     /**
-     * UserDetails에서 userId 추출 (실제 구현 필요)
+     * HttpServletRequest에서 JWT 토큰을 추출하고 userId를 가져옴
      */
-    private Long extractUserId(UserDetails userDetails) {
-        // 실제로는 JWT 토큰이나 UserDetails 구현체에서 userId를 추출해야 함
-        // 임시로 하드코딩된 값 반환
-        return 1L;
+    private Long extractUserId(HttpServletRequest request) {
+        String token = jwtTokenProvider.resolveToken(request);
+        if (token != null && jwtTokenProvider.validateAccessToken(token)) {
+            Long userId = jwtTokenProvider.getUserId(token);
+            if (userId != null) {
+                return userId;
+            }
+        }
+        // JWT에 userId가 없는 경우 (이전 버전 토큰) 예외 처리
+        throw new IllegalStateException("JWT 토큰에서 userId를 추출할 수 없습니다. 다시 로그인해주세요.");
     }
     
     /**

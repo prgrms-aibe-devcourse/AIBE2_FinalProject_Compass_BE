@@ -30,6 +30,7 @@ public class FollowUpQuestionGenerator {
         log.info("Generating follow-up question for step: {}, progress: {}%", nextStep, progress);
         
         return switch (nextStep) {
+            case ORIGIN -> generateOriginQuestion(state.getSessionId(), progress, collectedInfo);
             case DESTINATION -> generateDestinationQuestion(state.getSessionId(), progress, collectedInfo);
             case DATES -> generateDateQuestion(state.getSessionId(), progress, collectedInfo);
             case DURATION -> generateDurationQuestion(state.getSessionId(), progress, collectedInfo);
@@ -38,6 +39,62 @@ public class FollowUpQuestionGenerator {
             case CONFIRMATION -> generateConfirmationQuestion(state.getSessionId(), collectedInfo);
             default -> generateDefaultQuestion(state.getSessionId());
         };
+    }
+    
+    /**
+     * 출발지 질문 생성
+     */
+    private FollowUpQuestionDto generateOriginQuestion(String sessionId, int progress, Map<String, Object> collected) {
+        return FollowUpQuestionDto.builder()
+                .sessionId(sessionId)
+                .currentStep(TravelInfoCollectionState.CollectionStep.ORIGIN)
+                .primaryQuestion("어디에서 출발하시나요? 🛫")
+                .helpText("출발 도시나 공항 이름을 알려주세요.")
+                .exampleAnswers(List.of(
+                        "서울",
+                        "인천공항",
+                        "부산",
+                        "김포공항"
+                ))
+                .quickOptions(List.of(
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("서울")
+                                .label("서울")
+                                .description("수도권")
+                                .icon("🏙️")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("부산")
+                                .label("부산")
+                                .description("부산/경남")
+                                .icon("🌊")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("대구")
+                                .label("대구")
+                                .description("대구/경북")
+                                .icon("🏛️")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("광주")
+                                .label("광주")
+                                .description("광주/전남")
+                                .icon("🌻")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("대전")
+                                .label("대전")
+                                .description("대전/충청")
+                                .icon("🏢")
+                                .build()
+                ))
+                .inputType("text")
+                .isRequired(true)
+                .canSkip(false)
+                .progressPercentage(progress)
+                .remainingQuestions(6 - (progress * 6 / 100))
+                .collectedInfo(collected)
+                .build();
     }
     
     /**
@@ -62,7 +119,7 @@ public class FollowUpQuestionGenerator {
                 .isRequired(true)
                 .canSkip(false)
                 .progressPercentage(progress)
-                .remainingQuestions(5 - (progress / 20))
+                .remainingQuestions(6 - (progress * 6 / 100))
                 .collectedInfo(collected)
                 .build();
     }
@@ -95,7 +152,7 @@ public class FollowUpQuestionGenerator {
                 .isRequired(true)
                 .canSkip(false)
                 .progressPercentage(progress)
-                .remainingQuestions(4 - (progress / 20))
+                .remainingQuestions(5 - (progress * 6 / 100))
                 .collectedInfo(collected)
                 .build();
     }
@@ -153,7 +210,7 @@ public class FollowUpQuestionGenerator {
                 .isRequired(true)
                 .canSkip(startDate != null && endDate != null) // 날짜로 계산 가능하면 건너뛸 수 있음
                 .progressPercentage(progress)
-                .remainingQuestions(3 - (progress / 20))
+                .remainingQuestions(4 - (progress * 6 / 100))
                 .collectedInfo(collected)
                 .build();
     }
@@ -218,7 +275,7 @@ public class FollowUpQuestionGenerator {
                 .isRequired(true)
                 .canSkip(false)
                 .progressPercentage(progress)
-                .remainingQuestions(2 - (progress / 20))
+                .remainingQuestions(3 - (progress * 6 / 100))
                 .collectedInfo(collected)
                 .build();
     }
@@ -292,6 +349,9 @@ public class FollowUpQuestionGenerator {
     private FollowUpQuestionDto generateConfirmationQuestion(String sessionId, Map<String, Object> collected) {
         StringBuilder summary = new StringBuilder("수집된 정보를 확인해주세요:\n\n");
         
+        if (collected.containsKey("origin")) {
+            summary.append("🛫 출발지: ").append(collected.get("origin")).append("\n");
+        }
         if (collected.containsKey("destination")) {
             summary.append("📍 목적지: ").append(collected.get("destination")).append("\n");
         }

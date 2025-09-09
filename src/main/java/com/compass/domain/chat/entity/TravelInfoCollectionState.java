@@ -40,6 +40,9 @@ public class TravelInfoCollectionState {
     private String sessionId;
     
     // 수집된 정보 필드들
+    @Column(name = "origin")
+    private String origin;
+    
     @Column(name = "destination")
     private String destination;
     
@@ -68,6 +71,9 @@ public class TravelInfoCollectionState {
     private String budgetLevel; // budget, moderate, luxury
     
     // 수집 상태 추적
+    @Column(name = "origin_collected")
+    private boolean originCollected;
+    
     @Column(name = "destination_collected")
     private boolean destinationCollected;
     
@@ -113,6 +119,7 @@ public class TravelInfoCollectionState {
      */
     public enum CollectionStep {
         INITIAL,        // 초기 상태
+        ORIGIN,         // 출발지 수집 중
         DESTINATION,    // 목적지 수집 중
         DATES,          // 날짜 수집 중
         DURATION,       // 기간 수집 중
@@ -126,7 +133,8 @@ public class TravelInfoCollectionState {
      * 모든 필수 정보가 수집되었는지 확인
      */
     public boolean isAllRequiredInfoCollected() {
-        return destinationCollected && 
+        return originCollected &&
+               destinationCollected && 
                datesCollected && 
                durationCollected && 
                companionsCollected && 
@@ -137,6 +145,7 @@ public class TravelInfoCollectionState {
      * 다음 수집 단계 결정
      */
     public CollectionStep getNextRequiredStep() {
+        if (!originCollected) return CollectionStep.ORIGIN;
         if (!destinationCollected) return CollectionStep.DESTINATION;
         if (!datesCollected) return CollectionStep.DATES;
         if (!durationCollected) return CollectionStep.DURATION;
@@ -150,12 +159,13 @@ public class TravelInfoCollectionState {
      */
     public int getCompletionPercentage() {
         int collected = 0;
+        if (originCollected) collected++;
         if (destinationCollected) collected++;
         if (datesCollected) collected++;
         if (durationCollected) collected++;
         if (companionsCollected) collected++;
         if (budgetCollected) collected++;
-        return (collected * 100) / 5;
+        return (collected * 100) / 6;  // 이제 6개 필드
     }
     
     /**
@@ -173,6 +183,9 @@ public class TravelInfoCollectionState {
     public Map<String, Object> toInfoMap() {
         Map<String, Object> info = new HashMap<>();
         
+        if (originCollected) {
+            info.put("origin", origin);
+        }
         if (destinationCollected) {
             info.put("destination", destination);
         }
