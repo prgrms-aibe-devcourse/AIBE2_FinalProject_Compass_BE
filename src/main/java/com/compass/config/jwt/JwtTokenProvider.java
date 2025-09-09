@@ -126,12 +126,6 @@ public class JwtTokenProvider {
     public String getUsername(String accessToken) {
         return Jwts.parserBuilder().setSigningKey(accessKey).build().parseClaimsJws(accessToken).getBody().getSubject();
     }
-    
-    public Long getUserId(String accessToken) {
-        Claims claims = Jwts.parserBuilder().setSigningKey(accessKey).build().parseClaimsJws(accessToken).getBody();
-        String userIdStr = (String) claims.get("userId");
-        return userIdStr != null ? Long.parseLong(userIdStr) : null;
-    }
 
     public String resolveToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
