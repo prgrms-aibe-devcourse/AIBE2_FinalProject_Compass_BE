@@ -3,6 +3,7 @@ package com.compass.domain.chat.controller;
 import com.compass.domain.chat.dto.FollowUpQuestionDto;
 import com.compass.domain.chat.dto.TravelInfoStatusDto;
 import com.compass.domain.chat.dto.TripPlanningRequest;
+import com.compass.domain.chat.dto.ValidationResult;
 import com.compass.domain.chat.service.TravelInfoCollectionService;
 import com.compass.domain.user.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -196,6 +197,26 @@ public class TravelInfoCollectionController {
         
         collectionService.cancelCollection(sessionId);
         return ResponseEntity.noContent().build();
+    }
+    
+    /**
+     * 현재 수집 상태 검증
+     * REQ-FOLLOW-005: 실시간 검증 API
+     */
+    @GetMapping("/validate-collection/{sessionId}")
+    @Operation(summary = "수집 상태 검증", description = "현재까지 수집된 정보의 유효성을 검증합니다")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "검증 결과 반환",
+                content = @Content(schema = @Schema(implementation = ValidationResult.class))),
+        @ApiResponse(responseCode = "404", description = "세션을 찾을 수 없음")
+    })
+    public ResponseEntity<ValidationResult> validateCollection(
+            @PathVariable String sessionId) {
+        
+        log.info("Validating collection for session: {}", sessionId);
+        
+        ValidationResult validationResult = collectionService.validateCurrentState(sessionId);
+        return ResponseEntity.ok(validationResult);
     }
     
     // === Request/Response DTOs ===

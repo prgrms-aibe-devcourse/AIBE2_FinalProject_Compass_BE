@@ -1,12 +1,15 @@
 package com.compass.domain.chat.engine;
 
 import com.compass.domain.chat.dto.FollowUpQuestionDto;
+import com.compass.domain.chat.dto.ValidationResult;
 import com.compass.domain.chat.entity.TravelInfoCollectionState;
 import com.compass.domain.chat.processor.ResponseProcessor;
 import com.compass.domain.chat.service.FollowUpQuestionGenerator;
+import com.compass.domain.chat.util.TravelInfoValidator;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +32,9 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
     private final List<ResponseProcessor> processors;
     private final FollowUpQuestionGenerator questionGenerator;
     private final Map<TravelInfoCollectionState.CollectionStep, ResponseProcessor> processorMap = new HashMap<>();
+    
+    @Autowired(required = false)
+    private TravelInfoValidator validator;
     
     @PostConstruct
     public void init() {
@@ -103,7 +109,25 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
     
     @Override
     public boolean validateFlow(TravelInfoCollectionState state) {
-        // 최소 필수 정보 검증
+        // REQ-FOLLOW-005: 향상된 검증 로직
+        if (validator != null) {
+            ValidationResult validationResult = validator.validate(state, ValidationResult.ValidationLevel.STANDARD);
+            
+            if (!validationResult.isValid()) {
+                log.warn("Validation failed: {}", validationResult.getUserFriendlyMessage());
+                
+                // 검증 실패 시 상세 로그
+                validationResult.getFieldErrors().forEach((field, error) -> 
+                    log.debug("Field validation error - {}: {}", field, error)
+                );
+            }
+            
+            return validationResult.isValid();
+        }
+        
+        // Fallback: 기본 검증 (validator가 없는 경우)
+        log.debug("Using basic validation as TravelInfoValidator is not available");
+        
         if (!state.isDestinationCollected()) {
             log.warn("Validation failed: Destination not collected");
             return false;
@@ -116,6 +140,12 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
         
         if (!state.isCompanionsCollected()) {
             log.warn("Validation failed: Companions not collected");
+            return false;
+        }
+        
+        // 데이터 유효성 체크
+        if (!state.hasValidData()) {
+            log.warn("Validation failed: Invalid data detected");
             return false;
         }
         
