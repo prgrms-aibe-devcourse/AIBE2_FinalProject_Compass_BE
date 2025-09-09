@@ -76,6 +76,13 @@ public class UserDto {
         private String accessToken;
         private String refreshToken;
     }
+
+    @Getter
+    @NoArgsConstructor
+    public static class ProfileUpdateRequest {
+        private String nickname;
+        private String profileImageUrl;
+    }
     
     
 }

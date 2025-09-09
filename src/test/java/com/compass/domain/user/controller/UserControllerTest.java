@@ -18,8 +18,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+
+import java.util.Map;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -245,6 +247,51 @@ class UserControllerTest extends BaseIntegrationTest {
 
         // when
         ResultActions resultActions = mockMvc.perform(get("/api/users/profile"));
+
+        // then
+        resultActions.andExpect(status().isUnauthorized());
+    }
+
+
+    @Test
+    @DisplayName("내 프로필 수정 성공")
+    void updateMyProfile_success() throws Exception {
+        // given
+        User savedUser = userRepository.save(User.builder()
+                .email("update@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("oldNickname")
+                .role(Role.USER)
+                .build());
+        String accessToken = jwtTokenProvider.createAccessToken(savedUser.getEmail());
+
+        String requestBody = objectMapper.writeValueAsString(
+                Map.of("nickname", "newNickname", "profileImageUrl", "http://new.image/url")
+        );
+
+        // when
+        ResultActions resultActions = mockMvc.perform(patch("/api/users/profile")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
+
+        // then
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("newNickname"))
+                .andExpect(jsonPath("$.profileImageUrl").value("http://new.image/url"));
+    }
+
+    @Test
+    @DisplayName("내 프로필 수정 실패 - 인증되지 않은 사용자")
+    void updateMyProfile_fail_unauthorized() throws Exception {
+        // given
+        String emptyRequestBody = objectMapper.writeValueAsString(Map.of());
+
+        // when
+        ResultActions resultActions = mockMvc.perform(patch("/api/users/profile")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(emptyRequestBody));
 
         // then
         resultActions.andExpect(status().isUnauthorized());

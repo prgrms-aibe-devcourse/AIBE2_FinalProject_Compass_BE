@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -61,6 +62,19 @@ public class UserController {
         log.info("Fetching profile for user: {}", authentication.getName());
         UserDto userDto = userService.getUserProfileByEmail(authentication.getName());
         return ResponseEntity.ok(userDto);
+    }
+
+    @PatchMapping("/profile")
+    @Operation(summary = "내 프로필 수정", description = "현재 로그인된 사용자의 프로필 정보(닉네임, 프로필 이미지)를 수정합니다.")
+    public ResponseEntity<UserDto> updateMyProfile(
+            Authentication authentication,
+            @RequestBody UserDto.ProfileUpdateRequest request) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            // This is a safeguard, though the filter chain should prevent this.
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        UserDto updatedUser = userService.updateUserProfileByEmail(authentication.getName(), request);
+        return ResponseEntity.ok(updatedUser);
     }
 
 }
