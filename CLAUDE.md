@@ -253,6 +253,26 @@ Follow this strict development sequence for implementing features:
 
 **Important**: Never mark a feature as complete without running tests and reporting results.
 
+### Code Quality and Refactoring Process
+**MANDATORY**: After completing any feature implementation or bug fix:
+
+1. **Code Analysis Phase**:
+   - Review the entire codebase for SOLID principle violations
+   - Identify duplicate code across services and utilities
+   - Check for resource inefficiencies (redundant DB calls, duplicate parsing)
+   - Look for OCP violations (switch statements that grow with new requirements)
+
+2. **Refactoring Implementation**:
+   - Apply Strategy Pattern for extensible behavior (see `ResponseProcessor` pattern)
+   - Extract common logic to utility classes (see `TravelParsingUtils`)
+   - Use `@Primary` annotation to override legacy implementations
+   - Consolidate duplicate parsing and validation logic
+
+3. **Quality Verification**:
+   - Run all unit tests after refactoring
+   - Ensure CI pipeline passes
+   - Document refactoring decisions in code comments
+
 ### Database ERD Updates
 - Any structural changes to the database must be reflected in `/docs/DATABASE_ERD.md`
 - Update both the Mermaid diagram and table specifications
