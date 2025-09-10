@@ -104,4 +104,14 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/preferences/analyze")
+    @Operation(summary = "사용자 선호도 분석 실행", description = "사용자의 여행 기록을 바탕으로 여행 스타일을 자동으로 분석하고 저장합니다.")
+    public ResponseEntity<UserPreferenceDto.Response> analyzeMyPreferences(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        UserPreferenceDto.Response response = userService.analyzeAndSavePreferences(authentication.getName());
+        return ResponseEntity.ok(response);
+    }
+
 }

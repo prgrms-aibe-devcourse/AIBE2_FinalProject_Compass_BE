@@ -1,6 +1,8 @@
 package com.compass.domain.user.service;
 
 import com.compass.config.jwt.JwtTokenProvider;
+import com.compass.domain.trip.entity.TravelHistory;
+import com.compass.domain.trip.repository.TravelHistoryRepository;
 import com.compass.domain.user.dto.UserDto;
 import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.entity.User;
@@ -33,6 +35,8 @@ public class UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisTemplate<String, Object> redisTemplate;
     private final UserPreferenceRepository userPreferenceRepository;
+    private final TravelHistoryRepository travelHistoryRepository;
+    private final PreferenceAnalyzer preferenceAnalyzer;
 
     @Transactional
     public UserDto.SignUpResponse signUp(UserDto.SignUpRequest request) {
@@ -167,6 +171,34 @@ public class UserService {
         log.info("Updated budget level preference for user: {}, level: {}", email, request.getLevel());
 
         return UserPreferenceDto.Response.from(newPreference);
+    }
+
+
+
+    @Transactional
+    public UserPreferenceDto.Response analyzeAndSavePreferences(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+
+        // 1. 최근 여행 기록 조회
+        List<TravelHistory> histories = travelHistoryRepository.findTop10ByUserOrderByCreatedAtDesc(user);
+
+        // 2. 분석기 실행
+        String analyzedType = preferenceAnalyzer.analyzeTravelStyle(histories);
+
+        // 3. 분석 결과 저장 (기존 값 덮어쓰기)
+        final String preferenceType = "ANALYZED_TRAVEL_TYPE";
+        userPreferenceRepository.deleteByUserAndPreferenceType(user, preferenceType);
+
+        UserPreference analyzedPreference = UserPreference.builder()
+                .user(user)
+                .preferenceType(preferenceType)
+                .preferenceKey(analyzedType)
+                .preferenceValue(BigDecimal.ONE) // 분석된 타입은 하나이므로 100%
+                .build();
+
+        userPreferenceRepository.save(analyzedPreference);
+        return UserPreferenceDto.Response.from(analyzedPreference);
     }
 
 
