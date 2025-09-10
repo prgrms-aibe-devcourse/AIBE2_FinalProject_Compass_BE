@@ -15,11 +15,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -27,9 +25,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    // In-memory DB Simulation
-    private final Map<String, ThreadDto> threadsDb = new ConcurrentHashMap<>();
-    private final Map<String, List<MessageDto>> messagesDb = new ConcurrentHashMap<>();
+    // 의존성 주입(DI)을 통해 외부에서 관리되는 Bean을 받도록 수정
+    @Qualifier("threadsDb")
+    private final Map<String, ThreadDto> threadsDb;
+    @Qualifier("messagesDb")
+    private final Map<String, List<MessageDto>> messagesDb;
 
     private final IntentService intentService;
     private final IntentRouter intentRouter;
@@ -55,7 +55,13 @@ public class ChatServiceImpl implements ChatService {
             return null; // Or throw exception
         }
 
-        // ... (기존 제목 자동 생성 로직 등은 유지)
+        // REQ-CHAT-007: 첫 메시지인 경우 제목 자동 생성
+        boolean isFirstMessage = messagesDb.getOrDefault(threadId, List.of()).isEmpty();
+        if (isFirstMessage) {
+            String newTitle = messageDto.content().length() > 50 ? messageDto.content().substring(0, 50) : messageDto.content();
+            currentThread = new ThreadDto(currentThread.id(), currentThread.userId(), currentThread.createdAt(), newTitle, currentThread.preview());
+            threadsDb.put(threadId, currentThread);
+        }
 
         MessageDto userMsg = new MessageDto(
                 UUID.randomUUID().toString(),
@@ -67,10 +73,7 @@ public class ChatServiceImpl implements ChatService {
         messagesDb.get(threadId).add(userMsg);
 
         // --- CHAT1 워크플로우 실행 ---
-        // 1. 의도 분류 및 신뢰도 점수 계산
         IntentClassification classification = intentService.classifyIntent(messageDto.content());
-
-        // 2. 라우터를 통해 처리 플로우 결정 및 최종 응답 생성
         String aiResponseContent = intentRouter.route(classification, messageDto.content());
         // ---------------------------
 
@@ -85,9 +88,6 @@ public class ChatServiceImpl implements ChatService {
 
         return List.of(userMsg, aiMsg);
     }
-
-    // ... (getUserThreads, getMessages, deleteThread, updateChatThreadTitle 등 나머지 메서드는 생략) 
-    // ... (chatWithGemini, chatWithOpenAI 등 나머지 메서드는 생략)
 
     @Override
     public List<ThreadDto> getUserThreads(String userId, int skip, int limit) {
@@ -132,6 +132,9 @@ public class ChatServiceImpl implements ChatService {
     public boolean updateChatThreadTitle(String threadId, String userId, String newTitle) {
         if (threadsDb.containsKey(threadId) && threadsDb.get(threadId).userId().equals(userId)) {
             ThreadDto thread = threadsDb.get(threadId);
+            if (newTitle == null || newTitle.isBlank() || newTitle.length() > 50) {
+                return false;
+            }
             ThreadDto updatedThread = new ThreadDto(thread.id(), thread.userId(), thread.createdAt(), newTitle, thread.preview());
             threadsDb.put(threadId, updatedThread);
             return true;
