@@ -106,6 +106,17 @@ logging:
     org.springframework.web: INFO
     org.springframework.security: DEBUG
 
+# Tour API Configuration
+tour:
+  api:
+    base-url: http://apis.data.go.kr/B551011/KorService1
+    service-key: ${TOUR_API_SERVICE_KEY:your-tour-api-service-key}
+    response-type: json
+    num-of-rows: 100
+    page-no: 1
+    arrange: A # A=제목순, B=조회순, C=수정일순, D=생성일순, E=거리순
+    default-area-code: "1" # 서울
+
 # AWS S3 Configuration
 aws:
   access-key-id: ${AWS_ACCESS_KEY_ID:dummy-access-key}
