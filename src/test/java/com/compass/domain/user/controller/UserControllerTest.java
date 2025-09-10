@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -292,6 +293,88 @@ class UserControllerTest extends BaseIntegrationTest {
         ResultActions resultActions = mockMvc.perform(patch("/api/users/profile")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(emptyRequestBody));
+
+        // then
+        resultActions.andExpect(status().isUnauthorized());
+    }
+
+
+    @Test
+    @DisplayName("여행 스타일 선호도 수정 성공")
+    void updateTravelStylePreferences_success() throws Exception {
+        // given
+        User savedUser = userRepository.save(User.builder()
+                .email("style@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("styleUser")
+                .role(Role.USER)
+                .build());
+        String accessToken = jwtTokenProvider.createAccessToken(savedUser.getEmail());
+
+        String requestBody = objectMapper.writeValueAsString(
+                Map.of("preferences", List.of(
+                        Map.of("key", "RELAXATION", "value", 0.7),
+                        Map.of("key", "ACTIVITY", "value", 0.3)
+                ))
+        );
+
+        // when
+        ResultActions resultActions = mockMvc.perform(put("/api/users/profile/preferences/travel-style")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
+
+        // then
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].preferenceKey").value("RELAXATION"))
+                .andExpect(jsonPath("$[0].preferenceValue").value(0.7));
+    }
+
+    @Test
+    @DisplayName("여행 스타일 선호도 수정 실패 - 합계가 1이 아님")
+    void updateTravelStylePreferences_fail_invalidSum() throws Exception {
+        // given
+        User savedUser = userRepository.save(User.builder()
+                .email("style@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("styleUser")
+                .role(Role.USER)
+                .build());
+        String accessToken = jwtTokenProvider.createAccessToken(savedUser.getEmail());
+
+        // 합계가 1.1로, 유효하지 않은 요청
+        String requestBody = objectMapper.writeValueAsString(
+                Map.of("preferences", List.of(
+                        Map.of("key", "RELAXATION", "value", 0.8),
+                        Map.of("key", "ACTIVITY", "value", 0.3)
+                ))
+        );
+
+        // when
+        ResultActions resultActions = mockMvc.perform(put("/api/users/profile/preferences/travel-style")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
+
+        // then
+        resultActions
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("선호도 값의 총합은 1.0이 되어야 합니다."));
+    }
+
+    @Test
+    @DisplayName("여행 스타일 선호도 수정 실패 - 인증되지 않은 사용자")
+    void updateTravelStylePreferences_fail_unauthorized() throws Exception {
+        // given
+        String requestBody = objectMapper.writeValueAsString(Map.of("preferences", List.of()));
+
+        // when
+        ResultActions resultActions = mockMvc.perform(put("/api/users/profile/preferences/travel-style")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
 
         // then
         resultActions.andExpect(status().isUnauthorized());

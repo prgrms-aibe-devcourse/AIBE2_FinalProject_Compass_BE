@@ -1,6 +1,7 @@
 package com.compass.domain.user.controller;
 
 import com.compass.domain.user.dto.UserDto;
+import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -75,6 +77,19 @@ public class UserController {
         }
         UserDto updatedUser = userService.updateUserProfileByEmail(authentication.getName(), request);
         return ResponseEntity.ok(updatedUser);
+    }
+
+    @PutMapping("/profile/preferences/travel-style")
+    @Operation(summary = "여행 스타일 선호도 수정 및 저장", description = "사용자의 여행 스타일(휴양, 관광, 액티비티 등) 선호도 가중치를 수정합니다.")
+    public ResponseEntity<List<UserPreferenceDto.Response>> updateTravelStylePreferences(
+            Authentication authentication,
+            @Valid @RequestBody UserPreferenceDto.UpdateRequest request) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            // 인증 정보가 없으면 401 Unauthorized를 반환하는 방어 코드
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        List<UserPreferenceDto.Response> responses = userService.updateUserTravelStyle(authentication.getName(), request);
+        return ResponseEntity.ok(responses);
     }
 
 }
