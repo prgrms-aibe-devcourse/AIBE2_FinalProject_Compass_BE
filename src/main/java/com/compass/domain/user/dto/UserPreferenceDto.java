@@ -1,6 +1,7 @@
 package com.compass.domain.user.dto;
 
 import com.compass.domain.user.entity.UserPreference;
+import com.compass.domain.user.enums.BudgetLevel;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -41,5 +42,11 @@ public class UserPreferenceDto {
                     .preferenceValue(preference.getPreferenceValue())
                     .build();
         }
+    }
+
+    @Getter
+    public static class BudgetUpdateRequest {
+        @NotNull(message = "예산 수준을 선택해주세요.")
+        private BudgetLevel level;
     }
 }

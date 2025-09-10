@@ -92,4 +92,16 @@ public class UserController {
         return ResponseEntity.ok(responses);
     }
 
+    @PutMapping("/preferences/budget-level")
+    @Operation(summary = "예산 수준 설정", description = "사용자의 여행 예산 수준(BUDGET, STANDARD, LUXURY)을 설정합니다.")
+    public ResponseEntity<UserPreferenceDto.Response> updateBudgetLevel(
+            Authentication authentication,
+            @Valid @RequestBody UserPreferenceDto.BudgetUpdateRequest request) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        UserPreferenceDto.Response response = userService.updateBudgetLevel(authentication.getName(), request);
+        return ResponseEntity.ok(response);
+    }
+
 }

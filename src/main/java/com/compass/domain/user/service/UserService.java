@@ -145,4 +145,30 @@ public class UserService {
 
 
 
+    @Transactional
+    public UserPreferenceDto.Response updateBudgetLevel(String email, UserPreferenceDto.BudgetUpdateRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+
+        final String preferenceType = "BUDGET_LEVEL";
+
+        // 기존 예산 레벨 선호도 삭제
+        userPreferenceRepository.deleteByUserAndPreferenceType(user, preferenceType);
+
+        // 새로운 선호도 저장
+        UserPreference newPreference = UserPreference.builder()
+                .user(user)
+                .preferenceType(preferenceType)
+                .preferenceKey(request.getLevel().name())
+                .preferenceValue(BigDecimal.ONE) // 단일 선택이므로 100%를 의미하는 1.0으로 저장
+                .build();
+
+        userPreferenceRepository.save(newPreference);
+        log.info("Updated budget level preference for user: {}, level: {}", email, request.getLevel());
+
+        return UserPreferenceDto.Response.from(newPreference);
+    }
+
+
+
 }

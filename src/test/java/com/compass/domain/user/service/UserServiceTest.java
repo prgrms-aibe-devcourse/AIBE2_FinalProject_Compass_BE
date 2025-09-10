@@ -5,6 +5,7 @@ import com.compass.domain.user.dto.UserDto;
 import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.entity.User;
 import com.compass.domain.user.entity.UserPreference;
+import com.compass.domain.user.enums.BudgetLevel;
 import com.compass.domain.user.enums.Role;
 import com.compass.domain.user.repository.UserPreferenceRepository;
 import com.compass.domain.user.repository.UserRepository;
@@ -344,6 +345,52 @@ class UserServiceTest {
                 () -> userService.updateUserTravelStyle(email, updateRequest));
 
         assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+    }
+
+
+    @Test
+    @DisplayName("예산 수준 설정 성공")
+    void updateBudgetLevel_success() {
+        // given
+        String email = "budget@example.com";
+        User mockUser = User.builder().email(email).build();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        UserPreferenceDto.BudgetUpdateRequest request = new UserPreferenceDto.BudgetUpdateRequest();
+        ReflectionTestUtils.setField(request, "level", BudgetLevel.STANDARD);
+
+        // when
+        userService.updateBudgetLevel(email, request);
+
+        // then
+        verify(userPreferenceRepository).deleteByUserAndPreferenceType(mockUser, "BUDGET_LEVEL");
+
+        ArgumentCaptor<UserPreference> captor = ArgumentCaptor.forClass(UserPreference.class);
+        verify(userPreferenceRepository).save(captor.capture());
+        UserPreference savedPreference = captor.getValue();
+
+        assertThat(savedPreference.getUser()).isEqualTo(mockUser);
+        assertThat(savedPreference.getPreferenceType()).isEqualTo("BUDGET_LEVEL");
+        assertThat(savedPreference.getPreferenceKey()).isEqualTo("STANDARD");
+        assertThat(savedPreference.getPreferenceValue()).isEqualByComparingTo("1.0");
+    }
+
+    @Test
+    @DisplayName("예산 수준 설정 실패 - 사용자를 찾을 수 없음")
+    void updateBudgetLevel_fail_userNotFound() {
+        // given
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        UserPreferenceDto.BudgetUpdateRequest request = new UserPreferenceDto.BudgetUpdateRequest();
+        ReflectionTestUtils.setField(request, "level", BudgetLevel.LUXURY);
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateBudgetLevel(email, request));
+
+        assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+        verify(userPreferenceRepository, never()).save(any());
     }
 
 }
