@@ -5,9 +5,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 public class ChatDtos {
-    /**
-     * REQ-CHAT-006: 메시지 입력 검증
-     */
+
     public record MessageCreateDto(
             @NotBlank(message = "Content cannot be empty.")
             @Size(min = 1, max = 1000, message = "Content must be between 1 and 1000 characters.")
@@ -26,6 +24,7 @@ public class ChatDtos {
             String id,
             String userId,
             LocalDateTime createdAt,
-            String latestMessagePreview
+            String title,
+            String preview
     ) {}
 }
