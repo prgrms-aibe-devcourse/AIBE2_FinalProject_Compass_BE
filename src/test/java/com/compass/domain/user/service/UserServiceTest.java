@@ -2,12 +2,16 @@ package com.compass.domain.user.service;
 
 import com.compass.config.jwt.JwtTokenProvider;
 import com.compass.domain.user.dto.UserDto;
+import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.entity.User;
+import com.compass.domain.user.entity.UserPreference;
 import com.compass.domain.user.enums.Role;
+import com.compass.domain.user.repository.UserPreferenceRepository;
 import com.compass.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -16,6 +20,8 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +47,9 @@ class UserServiceTest {
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Mock
+    private UserPreferenceRepository userPreferenceRepository;
 
     @Test
     @DisplayName("회원가입 성공")
@@ -252,5 +261,89 @@ class UserServiceTest {
         assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
     }
 
+
+    @Test
+    @DisplayName("여행 스타일 선호도 수정 성공")
+    void updateUserTravelStyle_success() {
+        // given
+        String email = "style@example.com";
+        User mockUser = User.builder().email(email).build();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        UserPreferenceDto.UpdateRequest updateRequest = new UserPreferenceDto.UpdateRequest();
+        UserPreferenceDto.PreferenceItem item1 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item1, "key", "RELAXATION");
+        ReflectionTestUtils.setField(item1, "value", new BigDecimal("0.7"));
+
+        UserPreferenceDto.PreferenceItem item2 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item2, "key", "ACTIVITY");
+        ReflectionTestUtils.setField(item2, "value", new BigDecimal("0.3"));
+
+        ReflectionTestUtils.setField(updateRequest, "preferences", List.of(item1, item2));
+
+        // when
+        List<UserPreferenceDto.Response> result = userService.updateUserTravelStyle(email, updateRequest);
+
+        // then
+        verify(userPreferenceRepository).deleteByUserAndPreferenceType(mockUser, "TRAVEL_STYLE");
+
+        ArgumentCaptor<List<UserPreference>> captor = ArgumentCaptor.forClass(List.class);
+        verify(userPreferenceRepository).saveAll(captor.capture());
+        List<UserPreference> savedPreferences = captor.getValue();
+
+        assertThat(savedPreferences).hasSize(2);
+        assertThat(savedPreferences.get(0).getPreferenceKey()).isEqualTo("RELAXATION");
+        assertThat(savedPreferences.get(0).getPreferenceValue()).isEqualByComparingTo("0.7");
+
+        assertThat(result).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("여행 스타일 선호도 수정 실패 - 합계가 1이 아님")
+    void updateUserTravelStyle_fail_invalidSum() {
+        // given
+        String email = "style@example.com";
+        User mockUser = User.builder().email(email).build();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        UserPreferenceDto.UpdateRequest updateRequest = new UserPreferenceDto.UpdateRequest();
+        UserPreferenceDto.PreferenceItem item1 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item1, "key", "RELAXATION");
+        ReflectionTestUtils.setField(item1, "value", new BigDecimal("0.8")); // 합계가 1.1이 되도록 설정
+
+        UserPreferenceDto.PreferenceItem item2 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item2, "key", "ACTIVITY");
+        ReflectionTestUtils.setField(item2, "value", new BigDecimal("0.3"));
+
+        ReflectionTestUtils.setField(updateRequest, "preferences", List.of(item1, item2));
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateUserTravelStyle(email, updateRequest));
+
+        assertThat(exception.getMessage()).isEqualTo("선호도 값의 총합은 1.0이 되어야 합니다.");
+        verify(userPreferenceRepository, never()).deleteByUserAndPreferenceType(any(), any());
+        verify(userPreferenceRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("여행 스타일 선호도 수정 실패 - 사용자를 찾을 수 없음")
+    void updateUserTravelStyle_fail_userNotFound() {
+        // given
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        UserPreferenceDto.UpdateRequest updateRequest = new UserPreferenceDto.UpdateRequest();
+        UserPreferenceDto.PreferenceItem item1 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item1, "key", "RELAXATION");
+        ReflectionTestUtils.setField(item1, "value", new BigDecimal("1.0"));
+        ReflectionTestUtils.setField(updateRequest, "preferences", List.of(item1));
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateUserTravelStyle(email, updateRequest));
+
+        assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+    }
 
 }
