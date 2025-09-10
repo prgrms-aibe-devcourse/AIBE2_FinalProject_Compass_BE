@@ -319,7 +319,7 @@ class UserControllerTest extends BaseIntegrationTest {
         );
 
         // when
-        ResultActions resultActions = mockMvc.perform(put("/api/users/profile/preferences/travel-style")
+        ResultActions resultActions = mockMvc.perform(put("/api/users/preferences")
                 .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody));
@@ -354,7 +354,7 @@ class UserControllerTest extends BaseIntegrationTest {
         );
 
         // when
-        ResultActions resultActions = mockMvc.perform(put("/api/users/profile/preferences/travel-style")
+        ResultActions resultActions = mockMvc.perform(put("/api/users/preferences")
                 .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody));
@@ -372,7 +372,7 @@ class UserControllerTest extends BaseIntegrationTest {
         String requestBody = objectMapper.writeValueAsString(Map.of("preferences", List.of()));
 
         // when
-        ResultActions resultActions = mockMvc.perform(put("/api/users/profile/preferences/travel-style")
+        ResultActions resultActions = mockMvc.perform(put("/api/users/preferences")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody));
 

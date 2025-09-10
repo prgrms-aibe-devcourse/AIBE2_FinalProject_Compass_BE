@@ -79,7 +79,7 @@ public class UserController {
         return ResponseEntity.ok(updatedUser);
     }
 
-    @PutMapping("/profile/preferences/travel-style")
+    @PutMapping("/preferences")
     @Operation(summary = "여행 스타일 선호도 수정 및 저장", description = "사용자의 여행 스타일(휴양, 관광, 액티비티 등) 선호도 가중치를 수정합니다.")
     public ResponseEntity<List<UserPreferenceDto.Response>> updateTravelStylePreferences(
             Authentication authentication,
