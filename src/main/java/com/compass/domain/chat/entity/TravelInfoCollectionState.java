@@ -6,9 +6,13 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.compass.domain.chat.constant.TravelConstants;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -207,5 +211,125 @@ public class TravelInfoCollectionState {
         }
         
         return info;
+    }
+    
+    /**
+     * 미완성 필드 목록 반환
+     * REQ-FOLLOW-005: 필수 필드 완성도 체크
+     */
+    public List<String> getIncompleteFields() {
+        List<String> incompleteFields = new ArrayList<>();
+        
+        if (!originCollected) {
+            incompleteFields.add("출발지");
+        }
+        if (!destinationCollected) {
+            incompleteFields.add("목적지");
+        }
+        if (!datesCollected) {
+            incompleteFields.add("여행 날짜");
+        }
+        if (!durationCollected) {
+            incompleteFields.add("여행 기간");
+        }
+        if (!companionsCollected) {
+            incompleteFields.add("동행자");
+        }
+        if (!budgetCollected) {
+            incompleteFields.add("예산");
+        }
+        
+        return incompleteFields;
+    }
+    
+    /**
+     * 사용자 친화적인 미완성 필드 메시지 생성
+     * REQ-FOLLOW-005: 사용자에게 명확한 피드백 제공
+     */
+    public String getMissingFieldsMessage() {
+        List<String> incompleteFields = getIncompleteFields();
+        
+        if (incompleteFields.isEmpty()) {
+            return "모든 필수 정보가 입력되었습니다! ✅";
+        }
+        
+        StringBuilder message = new StringBuilder();
+        message.append("다음 정보가 필요합니다:\n");
+        
+        for (int i = 0; i < incompleteFields.size(); i++) {
+            message.append("• ").append(incompleteFields.get(i));
+            if (i < incompleteFields.size() - 1) {
+                message.append("\n");
+            }
+        }
+        
+        message.append("\n\n진행률: ").append(getCompletionPercentage()).append("%");
+        
+        return message.toString();
+    }
+    
+    /**
+     * 필드 유효성 검증 (간단한 버전)
+     * REQ-FOLLOW-005: 기본적인 유효성 체크
+     * TravelConstants의 상수를 사용하여 중복 제거
+     */
+    public boolean hasValidData() {
+        // 출발지/목적지 검증
+        if (originCollected && (origin == null || origin.trim().length() < TravelConstants.MIN_STRING_LENGTH)) {
+            return false;
+        }
+        if (destinationCollected && (destination == null || destination.trim().length() < TravelConstants.MIN_STRING_LENGTH)) {
+            return false;
+        }
+        
+        // 날짜 검증
+        if (datesCollected) {
+            if (startDate == null || endDate == null) {
+                return false;
+            }
+            if (endDate.isBefore(startDate)) {
+                return false;
+            }
+        }
+        
+        // 기간 검증
+        if (durationCollected && (durationNights == null || 
+                durationNights < TravelConstants.MIN_DURATION_DAYS || 
+                durationNights > TravelConstants.MAX_DURATION_DAYS)) {
+            return false;
+        }
+        
+        // 동행자 검증
+        if (companionsCollected && (numberOfTravelers == null || 
+                numberOfTravelers < TravelConstants.MIN_TRAVELERS || 
+                numberOfTravelers > TravelConstants.MAX_TRAVELERS)) {
+            return false;
+        }
+        
+        // 예산 검증
+        if (budgetCollected) {
+            if (budgetLevel == null || budgetLevel.trim().isEmpty()) {
+                if (budgetPerPerson == null || budgetPerPerson < TravelConstants.MIN_BUDGET) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 특정 필드가 수집되었는지 확인
+     */
+    public boolean isFieldCollected(String fieldName) {
+        return switch (fieldName.toLowerCase()) {
+            case "origin" -> originCollected;
+            case "destination" -> destinationCollected;
+            case "dates", "startdate", "enddate" -> datesCollected;
+            case "duration" -> durationCollected;
+            case "companions", "travelers" -> companionsCollected;
+            case "budget" -> budgetCollected;
+            default -> false;
+        };
     }
 }

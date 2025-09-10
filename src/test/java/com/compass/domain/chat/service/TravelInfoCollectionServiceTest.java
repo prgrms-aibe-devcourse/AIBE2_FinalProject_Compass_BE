@@ -3,6 +3,7 @@ package com.compass.domain.chat.service;
 import com.compass.domain.chat.dto.FollowUpQuestionDto;
 import com.compass.domain.chat.dto.TravelInfoStatusDto;
 import com.compass.domain.chat.dto.TripPlanningRequest;
+import com.compass.domain.chat.engine.QuestionFlowEngine;
 import com.compass.domain.chat.entity.ChatThread;
 import com.compass.domain.chat.entity.TravelInfoCollectionState;
 import com.compass.domain.chat.repository.ChatThreadRepository;
@@ -31,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import org.mockito.Mockito;
 
 /**
  * TravelInfoCollectionService 단위 테스트
@@ -55,6 +57,9 @@ class TravelInfoCollectionServiceTest {
     
     @Mock
     private NaturalLanguageParsingService parsingService;
+    
+    @Mock
+    private QuestionFlowEngine flowEngine;
     
     @Mock
     private ObjectMapper objectMapper;
@@ -105,8 +110,12 @@ class TravelInfoCollectionServiceTest {
                 .thenReturn(Optional.empty());
         when(collectionRepository.save(any(TravelInfoCollectionState.class))).thenReturn(testState);
         
-        FollowUpQuestionDto expectedQuestion = FollowUpQuestionDto.createDestinationQuestion("TIC_TEST1234", 0);
-        when(questionGenerator.generateNextQuestion(any(TravelInfoCollectionState.class)))
+        FollowUpQuestionDto expectedQuestion = FollowUpQuestionDto.builder()
+                .sessionId("TIC_TEST1234")
+                .primaryQuestion("어디에서 출발하시나요? 🛫")
+                .currentStep(TravelInfoCollectionState.CollectionStep.ORIGIN)
+                .build();
+        when(flowEngine.generateNextQuestion(any(TravelInfoCollectionState.class)))
                 .thenReturn(expectedQuestion);
         
         // When
@@ -114,9 +123,9 @@ class TravelInfoCollectionServiceTest {
         
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getPrimaryQuestion()).contains("어디로 여행");
+        assertThat(result.getPrimaryQuestion()).contains("어디에서 출발");
         verify(collectionRepository).save(any(TravelInfoCollectionState.class));
-        verify(questionGenerator).generateNextQuestion(any(TravelInfoCollectionState.class));
+        verify(flowEngine).generateNextQuestion(any(TravelInfoCollectionState.class));
     }
     
     @Test
@@ -129,8 +138,12 @@ class TravelInfoCollectionServiceTest {
         when(collectionRepository.findFirstByUserAndIsCompletedFalseOrderByCreatedAtDesc(testUser))
                 .thenReturn(Optional.of(testState));
         
-        FollowUpQuestionDto expectedQuestion = FollowUpQuestionDto.createDestinationQuestion("TIC_TEST1234", 0);
-        when(questionGenerator.generateNextQuestion(testState)).thenReturn(expectedQuestion);
+        FollowUpQuestionDto expectedQuestion = FollowUpQuestionDto.builder()
+                .sessionId("TIC_TEST1234")
+                .primaryQuestion("어디로 여행을 가시나요?")
+                .currentStep(TravelInfoCollectionState.CollectionStep.DESTINATION)
+                .build();
+        when(flowEngine.generateNextQuestion(testState)).thenReturn(expectedQuestion);
         
         // When
         FollowUpQuestionDto result = service.startInfoCollection(1L, null, null);
@@ -138,7 +151,7 @@ class TravelInfoCollectionServiceTest {
         // Then
         assertThat(result).isNotNull();
         verify(collectionRepository, never()).save(any(TravelInfoCollectionState.class));
-        verify(questionGenerator).generateNextQuestion(testState);
+        verify(flowEngine).generateNextQuestion(testState);
     }
     
     @Test
@@ -148,14 +161,16 @@ class TravelInfoCollectionServiceTest {
         when(collectionRepository.findBySessionId("TIC_TEST1234")).thenReturn(Optional.of(testState));
         when(collectionRepository.save(any(TravelInfoCollectionState.class))).thenReturn(testState);
         
-        Map<String, Object> parsedInfo = Map.of(
-                "destination", "제주도",
-                "nights", 2
-        );
-        when(parsingService.parseNaturalLanguageRequest(anyString())).thenReturn(parsedInfo);
-        
-        FollowUpQuestionDto expectedQuestion = FollowUpQuestionDto.createDateQuestion("TIC_TEST1234", 20, Map.of());
-        when(questionGenerator.generateNextQuestion(any(TravelInfoCollectionState.class)))
+        FollowUpQuestionDto expectedQuestion = FollowUpQuestionDto.builder()
+                .sessionId("TIC_TEST1234")
+                .primaryQuestion("언제 여행을 가시나요?")
+                .currentStep(TravelInfoCollectionState.CollectionStep.DATES)
+                .build();
+        when(flowEngine.processResponse(any(TravelInfoCollectionState.class), anyString()))
+                .thenReturn(testState);
+        when(flowEngine.isFlowComplete(any(TravelInfoCollectionState.class)))
+                .thenReturn(false);
+        when(flowEngine.generateNextQuestion(any(TravelInfoCollectionState.class)))
                 .thenReturn(expectedQuestion);
         
         // When
@@ -163,9 +178,9 @@ class TravelInfoCollectionServiceTest {
         
         // Then
         assertThat(result).isNotNull();
-        verify(parsingService).parseNaturalLanguageRequest(anyString());
+        verify(flowEngine).processResponse(any(TravelInfoCollectionState.class), anyString());
         verify(collectionRepository).save(any(TravelInfoCollectionState.class));
-        verify(questionGenerator).generateNextQuestion(any(TravelInfoCollectionState.class));
+        verify(flowEngine).generateNextQuestion(any(TravelInfoCollectionState.class));
     }
     
     @Test
@@ -229,7 +244,7 @@ class TravelInfoCollectionServiceTest {
         assertThatThrownBy(() -> 
                 service.completeCollection("TIC_TEST1234"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("아직 모든 정보가 수집되지 않았습니다");
+                .hasMessageContaining("다음 정보가 필요합니다");
     }
     
     @Test

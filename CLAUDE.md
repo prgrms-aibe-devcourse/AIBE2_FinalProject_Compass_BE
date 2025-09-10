@@ -253,6 +253,94 @@ Follow this strict development sequence for implementing features:
 
 **Important**: Never mark a feature as complete without running tests and reporting results.
 
+### Code Quality and Refactoring Process
+**MANDATORY**: After completing any feature implementation or bug fix:
+
+1. **Code Analysis Phase**:
+   - Review the entire codebase for SOLID principle violations
+   - Identify duplicate code across services and utilities
+   - Check for resource inefficiencies (redundant DB calls, duplicate parsing)
+   - Look for OCP violations (switch statements that grow with new requirements)
+
+2. **Refactoring Implementation**:
+   - Apply Strategy Pattern for extensible behavior (see `ResponseProcessor` pattern)
+   - Extract common logic to utility classes (see `TravelParsingUtils`, `TravelInfoValidator`)
+   - Use `@Primary` annotation to override legacy implementations
+   - Consolidate duplicate parsing and validation logic
+   - Centralize constants to avoid magic numbers (see `TravelConstants`)
+
+3. **Quality Verification**:
+   - Run all unit tests after refactoring
+   - Ensure CI pipeline passes
+   - Document refactoring decisions in code comments
+
+### Clean Code Guidelines for Code Review
+**IMPORTANT**: Write code that is easy for other team members to review:
+
+1. **Readability First**:
+   - Use descriptive variable and method names
+   - Keep methods short (ideally < 20 lines)
+   - One method should do one thing well
+   - Avoid deep nesting (max 3 levels)
+
+2. **Clear Structure**:
+   - Follow consistent code formatting
+   - Group related functionality together
+   - Use proper spacing and indentation
+   - Add blank lines between logical sections
+
+3. **Self-Documenting Code**:
+   - Code should explain itself without excessive comments
+   - Use meaningful constants instead of magic numbers
+   - Extract complex conditions into well-named methods
+   - Use enums for fixed sets of values
+
+4. **Dependency Management**:
+   - Use dependency injection consistently
+   - Avoid circular dependencies
+   - Keep coupling loose between components
+   - Use interfaces for abstraction
+
+5. **Error Handling**:
+   - Use specific exceptions, not generic ones
+   - Provide meaningful error messages
+   - Handle edge cases explicitly
+   - Use Optional for nullable returns
+
+6. **Testing**:
+   - Write tests that clearly show what's being tested
+   - Use descriptive test method names (Korean is OK for clarity)
+   - Test one behavior per test method
+   - Include both positive and negative test cases
+
+Example of clean code:
+```java
+// BAD
+public void proc(String s, int n) {
+    if(s!=null&&n>0&&n<365) {
+        // complex logic here
+    }
+}
+
+// GOOD
+public void processTravel(String destination, int durationDays) {
+    if (!isValidTravelRequest(destination, durationDays)) {
+        throw new InvalidTravelRequestException(
+            String.format("Invalid travel request: destination=%s, duration=%d", 
+                         destination, durationDays)
+        );
+    }
+    // process travel logic
+}
+
+private boolean isValidTravelRequest(String destination, int durationDays) {
+    return destination != null && 
+           !destination.trim().isEmpty() &&
+           durationDays >= TravelConstants.MIN_DURATION_DAYS &&
+           durationDays <= TravelConstants.MAX_DURATION_DAYS;
+}
+```
+
 ### Database ERD Updates
 - Any structural changes to the database must be reflected in `/docs/DATABASE_ERD.md`
 - Update both the Mermaid diagram and table specifications
@@ -333,8 +421,10 @@ Current Implementation Status (CHAT2 Team):
 - ✅ REQ-PROMPT-001, 002, 003: Template system completed
 - ✅ REQ-LLM-004: Personalization models implemented
 - ✅ REQ-AI-003: Basic itinerary templates (Day Trip, 1N2D, 2N3D, 3N4D) implemented
+- ✅ REQ-FOLLOW-002, 003, 004: Follow-up question system with flow engine
+- ✅ REQ-FOLLOW-005: Travel info validation system with 3-level verification
 - ✅ CI/CD issues resolved with test separation strategy
-- ✅ Unit tests: 100% passing (SimpleKeywordDetectorTest, TravelHistoryTest, ItineraryTemplatesTest)
+- ✅ Unit tests: 100% passing (including TravelInfoValidatorTest, TravelInfoCollectionServiceTest)
 
 Current focus areas:
 - Implementing RAG-based personalization
