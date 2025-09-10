@@ -40,7 +40,7 @@ public class TourApiClient {
                                                      int pageNo, int numOfRows) {
         try {
             URI uri = UriComponentsBuilder.fromHttpUrl(properties.getBaseUrl())
-                    .path("/areaBasedList1")
+                    .path("/areaBasedList2")
                     .queryParam("serviceKey", properties.getServiceKey())
                     .queryParam("MobileOS", "ETC")
                     .queryParam("MobileApp", "Compass")

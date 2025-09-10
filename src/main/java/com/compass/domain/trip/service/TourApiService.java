@@ -141,29 +141,89 @@ public class TourApiService {
     
     /**
      * 전체 서울 관광 정보 수집 (Phase별 크롤링용)
+     * Seoul JSON 177개를 1000개 이상으로 확장
      */
     public List<TourApiResponse.TourItem> collectAllSeoulData() {
         List<TourApiResponse.TourItem> allItems = new ArrayList<>();
         
-        // 관광지
-        allItems.addAll(getSeoulTouristSpots(1, 100));
-        log.info("관광지 수집 완료: {}개", allItems.size());
+        log.info("=== 서울 대용량 데이터 수집 시작 ===");
         
-        // 문화시설
-        allItems.addAll(getSeoulByCategory("museum", 1, 100));
-        log.info("문화시설 추가, 총 {}개", allItems.size());
+        // 1. 관광지 (여러 페이지 수집)
+        allItems.addAll(collectMultiplePages("12", "관광지", 5)); // 5페이지 = 500개
         
-        // 음식점
-        allItems.addAll(getSeoulRestaurants(1, 100));
-        log.info("음식점 추가, 총 {}개", allItems.size());
+        // 2. 문화시설 
+        allItems.addAll(collectMultiplePages("14", "문화시설", 3)); // 3페이지 = 300개
         
-        // 쇼핑
-        allItems.addAll(getSeoulShopping(1, 100));
-        log.info("쇼핑 추가, 총 {}개", allItems.size());
+        // 3. 음식점
+        allItems.addAll(collectMultiplePages("39", "음식점", 3)); // 3페이지 = 300개
         
-        log.info("서울 전체 데이터 수집 완료: 총 {}개 관광지", allItems.size());
+        // 4. 쇼핑
+        allItems.addAll(collectMultiplePages("38", "쇼핑", 2)); // 2페이지 = 200개
         
-        return allItems;
+        // 5. 레포츠/액티비티
+        allItems.addAll(collectMultiplePages("28", "레포츠", 2)); // 2페이지 = 200개
+        
+        // 6. 숙박시설
+        allItems.addAll(collectMultiplePages("32", "숙박", 1)); // 1페이지 = 100개
+        
+        // 중복 제거 (contentId 기준)
+        List<TourApiResponse.TourItem> uniqueItems = removeDuplicates(allItems);
+        
+        log.info("=== 서울 데이터 수집 완료 ===");
+        log.info("전체 수집: {}개 → 중복 제거 후: {}개", allItems.size(), uniqueItems.size());
+        
+        return uniqueItems;
+    }
+    
+    /**
+     * 여러 페이지에 걸쳐 데이터 수집
+     */
+    private List<TourApiResponse.TourItem> collectMultiplePages(String contentTypeId, String categoryName, int maxPages) {
+        List<TourApiResponse.TourItem> items = new ArrayList<>();
+        String seoulAreaCode = "1";
+        
+        for (int page = 1; page <= maxPages; page++) {
+            Optional<TourApiResponse> response = tourApiClient.getAreaBasedList(
+                    seoulAreaCode, contentTypeId, page, 100);
+            
+            List<TourApiResponse.TourItem> pageItems = extractTourItems(response);
+            items.addAll(pageItems);
+            
+            log.info("{} {}페이지: {}개 수집, 누적 {}개", categoryName, page, pageItems.size(), items.size());
+            
+            // API 호출 간격 (Rate Limiting 방지)
+            try {
+                Thread.sleep(100); // 100ms 대기
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            
+            // 빈 페이지면 더 이상 수집할 데이터 없음
+            if (pageItems.isEmpty()) {
+                log.info("{} 데이터 수집 완료 ({}페이지에서 종료)", categoryName, page);
+                break;
+            }
+        }
+        
+        log.info("=== {} 카테고리 수집 완료: 총 {}개 ===", categoryName, items.size());
+        return items;
+    }
+    
+    /**
+     * contentId 기준으로 중복 제거
+     */
+    private List<TourApiResponse.TourItem> removeDuplicates(List<TourApiResponse.TourItem> items) {
+        return items.stream()
+                .filter(item -> item.getContentId() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        TourApiResponse.TourItem::getContentId,
+                        item -> item,
+                        (existing, replacement) -> existing // 중복 시 첫 번째 유지
+                ))
+                .values()
+                .stream()
+                .collect(java.util.stream.Collectors.toList());
     }
     
     /**
