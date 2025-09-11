@@ -63,7 +63,7 @@ spring:
       
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY}
+      api-key: ${OPENAI_API_KEY:dummy-openai-key}
       chat:
         options:
           model: gpt-4o-mini
@@ -72,7 +72,7 @@ spring:
     vertex:
       ai:
         gemini:
-          project-id: ${GOOGLE_CLOUD_PROJECT_ID}
+          project-id: ${GOOGLE_CLOUD_PROJECT_ID:dummy-project-id}
           location: ${GOOGLE_CLOUD_LOCATION:us-central1}
           chat:
             options:

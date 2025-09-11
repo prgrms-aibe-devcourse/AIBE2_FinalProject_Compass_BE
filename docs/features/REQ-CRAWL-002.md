@@ -1,7 +1,7 @@
 ---
 name: 기능 개발
 about: 기능명세서 기반 개발 작업을 위한 이슈 템플릿
-title: '[CRAWL] REQ-CRAWL-002 | Phase별 크롤링 구현'
+title: '[TRIP] REQ-CRAWL-002 | Phase별 크롤링 구현'
 labels: '백엔드'
 assignees: 'TRIP1'
 ---

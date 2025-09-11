@@ -1,7 +1,7 @@
 ---
 name: 테스트 명세서
 about: 기능 명세서에 대한 테스트 케이스를 정의하는 문서
-title: '[TEST] REQ-CRAWL-002 | Phase별 크롤링 테스트'
+title: '[TRIP] REQ-CRAWL-002 | Phase별 크롤링 테스트'
 labels: '백엔드'
 assignees: 'TRIP1'
 ---
