@@ -40,8 +40,7 @@ public class MediaService {
     
     
     @Transactional
-    public MediaUploadResponse uploadFile(MediaDto.UploadRequest request, Long userId) {
-        MultipartFile file = request.getFile();
+    public MediaUploadResponse uploadFile(MultipartFile file, Long userId) {
         log.info("파일 업로드 시작 - 사용자: {}, 파일명: {}", userId, file.getOriginalFilename());
         
         // 사용자 조회
@@ -58,8 +57,8 @@ public class MediaService {
             // S3에 파일 업로드
             String s3Url = s3Service.uploadFile(file, userId.toString(), storedFilename);
             
-            // 메타데이터 생성 (request에서 받은 것과 자동 생성된 것 합치기)
-            Map<String, Object> metadata = createMetadata(file, request.getMetadata());
+            // 메타데이터 생성 (기본 메타데이터만 사용)
+            Map<String, Object> metadata = createMetadata(file, null);
             
             // 이미지 파일인 경우 썸네일 생성 및 업로드
             String thumbnailUrl = null;

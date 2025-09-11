@@ -58,12 +58,7 @@ public class MediaController {
         log.info("파일 업로드 요청 - 사용자: {}, 파일명: {}, 크기: {}bytes", 
                 userId, file.getOriginalFilename(), file.getSize());
         
-        MediaDto.UploadRequest request = MediaDto.UploadRequest.builder()
-                .file(file)
-                .metadata(metadata)
-                .build();
-        
-        MediaUploadResponse response = mediaService.uploadFile(request, userId);
+        MediaUploadResponse response = mediaService.uploadFile(file, userId);
         
         return ResponseEntity.ok(response);
     }

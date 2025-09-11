@@ -99,11 +99,6 @@ class MediaServiceOCRIntegrationTest {
                 "fake image content".getBytes()
         );
 
-        MediaDto.UploadRequest request = MediaDto.UploadRequest.builder()
-                .file(imageFile)
-                .metadata(new HashMap<>())
-                .build();
-
         Map<String, Object> ocrResult = new HashMap<>();
         ocrResult.put("success", true);
         ocrResult.put("extractedText", "Sample text from image");
@@ -120,7 +115,7 @@ class MediaServiceOCRIntegrationTest {
         when(mediaRepository.save(any(Media.class))).thenReturn(testMedia);
 
         // When
-        MediaUploadResponse response = mediaService.uploadFile(request, 1L);
+        MediaUploadResponse response = mediaService.uploadFile(imageFile, 1L);
 
         // Then
         assertThat(response).isNotNull();
@@ -139,11 +134,6 @@ class MediaServiceOCRIntegrationTest {
                 "Sample text content".getBytes()
         );
 
-        MediaDto.UploadRequest request = MediaDto.UploadRequest.builder()
-                .file(textFile)
-                .metadata(new HashMap<>())
-                .build();
-
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(fileValidationService.isSupportedImageFile("text/plain")).thenReturn(false);
         when(thumbnailService.isImageFile("text/plain")).thenReturn(false);
@@ -151,7 +141,7 @@ class MediaServiceOCRIntegrationTest {
         when(mediaRepository.save(any(Media.class))).thenReturn(testMedia);
 
         // When
-        MediaUploadResponse response = mediaService.uploadFile(request, 1L);
+        MediaUploadResponse response = mediaService.uploadFile(textFile, 1L);
 
         // Then
         assertThat(response).isNotNull();
