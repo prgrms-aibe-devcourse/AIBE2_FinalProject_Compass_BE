@@ -253,11 +253,13 @@ Invoke-WebRequest -Uri "http://localhost:8080/api/test/tour/seoul/all" -Headers 
 - **API**: 한국관광공사 Tour API KorService2
 
 ### 다음 단계
-- **REQ-CRAWL-002**: Phase-별 크롤링 구현
-- **REQ-CRAWL-003**: tour_places 테이블 구현
-- **데이터베이스 저장**: 수집된 데이터 RDS 저장
-- **AI 추천 시스템**: 수집된 데이터 기반 AI 추천
+- **REQ-CRAWL-002**: Phase-별 크롤링 구현 ✅ (완료)
+- **REQ-CRAWL-003**: tour_places 테이블 구현 ✅ (완료)
+- **데이터베이스 저장**: 수집된 데이터 RDS 저장 ✅ (완료)
+- **엔티티 최적화**: 불필요한 null 필드 제거로 효율성 향상 ✅ (완료)
+- **AI 추천 시스템**: 수집된 데이터 기반 AI 추천 (다음 단계)
 
 ---
 
 - **📅 최종 검증**: 2025-09-09 16:21 - Tour API 클라이언트 테스트 완료
+- **📅 후속 작업**: 2025-09-11 15:35 - REQ-CRAWL-002 엔티티 최적화 완료
