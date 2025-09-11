@@ -17,7 +17,7 @@ import java.math.BigDecimal;
  */
 @Getter
 @Entity
-@Table(name = "user_preferences")
+@Table(name = "user_preferences_1")// User 폴더에 있는 UserPreference와 겹쳐서 변경
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)

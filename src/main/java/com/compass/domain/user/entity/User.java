@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -70,6 +71,16 @@ public class User {
 
     public String getProvider() {
         return socialType != null ? socialType.name() : null;
+    }
+
+
+    public void updateProfile(String nickname, String profileImageUrl) {
+        if (StringUtils.hasText(nickname)) {
+            this.nickname = nickname;
+        }
+        if (StringUtils.hasText(profileImageUrl)) {
+            this.profileImageUrl = profileImageUrl;
+        }
     }
 
 
