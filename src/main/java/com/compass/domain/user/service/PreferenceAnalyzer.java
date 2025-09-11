@@ -27,6 +27,7 @@ public class PreferenceAnalyzer {
 
     /**
      * 사용자의 여행 기록을 바탕으로, Spring AI(Gemini)를 활용하여 여행 스타일을 지능적으로 분석/분류합니다.
+     * 프롬프트는 추후 더 개선해볼 예정입니다.
      */
     public String analyzeTravelStyleWithAi(List<TravelHistory> histories) {
         if (histories == null || histories.isEmpty()) {
