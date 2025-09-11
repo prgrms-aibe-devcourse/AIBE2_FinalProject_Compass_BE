@@ -1,0 +1,2960 @@
+{
+  "title": "Seoul Popular Attractions (Starter Set)",
+  "version": "v0.1",
+  "count": 177,
+  "generated_at": "2025-09-09",
+  "schema": {
+    "id": "string",
+    "name": "string",
+    "category": "string",
+    "district": "string",
+    "area": "string",
+    "tags": [
+      "string"
+    ],
+    "lat": "float",
+    "lng": "float",
+    "city": "string",
+    "country": "string",
+    "source": "string",
+    "last_updated": "YYYY-MM-DD"
+  },
+  "data": [
+    {
+      "name": "Gyeongbokgung Palace",
+      "category": "Palace",
+      "district": "Jongno-gu",
+      "tags": [
+        "Joseon",
+        "Architecture",
+        "Royal Guard"
+      ],
+      "lat": 37.579617,
+      "lng": 126.977041,
+      "area": "Gwanghwamun",
+      "id": "SEOUL-0001",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Changdeokgung Palace & Huwon (Secret Garden)",
+      "category": "Palace",
+      "district": "Jongno-gu",
+      "tags": [
+        "UNESCO",
+        "Garden",
+        "Joseon"
+      ],
+      "lat": 37.579414,
+      "lng": 126.991117,
+      "area": "Waryong-dong",
+      "id": "SEOUL-0002",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Changgyeonggung Palace",
+      "category": "Palace",
+      "district": "Jongno-gu",
+      "tags": [
+        "History",
+        "Joseon"
+      ],
+      "lat": 37.578607,
+      "lng": 126.994609,
+      "area": "Myeongnyun-dong",
+      "id": "SEOUL-0003",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Deoksugung Palace",
+      "category": "Palace",
+      "district": "Jung-gu",
+      "tags": [
+        "Stone Wall Road",
+        "Changing of the Guard"
+      ],
+      "lat": 37.565804,
+      "lng": 126.975146,
+      "area": "Sejong-daero",
+      "id": "SEOUL-0004",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gyeonghuigung Palace",
+      "category": "Palace",
+      "district": "Jongno-gu",
+      "tags": [
+        "History"
+      ],
+      "lat": 37.571619,
+      "lng": 126.969829,
+      "area": "Saemunan-dong",
+      "id": "SEOUL-0005",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jongmyo Shrine",
+      "category": "UNESCO Site",
+      "district": "Jongno-gu",
+      "tags": [
+        "Confucian",
+        "Rites",
+        "UNESCO"
+      ],
+      "lat": 37.574408,
+      "lng": 126.994682,
+      "area": "Unni-dong",
+      "id": "SEOUL-0006",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul City Wall (Hanyangdoseong)",
+      "category": "Historic Trail",
+      "district": "Jongno-gu",
+      "tags": [
+        "Hiking",
+        "History"
+      ],
+      "lat": 37.592293,
+      "lng": 126.996681,
+      "area": "Bukchon/Naksan/Bugaksan",
+      "id": "SEOUL-0007",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gwanghwamun Square",
+      "category": "Public Square",
+      "district": "Jongno-gu",
+      "tags": [
+        "Statues",
+        "Events"
+      ],
+      "lat": 37.571556,
+      "lng": 126.976815,
+      "area": "Gwanghwamun",
+      "id": "SEOUL-0008",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Cheong Wa Dae (Blue House)",
+      "category": "Museum/Complex",
+      "district": "Jongno-gu",
+      "tags": [
+        "Presidential Residence",
+        "Garden"
+      ],
+      "lat": 37.586398,
+      "lng": 126.974986,
+      "area": "Seochon",
+      "id": "SEOUL-0009",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Sejong Center for the Performing Arts",
+      "category": "Theater",
+      "district": "Jongno-gu",
+      "tags": [
+        "Performing Arts"
+      ],
+      "lat": 37.572367,
+      "lng": 126.975464,
+      "area": "Gwanghwamun",
+      "id": "SEOUL-0010",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Namdaemun (Sungnyemun Gate)",
+      "category": "Historic Gate",
+      "district": "Jung-gu",
+      "tags": [
+        "Heritage"
+      ],
+      "lat": 37.559996,
+      "lng": 126.975338,
+      "area": "Namdaemun",
+      "id": "SEOUL-0011",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Dongdaemun (Heunginjimun Gate)",
+      "category": "Historic Gate",
+      "district": "Jongno-gu",
+      "tags": [
+        "Heritage"
+      ],
+      "lat": 37.571313,
+      "lng": 127.009561,
+      "area": "Dongdaemun",
+      "id": "SEOUL-0012",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Bukchon Hanok Village",
+      "category": "Historic Village",
+      "district": "Jongno-gu",
+      "tags": [
+        "Hanok",
+        "Views"
+      ],
+      "lat": 37.582604,
+      "lng": 126.983998,
+      "area": "Bukchon",
+      "id": "SEOUL-0013",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seochon Village",
+      "category": "Neighborhood",
+      "district": "Jongno-gu",
+      "tags": [
+        "Hanok",
+        "Cafes"
+      ],
+      "lat": 37.578996,
+      "lng": 126.971744,
+      "area": "Seochon",
+      "id": "SEOUL-0014",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Ikseon-dong Hanok Street",
+      "category": "Neighborhood",
+      "district": "Jongno-gu",
+      "tags": [
+        "Hanok",
+        "Cafes",
+        "Restaurants"
+      ],
+      "lat": 37.573953,
+      "lng": 126.991954,
+      "area": "Ikseon-dong",
+      "id": "SEOUL-0015",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Insadong Street",
+      "category": "Cultural Street",
+      "district": "Jongno-gu",
+      "tags": [
+        "Traditional Crafts",
+        "Tea"
+      ],
+      "lat": 37.574004,
+      "lng": 126.9853,
+      "area": "Insadong",
+      "id": "SEOUL-0016",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Ssamzigil",
+      "category": "Shopping Complex",
+      "district": "Jongno-gu",
+      "tags": [
+        "Crafts",
+        "Souvenirs"
+      ],
+      "lat": 37.574857,
+      "lng": 126.984729,
+      "area": "Insadong",
+      "id": "SEOUL-0017",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Museum of History",
+      "category": "Museum",
+      "district": "Jongno-gu",
+      "tags": [
+        "City History"
+      ],
+      "lat": 37.570364,
+      "lng": 126.971989,
+      "area": "Seodaemun",
+      "id": "SEOUL-0018",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "National Palace Museum of Korea",
+      "category": "Museum",
+      "district": "Jongno-gu",
+      "tags": [
+        "Royal Artifacts"
+      ],
+      "lat": 37.578516,
+      "lng": 126.977087,
+      "area": "Gyeongbokgung",
+      "id": "SEOUL-0019",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "National Folk Museum of Korea",
+      "category": "Museum",
+      "district": "Jongno-gu",
+      "tags": [
+        "Folk Culture"
+      ],
+      "lat": 37.581531,
+      "lng": 126.979592,
+      "area": "Gyeongbokgung",
+      "id": "SEOUL-0020",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Myeong-dong Shopping Street",
+      "category": "Shopping District",
+      "district": "Jung-gu",
+      "tags": [
+        "K-beauty",
+        "Street Food"
+      ],
+      "lat": 37.563757,
+      "lng": 126.982669,
+      "area": "Myeong-dong",
+      "id": "SEOUL-0021",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Namdaemun Market",
+      "category": "Traditional Market",
+      "district": "Jung-gu",
+      "tags": [
+        "Wholesale",
+        "Street Food"
+      ],
+      "lat": 37.559407,
+      "lng": 126.977107,
+      "area": "Namdaemun",
+      "id": "SEOUL-0022",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gwangjang Market",
+      "category": "Traditional Market",
+      "district": "Jongno-gu",
+      "tags": [
+        "Bindaetteok",
+        "Mayak Kimbap"
+      ],
+      "lat": 37.570123,
+      "lng": 127.001724,
+      "area": "Jongno 5(o)-ga",
+      "id": "SEOUL-0023",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Dongdaemun Market",
+      "category": "Shopping District",
+      "district": "Jung-gu/Jongno-gu",
+      "tags": [
+        "Fashion",
+        "Wholesale"
+      ],
+      "lat": 37.569641,
+      "lng": 127.009332,
+      "area": "Dongdaemun",
+      "id": "SEOUL-0024",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Euljiro Nogari Alley",
+      "category": "Food Alley",
+      "district": "Jung-gu",
+      "tags": [
+        "Pojangmacha",
+        "After-work"
+      ],
+      "lat": 37.566971,
+      "lng": 126.99164,
+      "area": "Euljiro 3-ga",
+      "id": "SEOUL-0025",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Cheonggyecheon Stream",
+      "category": "Urban Stream",
+      "district": "Jongno-gu/Jung-gu",
+      "tags": [
+        "Night Lights",
+        "Walking"
+      ],
+      "lat": 37.569026,
+      "lng": 126.978374,
+      "area": "Downtown",
+      "id": "SEOUL-0026",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoullo 7017",
+      "category": "Sky Garden",
+      "district": "Jung-gu",
+      "tags": [
+        "Walking",
+        "Night View"
+      ],
+      "lat": 37.554687,
+      "lng": 126.969356,
+      "area": "Seoul Station",
+      "id": "SEOUL-0027",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Namsangol Hanok Village",
+      "category": "Folk Village",
+      "district": "Jung-gu",
+      "tags": [
+        "Hanok",
+        "Performances"
+      ],
+      "lat": 37.559311,
+      "lng": 126.994668,
+      "area": "Chungmuro",
+      "id": "SEOUL-0028",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "N Seoul Tower (Namsan Tower)",
+      "category": "Observation Tower",
+      "district": "Yongsan-gu",
+      "tags": [
+        "City View",
+        "Locks of Love"
+      ],
+      "lat": 37.551169,
+      "lng": 126.988227,
+      "area": "Namsan",
+      "id": "SEOUL-0029",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Namsan Park",
+      "category": "Urban Park",
+      "district": "Yongsan-gu/Jung-gu",
+      "tags": [
+        "Trails",
+        "Viewpoints"
+      ],
+      "lat": 37.551244,
+      "lng": 126.988202,
+      "area": "Namsan",
+      "id": "SEOUL-0030",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Myeong-dong Cathedral",
+      "category": "Religious Site",
+      "district": "Jung-gu",
+      "tags": [
+        "Gothic Revival"
+      ],
+      "lat": 37.563029,
+      "lng": 126.987669,
+      "area": "Myeong-dong",
+      "id": "SEOUL-0031",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Plaza",
+      "category": "Public Plaza",
+      "district": "Jung-gu",
+      "tags": [
+        "Events",
+        "Skating Rink"
+      ],
+      "lat": 37.565631,
+      "lng": 126.978028,
+      "area": "City Hall",
+      "id": "SEOUL-0032",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Deoksugung Stone Wall Road",
+      "category": "Scenic Walk",
+      "district": "Jung-gu",
+      "tags": [
+        "Autumn Foliage"
+      ],
+      "lat": 37.56613,
+      "lng": 126.974951,
+      "area": "City Hall",
+      "id": "SEOUL-0033",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "National Museum of Korea",
+      "category": "Museum",
+      "district": "Yongsan-gu",
+      "tags": [
+        "History",
+        "Artifacts"
+      ],
+      "lat": 37.523984,
+      "lng": 126.980355,
+      "area": "Yongsan Family Park",
+      "id": "SEOUL-0034",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "War Memorial of Korea",
+      "category": "Museum",
+      "district": "Yongsan-gu",
+      "tags": [
+        "Military History"
+      ],
+      "lat": 37.53628,
+      "lng": 126.977101,
+      "area": "Samgakji",
+      "id": "SEOUL-0035",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Leeum, Samsung Museum of Art",
+      "category": "Museum",
+      "district": "Yongsan-gu",
+      "tags": [
+        "Art",
+        "Architecture"
+      ],
+      "lat": 37.539264,
+      "lng": 126.998203,
+      "area": "Itaewon",
+      "id": "SEOUL-0036",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Itaewon Street",
+      "category": "Neighborhood",
+      "district": "Yongsan-gu",
+      "tags": [
+        "International",
+        "Nightlife"
+      ],
+      "lat": 37.534525,
+      "lng": 126.994072,
+      "area": "Itaewon",
+      "id": "SEOUL-0037",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gyeongnidan-gil",
+      "category": "Food Street",
+      "district": "Yongsan-gu",
+      "tags": [
+        "Restaurants",
+        "Bars"
+      ],
+      "lat": 37.539703,
+      "lng": 126.987316,
+      "area": "Gyeongnidan",
+      "id": "SEOUL-0038",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Haebangchon (HBC)",
+      "category": "Neighborhood",
+      "district": "Yongsan-gu",
+      "tags": [
+        "Cafes",
+        "Bars"
+      ],
+      "lat": 37.543606,
+      "lng": 126.987486,
+      "area": "HBC",
+      "id": "SEOUL-0039",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yongsan Electronics Market",
+      "category": "Shopping",
+      "district": "Yongsan-gu",
+      "tags": [
+        "Electronics"
+      ],
+      "lat": 37.531644,
+      "lng": 126.96373,
+      "area": "Yongsan",
+      "id": "SEOUL-0040",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Nodeul Island",
+      "category": "Culture Complex",
+      "district": "Yongsan-gu",
+      "tags": [
+        "Live Music",
+        "Han River"
+      ],
+      "lat": 37.512391,
+      "lng": 126.953222,
+      "area": "Nodeul-seom",
+      "id": "SEOUL-0041",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "COEX Mall",
+      "category": "Shopping Mall",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Shopping",
+        "Dining"
+      ],
+      "lat": 37.512541,
+      "lng": 127.059192,
+      "area": "Samseong-dong",
+      "id": "SEOUL-0042",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Starfield Library (COEX)",
+      "category": "Attraction",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Library",
+        "Photo Spot"
+      ],
+      "lat": 37.511306,
+      "lng": 127.059019,
+      "area": "COEX",
+      "id": "SEOUL-0043",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Bongeunsa Temple",
+      "category": "Temple",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Buddhist",
+        "Culture"
+      ],
+      "lat": 37.514469,
+      "lng": 127.057113,
+      "area": "Samseong-dong",
+      "id": "SEOUL-0044",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seonjeongneung Royal Tombs",
+      "category": "UNESCO Site",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Joseon Tombs",
+        "UNESCO"
+      ],
+      "lat": 37.508672,
+      "lng": 127.043857,
+      "area": "Samseong-dong",
+      "id": "SEOUL-0045",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Garosu-gil (Sinsa-dong)",
+      "category": "Shopping Street",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Boutiques",
+        "Cafes"
+      ],
+      "lat": 37.520499,
+      "lng": 127.022533,
+      "area": "Sinsa-dong",
+      "id": "SEOUL-0046",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Apgujeong Rodeo Street",
+      "category": "Shopping Street",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Luxury",
+        "Fashion"
+      ],
+      "lat": 37.527321,
+      "lng": 127.041827,
+      "area": "Apgujeong-dong",
+      "id": "SEOUL-0047",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Arts Center",
+      "category": "Arts Complex",
+      "district": "Seocho-gu",
+      "tags": [
+        "Opera",
+        "Concert Hall"
+      ],
+      "lat": 37.480739,
+      "lng": 127.012222,
+      "area": "Nambu",
+      "id": "SEOUL-0048",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yangjae Flower Market",
+      "category": "Market",
+      "district": "Seocho-gu",
+      "tags": [
+        "Flowers",
+        "Wholesale"
+      ],
+      "lat": 37.462239,
+      "lng": 127.038632,
+      "area": "Yangjae-dong",
+      "id": "SEOUL-0049",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Lotte World Adventure",
+      "category": "Theme Park",
+      "district": "Songpa-gu",
+      "tags": [
+        "Amusement",
+        "Indoor"
+      ],
+      "lat": 37.511,
+      "lng": 127.098041,
+      "area": "Jamsil",
+      "id": "SEOUL-0050",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Lotte World Tower & Seoul Sky",
+      "category": "Skyscraper",
+      "district": "Songpa-gu",
+      "tags": [
+        "Observation Deck"
+      ],
+      "lat": 37.513068,
+      "lng": 127.102521,
+      "area": "Jamsil",
+      "id": "SEOUL-0051",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seokchon Lake",
+      "category": "Lake Park",
+      "district": "Songpa-gu",
+      "tags": [
+        "Cherry Blossoms",
+        "Walking"
+      ],
+      "lat": 37.5113,
+      "lng": 127.1031,
+      "area": "Jamsil",
+      "id": "SEOUL-0052",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Olympic Park",
+      "category": "Park",
+      "district": "Songpa-gu",
+      "tags": [
+        "Peace Gate",
+        "Soma Museum"
+      ],
+      "lat": 37.521539,
+      "lng": 127.121994,
+      "area": "Bangi-dong",
+      "id": "SEOUL-0053",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jamsil Baseball Stadium",
+      "category": "Sports",
+      "district": "Songpa-gu",
+      "tags": [
+        "Baseball",
+        "LG Twins",
+        "Doosan Bears"
+      ],
+      "lat": 37.512235,
+      "lng": 127.071291,
+      "area": "Sports Complex",
+      "id": "SEOUL-0054",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Olympic Stadium (Jamsil Main Stadium)",
+      "category": "Sports",
+      "district": "Songpa-gu",
+      "tags": [
+        "Events"
+      ],
+      "lat": 37.515008,
+      "lng": 127.073639,
+      "area": "Sports Complex",
+      "id": "SEOUL-0055",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Common Ground",
+      "category": "Shopping",
+      "district": "Gwangjin-gu",
+      "tags": [
+        "Container Mall",
+        "Youth"
+      ],
+      "lat": 37.54167,
+      "lng": 127.066967,
+      "area": "Konkuk Univ.",
+      "id": "SEOUL-0056",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Children's Grand Park",
+      "category": "Park",
+      "district": "Gwangjin-gu",
+      "tags": [
+        "Zoo",
+        "Amusement"
+      ],
+      "lat": 37.548144,
+      "lng": 127.079589,
+      "area": "Neungdong",
+      "id": "SEOUL-0057",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Ttukseom Hangang Park",
+      "category": "River Park",
+      "district": "Gwangjin-gu",
+      "tags": [
+        "Water Sports",
+        "Biking"
+      ],
+      "lat": 37.53147,
+      "lng": 127.066795,
+      "area": "Ttukseom",
+      "id": "SEOUL-0058",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Achasan Mountain Trail",
+      "category": "Hiking",
+      "district": "Gwangjin-gu",
+      "tags": [
+        "Views",
+        "Easy Hike"
+      ],
+      "lat": 37.565959,
+      "lng": 127.102868,
+      "area": "Achasan",
+      "id": "SEOUL-0059",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Hongdae (Hongik Univ. Street)",
+      "category": "Neighborhood",
+      "district": "Mapo-gu",
+      "tags": [
+        "Nightlife",
+        "Buskers"
+      ],
+      "lat": 37.55634,
+      "lng": 126.923651,
+      "area": "Hongdae",
+      "id": "SEOUL-0060",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yeonnam-dong Gyeongui Line Forest Park",
+      "category": "Linear Park",
+      "district": "Mapo-gu",
+      "tags": [
+        "Cafes",
+        "Walking"
+      ],
+      "lat": 37.566824,
+      "lng": 126.922212,
+      "area": "Yeonnam-dong",
+      "id": "SEOUL-0061",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Mangwon Market",
+      "category": "Traditional Market",
+      "district": "Mapo-gu",
+      "tags": [
+        "Street Food"
+      ],
+      "lat": 37.562219,
+      "lng": 126.910292,
+      "area": "Mangwon-dong",
+      "id": "SEOUL-0062",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seonyudo Park",
+      "category": "River Island Park",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Industrial Ruins",
+        "Garden"
+      ],
+      "lat": 37.542909,
+      "lng": 126.898374,
+      "area": "Yanghwa",
+      "id": "SEOUL-0063",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Mapo Oil Tank Culture Park",
+      "category": "Culture Park",
+      "district": "Mapo-gu",
+      "tags": [
+        "Exhibitions",
+        "Architecture"
+      ],
+      "lat": 37.543756,
+      "lng": 126.902715,
+      "area": "Mapo",
+      "id": "SEOUL-0064",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "World Cup Park (Haneul Park)",
+      "category": "Park",
+      "district": "Mapo-gu",
+      "tags": [
+        "Silver Grass",
+        "Views"
+      ],
+      "lat": 37.568318,
+      "lng": 126.885148,
+      "area": "Sangam-dong",
+      "id": "SEOUL-0065",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Oil Tank T1 Performance Hall",
+      "category": "Venue",
+      "district": "Mapo-gu",
+      "tags": [
+        "Performances"
+      ],
+      "lat": 37.543756,
+      "lng": 126.902715,
+      "area": "Mapo",
+      "id": "SEOUL-0066",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Trick Eye Museum (Hongdae)",
+      "category": "Attraction",
+      "district": "Mapo-gu",
+      "tags": [
+        "3D Art"
+      ],
+      "lat": 37.553919,
+      "lng": 126.922558,
+      "area": "Hongdae",
+      "id": "SEOUL-0067",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "KT&G Sangsangmadang Hongdae",
+      "category": "Arts Complex",
+      "district": "Mapo-gu",
+      "tags": [
+        "Design",
+        "Exhibitions"
+      ],
+      "lat": 37.551377,
+      "lng": 126.922078,
+      "area": "Hongdae",
+      "id": "SEOUL-0068",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Ewha Womans University Campus & Shopping Street",
+      "category": "Neighborhood",
+      "district": "Seodaemun-gu",
+      "tags": [
+        "Architecture",
+        "Shopping"
+      ],
+      "lat": 37.564666,
+      "lng": 126.939233,
+      "area": "Edae",
+      "id": "SEOUL-0069",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Sinchon Street",
+      "category": "Neighborhood",
+      "district": "Seodaemun-gu",
+      "tags": [
+        "Youth",
+        "Nightlife"
+      ],
+      "lat": 37.558514,
+      "lng": 126.936772,
+      "area": "Sinchon",
+      "id": "SEOUL-0070",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yonsei University Campus",
+      "category": "Campus",
+      "district": "Seodaemun-gu",
+      "tags": [
+        "Historic",
+        "Leaf Peeping"
+      ],
+      "lat": 37.565784,
+      "lng": 126.938572,
+      "area": "Sinchon",
+      "id": "SEOUL-0071",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Hongik University Campus",
+      "category": "Campus",
+      "district": "Mapo-gu",
+      "tags": [
+        "Art",
+        "Design"
+      ],
+      "lat": 37.552633,
+      "lng": 126.925114,
+      "area": "Hongdae",
+      "id": "SEOUL-0072",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Ewha Womans University Museum",
+      "category": "Museum",
+      "district": "Seodaemun-gu",
+      "tags": [
+        "Art",
+        "History"
+      ],
+      "lat": 37.564666,
+      "lng": 126.939233,
+      "area": "Edae",
+      "id": "SEOUL-0073",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yeouido Hangang Park",
+      "category": "River Park",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Biking",
+        "Fireworks"
+      ],
+      "lat": 37.527345,
+      "lng": 126.933905,
+      "area": "Yeouido",
+      "id": "SEOUL-0074",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "IFC Mall",
+      "category": "Shopping Mall",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Shopping"
+      ],
+      "lat": 37.525761,
+      "lng": 126.925357,
+      "area": "Yeouido",
+      "id": "SEOUL-0075",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "The Hyundai Seoul",
+      "category": "Department Store",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Design",
+        "Shopping"
+      ],
+      "lat": 37.525148,
+      "lng": 126.928839,
+      "area": "Yeouido",
+      "id": "SEOUL-0076",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "63 Building (63 Square)",
+      "category": "Skyscraper",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Observation Deck",
+        "Aqua Planet"
+      ],
+      "lat": 37.519446,
+      "lng": 126.940785,
+      "area": "Yeouido",
+      "id": "SEOUL-0077",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yeouido Park",
+      "category": "Park",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Cherry Blossoms"
+      ],
+      "lat": 37.523582,
+      "lng": 126.918988,
+      "area": "Yeouido",
+      "id": "SEOUL-0078",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Times Square Mall",
+      "category": "Shopping Mall",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Shopping"
+      ],
+      "lat": 37.517235,
+      "lng": 126.903893,
+      "area": "Yeongdeungpo",
+      "id": "SEOUL-0079",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seonyugyo Bridge",
+      "category": "Bridge",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Night View"
+      ],
+      "lat": 37.542584,
+      "lng": 126.900647,
+      "area": "Seonyudo",
+      "id": "SEOUL-0080",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Daehak-ro (Hyehwa)",
+      "category": "Theater District",
+      "district": "Jongno-gu",
+      "tags": [
+        "Plays",
+        "Cafes"
+      ],
+      "lat": 37.581648,
+      "lng": 127.003804,
+      "area": "Hyehwa",
+      "id": "SEOUL-0081",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Daehangno Arts Theater",
+      "category": "Theater",
+      "district": "Jongno-gu",
+      "tags": [
+        "Performing Arts"
+      ],
+      "lat": 37.582155,
+      "lng": 127.001688,
+      "area": "Hyehwa",
+      "id": "SEOUL-0082",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gyeongdong Herb Market",
+      "category": "Market",
+      "district": "Dongdaemun-gu",
+      "tags": [
+        "Herbal Medicine"
+      ],
+      "lat": 37.57817,
+      "lng": 127.035789,
+      "area": "Jeonnong-dong",
+      "id": "SEOUL-0083",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Majang Meat Market",
+      "category": "Market",
+      "district": "Seongdong-gu",
+      "tags": [
+        "Butcher",
+        "Food"
+      ],
+      "lat": 37.568853,
+      "lng": 127.044751,
+      "area": "Majang-dong",
+      "id": "SEOUL-0084",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seongsu-dong Cafe Street",
+      "category": "Neighborhood",
+      "district": "Seongdong-gu",
+      "tags": [
+        "Cafes",
+        "Design"
+      ],
+      "lat": 37.544606,
+      "lng": 127.055977,
+      "area": "Seongsu-dong",
+      "id": "SEOUL-0085",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Forest",
+      "category": "Park",
+      "district": "Seongdong-gu",
+      "tags": [
+        "Deer",
+        "Trails"
+      ],
+      "lat": 37.544581,
+      "lng": 127.040915,
+      "area": "Seongsu-dong",
+      "id": "SEOUL-0086",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Ttukseom Resort (Han River)",
+      "category": "Recreation Area",
+      "district": "Gwangjin-gu",
+      "tags": [
+        "Watersports",
+        "Picnic"
+      ],
+      "lat": 37.53147,
+      "lng": 127.066795,
+      "area": "Ttukseom",
+      "id": "SEOUL-0087",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Bukhansan National Park (Baegundae Peak)",
+      "category": "National Park",
+      "district": "Eunpyeong/Seongbuk/Gangbuk-gu",
+      "tags": [
+        "Hiking",
+        "Views"
+      ],
+      "lat": 37.65912,
+      "lng": 126.986149,
+      "area": "Bukhansan",
+      "id": "SEOUL-0088",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Bukhansanseong Fortress Trail",
+      "category": "Fortress",
+      "district": "Eunpyeong-gu",
+      "tags": [
+        "Hiking",
+        "History"
+      ],
+      "lat": 37.642593,
+      "lng": 126.988701,
+      "area": "Bukhansan",
+      "id": "SEOUL-0089",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Inwangsan Mountain",
+      "category": "Hiking",
+      "district": "Jongno-gu",
+      "tags": [
+        "City View",
+        "Sunset"
+      ],
+      "lat": 37.585252,
+      "lng": 126.96708,
+      "area": "Inwangsan",
+      "id": "SEOUL-0090",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Bugaksan Mountain Trail",
+      "category": "Hiking",
+      "district": "Jongno-gu",
+      "tags": [
+        "Seoul Fortress Wall"
+      ],
+      "lat": 37.595029,
+      "lng": 126.981962,
+      "area": "Bugaksan",
+      "id": "SEOUL-0091",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Naksan Park",
+      "category": "Park",
+      "district": "Jongno-gu",
+      "tags": [
+        "Fortress Wall",
+        "Night View"
+      ],
+      "lat": 37.579574,
+      "lng": 127.007734,
+      "area": "Naksan",
+      "id": "SEOUL-0092",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Dream Forest",
+      "category": "Park",
+      "district": "Gangbuk-gu",
+      "tags": [
+        "Observatory",
+        "Family"
+      ],
+      "lat": 37.620318,
+      "lng": 127.041949,
+      "area": "Mia-dong",
+      "id": "SEOUL-0093",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Eunpyeong Hanok Village",
+      "category": "Hanok Village",
+      "district": "Eunpyeong-gu",
+      "tags": [
+        "Hanok",
+        "Temples"
+      ],
+      "lat": 37.640949,
+      "lng": 126.936307,
+      "area": "Jingwan-dong",
+      "id": "SEOUL-0094",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jingwansa Temple",
+      "category": "Temple",
+      "district": "Eunpyeong-gu",
+      "tags": [
+        "Templestay",
+        "Nature"
+      ],
+      "lat": 37.636748,
+      "lng": 126.929981,
+      "area": "Jingwan-dong",
+      "id": "SEOUL-0095",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Mullae Art Village",
+      "category": "Neighborhood",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Street Art",
+        "Workshops"
+      ],
+      "lat": 37.514361,
+      "lng": 126.896842,
+      "area": "Mullae-dong",
+      "id": "SEOUL-0096",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gocheok Sky Dome",
+      "category": "Sports Venue",
+      "district": "Guro-gu",
+      "tags": [
+        "Baseball",
+        "Concerts"
+      ],
+      "lat": 37.498314,
+      "lng": 126.86712,
+      "area": "Gocheok-dong",
+      "id": "SEOUL-0097",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Guro Digital Complex Street",
+      "category": "Neighborhood",
+      "district": "Guro-gu",
+      "tags": [
+        "Restaurants",
+        "Nightlife"
+      ],
+      "lat": 37.484037,
+      "lng": 126.901047,
+      "area": "Guro Digital",
+      "id": "SEOUL-0098",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Botanic Park",
+      "category": "Botanic Garden",
+      "district": "Gangseo-gu",
+      "tags": [
+        "Greenhouse",
+        "Wetlands"
+      ],
+      "lat": 37.568514,
+      "lng": 126.836874,
+      "area": "Magok",
+      "id": "SEOUL-0099",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jeongneung Royal Tomb",
+      "category": "UNESCO Site",
+      "district": "Seongbuk-gu",
+      "tags": [
+        "Joseon Tombs"
+      ],
+      "lat": 37.602293,
+      "lng": 127.061909,
+      "area": "Jeongneung",
+      "id": "SEOUL-0100",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seolleung & Jeongneung Stone Statues Path",
+      "category": "UNESCO Site",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Royal Tombs"
+      ],
+      "lat": 37.508672,
+      "lng": 127.043857,
+      "area": "Samseong-dong",
+      "id": "SEOUL-0101",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jogyesa Temple",
+      "category": "Temple",
+      "district": "Jongno-gu",
+      "tags": [
+        "Buddhism",
+        "Lantern Festival"
+      ],
+      "lat": 37.573481,
+      "lng": 126.979522,
+      "area": "Insa-dong",
+      "id": "SEOUL-0102",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Cheonggyesa Temple",
+      "category": "Temple",
+      "district": "Seocho-gu",
+      "tags": [
+        "Valley",
+        "Hiking"
+      ],
+      "lat": 37.451697,
+      "lng": 127.056014,
+      "area": "Yangjae",
+      "id": "SEOUL-0103",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Bongwonsa Temple",
+      "category": "Temple",
+      "district": "Seodaemun-gu",
+      "tags": [
+        "Lotus Lanterns"
+      ],
+      "lat": 37.58048,
+      "lng": 126.933599,
+      "area": "Ansandong",
+      "id": "SEOUL-0104",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Hwagyesa Temple",
+      "category": "Temple",
+      "district": "Gangbuk-gu",
+      "tags": [
+        "Templestay"
+      ],
+      "lat": 37.647053,
+      "lng": 127.008133,
+      "area": "Suyu-dong",
+      "id": "SEOUL-0105",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gilsangsa Temple",
+      "category": "Temple",
+      "district": "Seongbuk-gu",
+      "tags": [
+        "Urban Temple"
+      ],
+      "lat": 37.606328,
+      "lng": 127.011773,
+      "area": "Seongbuk-dong",
+      "id": "SEOUL-0106",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Dongdaemun Design Plaza (DDP)",
+      "category": "Architecture",
+      "district": "Jung-gu",
+      "tags": [
+        "Zaha Hadid",
+        "Exhibitions"
+      ],
+      "lat": 37.566479,
+      "lng": 127.009167,
+      "area": "Dongdaemun",
+      "id": "SEOUL-0107",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Museum of Art (SeMA)",
+      "category": "Museum",
+      "district": "Jung-gu",
+      "tags": [
+        "Exhibitions"
+      ],
+      "lat": 37.564119,
+      "lng": 126.973909,
+      "area": "Deoksugung",
+      "id": "SEOUL-0108",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "SeMA Bunker",
+      "category": "Museum",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Bunker",
+        "Exhibitions"
+      ],
+      "lat": 37.523497,
+      "lng": 126.923632,
+      "area": "Yeouido",
+      "id": "SEOUL-0109",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "D Museum (Lease/Move prone)",
+      "category": "Museum",
+      "district": "Yongsan-gu",
+      "tags": [
+        "Design",
+        "Pop Exhibitions"
+      ],
+      "lat": 37.546,
+      "lng": 127.043,
+      "area": "Varying",
+      "id": "SEOUL-0110",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Amorepacific Museum of Art (APMA)",
+      "category": "Museum",
+      "district": "Yongsan-gu",
+      "tags": [
+        "Art",
+        "Architecture"
+      ],
+      "lat": 37.532889,
+      "lng": 126.969257,
+      "area": "Yongsan",
+      "id": "SEOUL-0111",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Ilmin Museum of Art",
+      "category": "Museum",
+      "district": "Jongno-gu",
+      "tags": [
+        "Art"
+      ],
+      "lat": 37.572991,
+      "lng": 126.977631,
+      "area": "Gwanghwamun",
+      "id": "SEOUL-0112",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Arario Museum in Space",
+      "category": "Museum",
+      "district": "Jongno-gu",
+      "tags": [
+        "Art",
+        "Architecture"
+      ],
+      "lat": 37.577722,
+      "lng": 126.984515,
+      "area": "Jongno 1.2.3.4-ga",
+      "id": "SEOUL-0113",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "SongEun Art and Cultural Foundation",
+      "category": "Museum",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Contemporary Art"
+      ],
+      "lat": 37.52698,
+      "lng": 127.039336,
+      "area": "Cheongdam-dong",
+      "id": "SEOUL-0114",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "K-Star Road",
+      "category": "Attraction",
+      "district": "Gangnam-gu",
+      "tags": [
+        "K-pop",
+        "Photo Spot"
+      ],
+      "lat": 37.528141,
+      "lng": 127.040846,
+      "area": "Apgujeong/Cheongdam",
+      "id": "SEOUL-0115",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "HiKR Ground",
+      "category": "K-culture Center",
+      "district": "Jung-gu",
+      "tags": [
+        "Experience",
+        "Media Art"
+      ],
+      "lat": 37.565381,
+      "lng": 126.979968,
+      "area": "Euljiro/City Hall",
+      "id": "SEOUL-0116",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "CJ LiveCity (under development)",
+      "category": "Entertainment",
+      "district": "Goyang (nearby)",
+      "tags": [
+        "Concerts"
+      ],
+      "lat": 37.67,
+      "lng": 126.745,
+      "area": "Ilsan",
+      "id": "SEOUL-0117",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Banpo Hangang Park",
+      "category": "River Park",
+      "district": "Seocho-gu",
+      "tags": [
+        "Rainbow Fountain",
+        "Picnic"
+      ],
+      "lat": 37.51234,
+      "lng": 126.996849,
+      "area": "Banpo",
+      "id": "SEOUL-0118",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Banpo Bridge Moonlight Rainbow Fountain",
+      "category": "Night Show",
+      "district": "Seocho-gu",
+      "tags": [
+        "Water Show"
+      ],
+      "lat": 37.512548,
+      "lng": 126.995973,
+      "area": "Banpo",
+      "id": "SEOUL-0119",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Ichon Hangang Park",
+      "category": "River Park",
+      "district": "Yongsan-gu",
+      "tags": [
+        "Biking"
+      ],
+      "lat": 37.523495,
+      "lng": 126.966818,
+      "area": "Ichon",
+      "id": "SEOUL-0120",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jamwon Hangang Park",
+      "category": "River Park",
+      "district": "Seocho-gu",
+      "tags": [
+        "Biking",
+        "Water Sports"
+      ],
+      "lat": 37.517004,
+      "lng": 127.012314,
+      "area": "Jamwon",
+      "id": "SEOUL-0121",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jamsil Hangang Park",
+      "category": "River Park",
+      "district": "Songpa-gu",
+      "tags": [
+        "Biking"
+      ],
+      "lat": 37.520611,
+      "lng": 127.082962,
+      "area": "Jamsil",
+      "id": "SEOUL-0122",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Mangwon Hangang Park",
+      "category": "River Park",
+      "district": "Mapo-gu",
+      "tags": [
+        "Biking",
+        "Picnic"
+      ],
+      "lat": 37.555053,
+      "lng": 126.896651,
+      "area": "Mangwon",
+      "id": "SEOUL-0123",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Nanji Hangang Park",
+      "category": "River Park",
+      "district": "Mapo-gu",
+      "tags": [
+        "Camping",
+        "Biking"
+      ],
+      "lat": 37.56955,
+      "lng": 126.876157,
+      "area": "Sangam",
+      "id": "SEOUL-0124",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yeoui-Naru (Ferry Terminal)",
+      "category": "Attraction",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "River Cruise"
+      ],
+      "lat": 37.52713,
+      "lng": 126.932862,
+      "area": "Yeouinaru",
+      "id": "SEOUL-0125",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Mapo Jeong Daepo Alley",
+      "category": "Food Alley",
+      "district": "Mapo-gu",
+      "tags": [
+        "K-BBQ"
+      ],
+      "lat": 37.543255,
+      "lng": 126.946891,
+      "area": "Mapo",
+      "id": "SEOUL-0126",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jokbal Street (Jangchung-dong)",
+      "category": "Food Alley",
+      "district": "Jung-gu",
+      "tags": [
+        "Pork Hock"
+      ],
+      "lat": 37.55663,
+      "lng": 127.006585,
+      "area": "Jangchung-dong",
+      "id": "SEOUL-0127",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gopchang Alley (Euljiro/Nogari)",
+      "category": "Food Alley",
+      "district": "Jung-gu",
+      "tags": [
+        "Intestines",
+        "Beer"
+      ],
+      "lat": 37.566971,
+      "lng": 126.99164,
+      "area": "Euljiro 3-ga",
+      "id": "SEOUL-0128",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gukbap Alley (Cheongnyangni)",
+      "category": "Food Alley",
+      "district": "Dongdaemun-gu",
+      "tags": [
+        "Hearty Soup"
+      ],
+      "lat": 37.580238,
+      "lng": 127.047192,
+      "area": "Cheongnyangni",
+      "id": "SEOUL-0129",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Sundae Town (Sillim)",
+      "category": "Food Alley",
+      "district": "Gwanak-gu",
+      "tags": [
+        "Sundae",
+        "Spicy"
+      ],
+      "lat": 37.48353,
+      "lng": 126.930946,
+      "area": "Sillim",
+      "id": "SEOUL-0130",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Bindaetteok Alley (Gwangjang Market)",
+      "category": "Food Alley",
+      "district": "Jongno-gu",
+      "tags": [
+        "Mung Bean Pancake"
+      ],
+      "lat": 37.570343,
+      "lng": 127.00084,
+      "area": "Gwangjang",
+      "id": "SEOUL-0131",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yangjae Citizens' Forest",
+      "category": "Park",
+      "district": "Seocho-gu",
+      "tags": [
+        "Walking"
+      ],
+      "lat": 37.47089,
+      "lng": 127.038242,
+      "area": "Yangjae",
+      "id": "SEOUL-0132",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gwanaksan Mountain Trails",
+      "category": "Hiking",
+      "district": "Gwanak-gu",
+      "tags": [
+        "Granite",
+        "Temples"
+      ],
+      "lat": 37.445916,
+      "lng": 126.963905,
+      "area": "Gwanak",
+      "id": "SEOUL-0133",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Cheonggye Mountain (Cheonggyesan)",
+      "category": "Hiking",
+      "district": "Seocho-gu",
+      "tags": [
+        "Easy Hike"
+      ],
+      "lat": 37.439026,
+      "lng": 127.045935,
+      "area": "Cheonggyesan",
+      "id": "SEOUL-0134",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Iris Garden (Dobong)",
+      "category": "Garden",
+      "district": "Dobong-gu",
+      "tags": [
+        "Flowers"
+      ],
+      "lat": 37.662557,
+      "lng": 127.031243,
+      "area": "Dobong",
+      "id": "SEOUL-0135",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Boramae Park",
+      "category": "Park",
+      "district": "Dongjak-gu",
+      "tags": [
+        "Sports",
+        "Lake"
+      ],
+      "lat": 37.493253,
+      "lng": 126.944265,
+      "area": "Sindaebang-dong",
+      "id": "SEOUL-0136",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul National Cemetery",
+      "category": "Memorial Park",
+      "district": "Dongjak-gu",
+      "tags": [
+        "History"
+      ],
+      "lat": 37.500492,
+      "lng": 126.971006,
+      "area": "Dongjak",
+      "id": "SEOUL-0137",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seorae Village (Montmartre Park)",
+      "category": "Neighborhood",
+      "district": "Seocho-gu",
+      "tags": [
+        "French Village"
+      ],
+      "lat": 37.501751,
+      "lng": 126.998483,
+      "area": "Banpo-dong",
+      "id": "SEOUL-0138",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Heukseok-dong Riverside",
+      "category": "Riverside",
+      "district": "Dongjak-gu",
+      "tags": [
+        "Walking"
+      ],
+      "lat": 37.508909,
+      "lng": 126.962464,
+      "area": "Heukseok-dong",
+      "id": "SEOUL-0139",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Gwacheon National Science Museum",
+      "category": "Museum",
+      "district": "Gwacheon (nearby)",
+      "tags": [
+        "Science"
+      ],
+      "lat": 37.436002,
+      "lng": 127.005902,
+      "area": "Gwacheon",
+      "id": "SEOUL-0140",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul National University Museum of Art (MoA)",
+      "category": "Museum",
+      "district": "Gwanak-gu",
+      "tags": [
+        "Art"
+      ],
+      "lat": 37.46994,
+      "lng": 126.951098,
+      "area": "SNU",
+      "id": "SEOUL-0141",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Oil Museum (Mapo)",
+      "category": "Museum",
+      "district": "Mapo-gu",
+      "tags": [
+        "Industrial Heritage"
+      ],
+      "lat": 37.543756,
+      "lng": 126.902715,
+      "area": "Mapo",
+      "id": "SEOUL-0142",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul World Cup Stadium",
+      "category": "Sports Venue",
+      "district": "Mapo-gu",
+      "tags": [
+        "Football"
+      ],
+      "lat": 37.568477,
+      "lng": 126.89714,
+      "area": "Sangam-dong",
+      "id": "SEOUL-0143",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jangchung Gymnasium",
+      "category": "Sports Venue",
+      "district": "Jung-gu",
+      "tags": [
+        "Volleyball",
+        "Events"
+      ],
+      "lat": 37.559156,
+      "lng": 127.006425,
+      "area": "Jangchung-dong",
+      "id": "SEOUL-0144",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Olympic Gymnastics Arena (KSPO Dome)",
+      "category": "Sports Venue",
+      "district": "Songpa-gu",
+      "tags": [
+        "Concerts"
+      ],
+      "lat": 37.520621,
+      "lng": 127.119707,
+      "area": "Olympic Park",
+      "id": "SEOUL-0145",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Sejong University Museum",
+      "category": "Museum",
+      "district": "Gwangjin-gu",
+      "tags": [
+        "Artifacts"
+      ],
+      "lat": 37.551118,
+      "lng": 127.074508,
+      "area": "Gunja-dong",
+      "id": "SEOUL-0146",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Metropolitan Library",
+      "category": "Library",
+      "district": "Jung-gu",
+      "tags": [
+        "History",
+        "Reading"
+      ],
+      "lat": 37.566369,
+      "lng": 126.977912,
+      "area": "City Hall",
+      "id": "SEOUL-0147",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Jongno Public Library",
+      "category": "Library",
+      "district": "Jongno-gu",
+      "tags": [
+        "Reading"
+      ],
+      "lat": 37.575326,
+      "lng": 126.979419,
+      "area": "Gwanghwamun",
+      "id": "SEOUL-0148",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "DDP Design Lab & Museum",
+      "category": "Museum",
+      "district": "Jung-gu",
+      "tags": [
+        "Design"
+      ],
+      "lat": 37.56661,
+      "lng": 127.009367,
+      "area": "Dongdaemun",
+      "id": "SEOUL-0149",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seongsu Under Stand Avenue",
+      "category": "Culture Mall",
+      "district": "Seongdong-gu",
+      "tags": [
+        "Pop-up",
+        "Design"
+      ],
+      "lat": 37.54398,
+      "lng": 127.056084,
+      "area": "Seongsu-dong",
+      "id": "SEOUL-0150",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Ikseon Boutique Alleys",
+      "category": "Shopping",
+      "district": "Jongno-gu",
+      "tags": [
+        "Boutiques"
+      ],
+      "lat": 37.573953,
+      "lng": 126.991954,
+      "area": "Ikseon-dong",
+      "id": "SEOUL-0151",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Samcheong-dong Street",
+      "category": "Cultural Street",
+      "district": "Jongno-gu",
+      "tags": [
+        "Galleries",
+        "Cafes"
+      ],
+      "lat": 37.582043,
+      "lng": 126.981757,
+      "area": "Samcheong-dong",
+      "id": "SEOUL-0152",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Bukchon Observatory Spots",
+      "category": "Viewpoints",
+      "district": "Jongno-gu",
+      "tags": [
+        "Rooftop"
+      ],
+      "lat": 37.582604,
+      "lng": 126.983998,
+      "area": "Bukchon",
+      "id": "SEOUL-0153",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Heunginjimun Design Market Area",
+      "category": "Shopping",
+      "district": "Jongno-gu",
+      "tags": [
+        "Design"
+      ],
+      "lat": 37.571313,
+      "lng": 127.009561,
+      "area": "Dongdaemun",
+      "id": "SEOUL-0154",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Sinsa-dong Boutiques Cluster",
+      "category": "Shopping",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Fashion"
+      ],
+      "lat": 37.520499,
+      "lng": 127.022533,
+      "area": "Sinsa-dong",
+      "id": "SEOUL-0155",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Cheongdam Luxury Street",
+      "category": "Luxury Shopping",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Luxury"
+      ],
+      "lat": 37.526826,
+      "lng": 127.040284,
+      "area": "Cheongdam-dong",
+      "id": "SEOUL-0156",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yanghwa Hangang Park",
+      "category": "River Park",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Walking"
+      ],
+      "lat": 37.543784,
+      "lng": 126.902789,
+      "area": "Yanghwa",
+      "id": "SEOUL-0157",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Hangang River Cruise (E-Land)",
+      "category": "Cruise",
+      "district": "Yeongdeungpo-gu",
+      "tags": [
+        "Night View"
+      ],
+      "lat": 37.52713,
+      "lng": 126.932862,
+      "area": "Yeouinaru",
+      "id": "SEOUL-0158",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Korea Furniture Museum",
+      "category": "Museum",
+      "district": "Seongbuk-gu",
+      "tags": [
+        "Hanok",
+        "Design"
+      ],
+      "lat": 37.605418,
+      "lng": 127.011663,
+      "area": "Seongbuk-dong",
+      "id": "SEOUL-0159",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Lock Museum",
+      "category": "Museum",
+      "district": "Jongno-gu",
+      "tags": [
+        "Locks",
+        "Folk"
+      ],
+      "lat": 37.580374,
+      "lng": 127.003266,
+      "area": "Hyehwa",
+      "id": "SEOUL-0160",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Museum Kimchikan",
+      "category": "Museum",
+      "district": "Jongno-gu",
+      "tags": [
+        "Food Culture"
+      ],
+      "lat": 37.573862,
+      "lng": 126.985767,
+      "area": "Insadong",
+      "id": "SEOUL-0161",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Alive Museum (Insadong)",
+      "category": "Attraction",
+      "district": "Jongno-gu",
+      "tags": [
+        "Trick Art"
+      ],
+      "lat": 37.57499,
+      "lng": 126.984895,
+      "area": "Insadong",
+      "id": "SEOUL-0162",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Bukchon Traditional Culture Center",
+      "category": "Culture Center",
+      "district": "Jongno-gu",
+      "tags": [
+        "Workshops"
+      ],
+      "lat": 37.582173,
+      "lng": 126.983642,
+      "area": "Bukchon",
+      "id": "SEOUL-0163",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Animation Center",
+      "category": "Attraction",
+      "district": "Jung-gu",
+      "tags": [
+        "Animation"
+      ],
+      "lat": 37.560945,
+      "lng": 126.989833,
+      "area": "Namsangol",
+      "id": "SEOUL-0164",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Sejong Village Food Street",
+      "category": "Food Alley",
+      "district": "Jongno-gu",
+      "tags": [
+        "Food"
+      ],
+      "lat": 37.579493,
+      "lng": 126.969617,
+      "area": "Seochon",
+      "id": "SEOUL-0165",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Tongin Market",
+      "category": "Traditional Market",
+      "district": "Jongno-gu",
+      "tags": [
+        "Dosirak Cafe"
+      ],
+      "lat": 37.580227,
+      "lng": 126.969843,
+      "area": "Tongin-dong",
+      "id": "SEOUL-0166",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Hwajeong Museum",
+      "category": "Museum",
+      "district": "Seongbuk-gu",
+      "tags": [
+        "Traditional Art"
+      ],
+      "lat": 37.606,
+      "lng": 127.01,
+      "area": "Seongbuk-dong",
+      "id": "SEOUL-0167",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seodo Museum of Art",
+      "category": "Museum",
+      "district": "Seodaemun-gu",
+      "tags": [
+        "Art"
+      ],
+      "lat": 37.579,
+      "lng": 126.94,
+      "area": "Seodaemun",
+      "id": "SEOUL-0168",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "K-Style Hub (temporarily moved, check status)",
+      "category": "Tourism Center",
+      "district": "Jung-gu",
+      "tags": [
+        "Tourist Info"
+      ],
+      "lat": 37.566,
+      "lng": 126.98,
+      "area": "Jung-gu",
+      "id": "SEOUL-0169",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Baek In-je House",
+      "category": "Historic House",
+      "district": "Jongno-gu",
+      "tags": [
+        "Hanok"
+      ],
+      "lat": 37.582933,
+      "lng": 126.982946,
+      "area": "Bukchon",
+      "id": "SEOUL-0170",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Seoul Baekje Museum",
+      "category": "Museum",
+      "district": "Songpa-gu",
+      "tags": [
+        "Baekje History"
+      ],
+      "lat": 37.515504,
+      "lng": 127.116605,
+      "area": "Olympic Park",
+      "id": "SEOUL-0171",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Lotte World Aquarium",
+      "category": "Aquarium",
+      "district": "Songpa-gu",
+      "tags": [
+        "Family"
+      ],
+      "lat": 37.513036,
+      "lng": 127.104152,
+      "area": "Jamsil",
+      "id": "SEOUL-0172",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "COEX Aquarium",
+      "category": "Aquarium",
+      "district": "Gangnam-gu",
+      "tags": [
+        "Family"
+      ],
+      "lat": 37.512256,
+      "lng": 127.059449,
+      "area": "COEX",
+      "id": "SEOUL-0173",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Space Walk (Anyang Art Park)",
+      "category": "Art Park",
+      "district": "Anyang (nearby)",
+      "tags": [
+        "Outdoor Art"
+      ],
+      "lat": 37.421,
+      "lng": 126.95,
+      "area": "Anyang",
+      "id": "SEOUL-0174",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Hongdae Free Market (Weekends)",
+      "category": "Market",
+      "district": "Mapo-gu",
+      "tags": [
+        "Handmade"
+      ],
+      "lat": 37.556184,
+      "lng": 126.922896,
+      "area": "Hongdae",
+      "id": "SEOUL-0175",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Yangnyeongsi Herb Medicine Museum",
+      "category": "Museum",
+      "district": "Dongdaemun-gu",
+      "tags": [
+        "Herbal"
+      ],
+      "lat": 37.57892,
+      "lng": 127.035945,
+      "area": "Gyeongdong",
+      "id": "SEOUL-0176",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    },
+    {
+      "name": "Daelim Museum (Relocated projects as D Museum)",
+      "category": "Museum",
+      "district": "Jongno-gu",
+      "tags": [
+        "Photography"
+      ],
+      "lat": 37.579,
+      "lng": 126.97,
+      "area": "Seochon",
+      "id": "SEOUL-0177",
+      "city": "Seoul",
+      "country": "South Korea",
+      "source": "Compiled by ChatGPT (starter set)",
+      "last_updated": "2025-09-09"
+    }
+  ]
+}
