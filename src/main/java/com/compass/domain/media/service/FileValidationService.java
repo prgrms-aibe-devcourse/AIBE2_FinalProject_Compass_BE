@@ -385,5 +385,4 @@ public class FileValidationService {
         return validationProperties.getMaliciousSignatures().stream()
                 .anyMatch(signature -> hexString.startsWith(signature));
     }
-    
 }

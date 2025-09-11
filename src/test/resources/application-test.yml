@@ -4,7 +4,7 @@
 # 1. JWT 설정 추가 (가장 중요한 수정)
 # ===============================================
 jwt:
-  secret: your-super-secret-key-for-testing-purpose-which-is-long-enough
+  secret: your-super-secret-key-for-testing-purpose-at-least-32-characters-long
 
 spring:
   datasource:

@@ -51,10 +51,6 @@ class MediaControllerTest extends BaseIntegrationTest {
     @MockBean
     private org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel vertexAiGeminiChatModel;
     
-    // JWT 관련 빈 모킹
-    @MockBean
-    private com.compass.config.jwt.JwtTokenProvider jwtTokenProvider;
-    
     @Autowired
     private ObjectMapper objectMapper;
     

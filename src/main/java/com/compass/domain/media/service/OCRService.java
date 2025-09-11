@@ -278,4 +278,6 @@ public class OCRService {
         String[] lines = text.split("\r\n|\r|\n");
         return lines.length;
     }
+    
+    
 }

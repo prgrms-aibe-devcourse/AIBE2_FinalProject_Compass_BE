@@ -59,6 +59,19 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
+    - name: Create test .env file
+      run: |
+        echo "JWT_ACCESS_SECRET=test-access-secret-key-for-ci-testing-purposes-256-bit-minimum-length" > .env
+        echo "JWT_REFRESH_SECRET=test-refresh-secret-key-for-ci-testing-purposes-256-bit-minimum-length" >> .env
+        echo "DB_HOST=localhost" >> .env
+        echo "DB_PORT=5432" >> .env
+        echo "DB_NAME=compass_test" >> .env
+        echo "DB_USERNAME=test_user" >> .env
+        echo "DB_PASSWORD=test_password" >> .env
+        echo "REDIS_HOST=localhost" >> .env
+        echo "REDIS_PORT=6379" >> .env
+        echo "GOOGLE_APPLICATION_CREDENTIALS=/home/runner/work/AIBE2_FinalProject_Compass_BE/AIBE2_FinalProject_Compass_BE/travelagent-468611-1ae0c9d4e187.json" >> .env
+
     - name: Run tests
       env:
         DB_HOST: localhost
@@ -68,9 +81,10 @@ jobs:
         DB_PASSWORD: test_password
         REDIS_HOST: localhost
         REDIS_PORT: 6379
-        JWT_ACCESS_SECRET: test-access-secret-key-for-ci-testing-purposes-256-bit
-        JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci-testing-purposes-256-bit
-      run: ./gradlew unitTest
+        JWT_ACCESS_SECRET: test-access-secret-key-for-ci-testing-purposes-256-bit-minimum-length
+        JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci-testing-purposes-256-bit-minimum-length
+        GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/AIBE2_FinalProject_Compass_BE/AIBE2_FinalProject_Compass_BE/travelagent-468611-1ae0c9d4e187.json
+      run: ./gradlew test --continue
 
     - name: Build application
       run: ./gradlew build -x test

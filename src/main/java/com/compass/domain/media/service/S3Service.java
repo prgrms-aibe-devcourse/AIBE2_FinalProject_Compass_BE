@@ -181,12 +181,10 @@ public class S3Service {
                     .build();
             
             try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(getObjectRequest)) {
-                 byte[] fileBytes = s3Object.readAllBytes();
-                 
-                 log.info("S3 파일 다운로드 완료 - 키: {}, 크기: {} bytes", s3Key, fileBytes.length);
-                 
-                 return fileBytes;
-             }
+                byte[] fileBytes = s3Object.readAllBytes();
+                log.info("S3 파일 다운로드 완료 - 키: {}, 크기: {} bytes", s3Key, fileBytes.length);
+                return fileBytes;
+            }
             
         } catch (S3Exception e) {
             log.error("S3 파일 다운로드 중 오류 발생: {}", e.getMessage(), e);
