@@ -77,27 +77,39 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ThreadDto createThread(String userId) {
-        log.debug("Creating new chat thread for user: {}", userId);
+        return createThread(userId, null);
+    }
+    
+    @Override
+    @Transactional
+    public ThreadDto createThread(String userId, String title) {
+        log.debug("Creating new chat thread for user: {} with title: {}", userId, title);
         
         // Parse userId to Long and find user
         Long userIdLong = Long.parseLong(userId);
         User user = userRepository.findById(userIdLong)
             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         
-        // Create new thread with empty title (will be set on first message)
+        // Use provided title or default
+        String threadTitle = (title != null && !title.trim().isEmpty()) ? title : "새 대화";
+        
+        // Create new thread with title
         ChatThread thread = ChatThread.builder()
             .user(user)
-            .title("새 대화") // Default title until first message
+            .title(threadTitle)
+            .lastMessageAt(LocalDateTime.now()) // Set lastMessageAt so new threads appear first
             .build();
         
         thread = chatThreadRepository.save(thread);
-        log.info("Created new chat thread with ID: {} for user: {}", thread.getId(), userId);
+        log.info("Created new chat thread with ID: {} for user: {} with title: {}", thread.getId(), userId, threadTitle);
         
         return new ThreadDto(
             thread.getId(),
             userId,
             thread.getCreatedAt(),
-            thread.getLatestMessagePreview()
+            thread.getLatestMessagePreview(),
+            thread.getLastMessageAt(),
+            thread.getTitle()
         );
     }
 
@@ -107,8 +119,8 @@ public class ChatServiceImpl implements ChatService {
         
         Long userIdLong = Long.parseLong(userId);
         
-        // Use the repository method that properly orders by lastMessageAt with NULLS LAST
-        List<ChatThread> threads = chatThreadRepository.findByUserIdOrderByLastMessageAtDesc(userIdLong);
+        // Filter only visible threads  
+        List<ChatThread> threads = chatThreadRepository.findVisibleThreadsByUserId(userIdLong);
         
         // Apply pagination manually after filtering
         return threads.stream()
@@ -510,5 +522,27 @@ public class ChatServiceImpl implements ChatService {
         }
         
         return info;
+    }
+    
+    @Override
+    @Transactional
+    public void hideThread(String threadId, Long userId) {
+        ChatThread thread = chatThreadRepository.findByIdAndUserId(threadId, userId)
+            .orElseThrow(() -> new RuntimeException("채팅 스레드를 찾을 수 없습니다: " + threadId));
+        
+        thread.setIsVisible(false);
+        chatThreadRepository.save(thread);
+        log.info("Thread {} hidden for user {}", threadId, userId);
+    }
+    
+    @Override
+    @Transactional
+    public void showThread(String threadId, Long userId) {
+        ChatThread thread = chatThreadRepository.findByIdAndUserId(threadId, userId)
+            .orElseThrow(() -> new RuntimeException("채팅 스레드를 찾을 수 없습니다: " + threadId));
+        
+        thread.setIsVisible(true);
+        chatThreadRepository.save(thread);
+        log.info("Thread {} shown for user {}", threadId, userId);
     }
 }

@@ -108,8 +108,14 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
         // 파싱 성공 시에만 다음 단계로 이동
         if (!state.isParsingFailed()) {
             TravelInfoCollectionState.CollectionStep nextStep = state.getNextRequiredStep();
-            state.setCurrentStep(nextStep);
-            log.info("Moving to next step: {}", nextStep);
+            // TRAVEL_STYLE이 반환되면 완료 상태로 처리
+            if (nextStep != null && nextStep.name().equals("TRAVEL_STYLE")) {
+                log.info("All required information collected, flow complete");
+                state.setCurrentStep(null); // 완료 상태
+            } else {
+                state.setCurrentStep(nextStep);
+                log.info("Moving to next step: {}", nextStep);
+            }
         }
         
         // 세션 저장 (Redis 또는 메모리)

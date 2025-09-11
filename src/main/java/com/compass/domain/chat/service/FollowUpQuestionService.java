@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * 꼬리질문 플로우 통합 서비스
@@ -566,5 +567,43 @@ public class FollowUpQuestionService {
         metadata.put("completionPercentage", state.getCompletionPercentage());
         metadata.put("completedAt", LocalDateTime.now().toString());
         return metadata;
+    }
+    
+    /**
+     * ChatThread 조회
+     * @param threadId ChatThread ID
+     * @return ChatThread 엔티티
+     */
+    public ChatThread getChatThreadById(String threadId) {
+        return chatThreadRepository.findById(threadId).orElse(null);
+    }
+    
+    /**
+     * 여행 계획 정보를 JSON으로 ChatThread에 저장
+     * @param threadId ChatThread ID
+     * @param travelData 저장할 여행 정보
+     * @return 저장 성공 여부
+     */
+    @Transactional
+    public boolean saveTravelPlanJson(String threadId, Map<String, Object> travelData) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            String jsonData = objectMapper.writeValueAsString(travelData);
+            
+            return chatThreadRepository.findById(threadId)
+                    .map(thread -> {
+                        thread.setTravelPlanData(jsonData);
+                        chatThreadRepository.save(thread);
+                        log.info("Travel plan JSON saved to ChatThread: {}", threadId);
+                        return true;
+                    })
+                    .orElseGet(() -> {
+                        log.warn("ChatThread not found: {}", threadId);
+                        return false;
+                    });
+        } catch (Exception e) {
+            log.error("Failed to save travel plan JSON for thread: {}", threadId, e);
+            return false;
+        }
     }
 }

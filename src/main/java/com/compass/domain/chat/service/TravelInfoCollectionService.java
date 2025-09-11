@@ -645,4 +645,66 @@ public class TravelInfoCollectionService {
     private boolean isSessionExpired(TravelInfoCollectionState state) {
         return state.getCreatedAt().plusHours(TravelConstants.SESSION_TIMEOUT_HOURS).isBefore(LocalDateTime.now());
     }
+    
+    /**
+     * 수집된 여행 정보를 JSON으로 변환하여 ChatThread에 저장
+     */
+    @Transactional
+    public String saveTravelPlanDataAsJson(String threadId, Long userId) {
+        log.info("Saving travel plan data as JSON for thread: {}, user: {}", threadId, userId);
+        
+        try {
+            // 사용자 조회
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+            
+            // 현재 수집 상태 조회
+            Optional<TravelInfoCollectionState> stateOpt = collectionRepository
+                    .findFirstByUserAndIsCompletedFalseOrderByCreatedAtDesc(user);
+            
+            if (stateOpt.isEmpty()) {
+                log.warn("No active collection state found for user: {}", userId);
+                throw new IllegalStateException("활성화된 여행 정보 수집 세션이 없습니다.");
+            }
+            
+            TravelInfoCollectionState state = stateOpt.get();
+            
+            // TripPlanningRequest를 활용하여 JSON 구조 생성
+            TripPlanningRequest request = convertToTripPlanningRequest(state);
+            
+            // JSON으로 변환
+            String jsonData = objectMapper.writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(request);
+            
+            // ChatThread에 저장
+            ChatThread chatThread = chatThreadRepository.findById(threadId)
+                    .orElseThrow(() -> new IllegalArgumentException("채팅 스레드를 찾을 수 없습니다: " + threadId));
+            
+            chatThread.setTravelPlanData(jsonData);
+            chatThreadRepository.save(chatThread);
+            
+            // 수집 상태 완료 처리
+            state.setCompleted(true);
+            state.setUpdatedAt(LocalDateTime.now());
+            collectionRepository.save(state);
+            
+            log.info("Successfully saved travel plan data for thread: {}", threadId);
+            return jsonData;
+            
+        } catch (JsonProcessingException e) {
+            log.error("Failed to convert travel plan data to JSON", e);
+            throw new RuntimeException("여행 계획 데이터를 JSON으로 변환하는데 실패했습니다.", e);
+        }
+    }
+    
+    /**
+     * ChatThread에서 저장된 여행 계획 JSON 조회
+     */
+    @Transactional(readOnly = true)
+    public String getTravelPlanDataJson(String threadId) {
+        ChatThread chatThread = chatThreadRepository.findById(threadId)
+                .orElseThrow(() -> new IllegalArgumentException("채팅 스레드를 찾을 수 없습니다: " + threadId));
+        
+        return chatThread.getTravelPlanData();
+    }
 }

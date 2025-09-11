@@ -66,6 +66,7 @@ public class ChatController {
     @PostMapping("/threads")
     public ResponseEntity<ChatDtos.ThreadDto> createChatThread(
             @RequestHeader(value = "X-User-ID", required = false) String headerUserId,
+            @RequestBody(required = false) Map<String, String> request,
             Principal principal) {
         
         // Try to get user ID from header first
@@ -86,7 +87,13 @@ public class ChatController {
             return ResponseEntity.badRequest().build();
         }
         
-        ChatDtos.ThreadDto newThread = chatService.createThread(userId);
+        // Extract title from request body if present
+        String title = null;
+        if (request != null && request.containsKey("title")) {
+            title = request.get("title");
+        }
+        
+        ChatDtos.ThreadDto newThread = chatService.createThread(userId, title);
         return new ResponseEntity<>(newThread, HttpStatus.CREATED);
     }
 
@@ -106,9 +113,13 @@ public class ChatController {
         // If no header, try to get from JWT principal (email) and convert to ID
         if (userId == null && principal != null) {
             String email = principal.getName();
+            log.debug("Getting threads for email: {}", email);
             User user = userRepository.findByEmail(email).orElse(null);
             if (user != null) {
                 userId = user.getId().toString();
+                log.debug("Found user ID {} for email {}", userId, email);
+            } else {
+                log.warn("User not found for email: {}", email);
             }
         }
         
@@ -118,7 +129,9 @@ public class ChatController {
             return ResponseEntity.ok(new ArrayList<>());
         }
         
+        log.info("Getting threads for user ID: {}", userId);
         List<ChatDtos.ThreadDto> threads = chatService.getUserThreads(userId, skip, limit);
+        log.info("Found {} threads for user ID: {}", threads.size(), userId);
         return ResponseEntity.ok(threads);
     }
 
@@ -385,6 +398,88 @@ public class ChatController {
         response.put("gemini", "Ready");
         response.put("openai", "Ready (fallback)");
         return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Hide a chat thread from user's recent conversations
+     */
+    @PutMapping("/threads/{threadId}/hide")
+    public ResponseEntity<Map<String, String>> hideThread(
+            @PathVariable String threadId,
+            @RequestHeader(value = "X-User-ID", required = false) String headerUserId,
+            Principal principal) {
+        
+        // Get user ID
+        Long userId = getUserIdFromRequest(headerUserId, principal);
+        if (userId == null) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "User not authenticated");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
+        
+        try {
+            chatService.hideThread(threadId, userId);
+            Map<String, String> result = new HashMap<>();
+            result.put("message", "Thread hidden successfully");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error hiding thread: ", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+    
+    /**
+     * Show a hidden chat thread in user's recent conversations
+     */
+    @PutMapping("/threads/{threadId}/show")
+    public ResponseEntity<Map<String, String>> showThread(
+            @PathVariable String threadId,
+            @RequestHeader(value = "X-User-ID", required = false) String headerUserId,
+            Principal principal) {
+        
+        // Get user ID
+        Long userId = getUserIdFromRequest(headerUserId, principal);
+        if (userId == null) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "User not authenticated");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
+        
+        try {
+            chatService.showThread(threadId, userId);
+            Map<String, String> result = new HashMap<>();
+            result.put("message", "Thread shown successfully");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error showing thread: ", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+    
+    /**
+     * Helper method to extract user ID from request
+     */
+    private Long getUserIdFromRequest(String headerUserId, Principal principal) {
+        String userIdStr = headerUserId;
+        
+        if (userIdStr == null && principal != null) {
+            String email = principal.getName();
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null) {
+                userIdStr = user.getId().toString();
+            }
+        }
+        
+        try {
+            return userIdStr != null ? Long.parseLong(userIdStr) : null;
+        } catch (NumberFormatException e) {
+            log.error("Invalid user ID format: {}", userIdStr);
+            return null;
+        }
     }
     
 }

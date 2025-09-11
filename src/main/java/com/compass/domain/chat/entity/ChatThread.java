@@ -47,6 +47,13 @@ public class ChatThread {
     @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt;
     
+    @Column(name = "travel_plan_data", columnDefinition = "TEXT")
+    private String travelPlanData;
+    
+    @Column(name = "is_visible")
+    @Builder.Default
+    private Boolean isVisible = true;
+    
     @OneToMany(mappedBy = "thread", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("timestamp DESC")
     @Builder.Default
@@ -62,6 +69,9 @@ public class ChatThread {
         }
         if (title == null || title.isBlank()) {
             title = "새 대화";
+        }
+        if (isVisible == null) {
+            isVisible = true;
         }
     }
     
