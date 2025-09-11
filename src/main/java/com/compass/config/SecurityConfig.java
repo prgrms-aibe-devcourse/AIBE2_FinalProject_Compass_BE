@@ -71,6 +71,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/test/**").permitAll()
                 .requestMatchers("/api/debug/**").permitAll()  // Debug endpoints for testing
                 .requestMatchers("/api/chat/**").permitAll()  // Chat endpoints for testing
+<<<<<<< Updated upstream
+=======
+                .requestMatchers("/api/tour/**").permitAll()  // Tour API endpoints for testing
+                .requestMatchers("/api/crawl/**").permitAll()  // Crawl API endpoints for testing
+>>>>>>> Stashed changes
                 .requestMatchers("/health").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
