@@ -1,5 +1,6 @@
 package com.compass.domain.media.service;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.BatchAnnotateImagesRequest;
@@ -7,6 +8,7 @@ import com.google.cloud.vision.v1.BatchAnnotateImagesResponse;
 import com.google.cloud.vision.v1.Feature;
 import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
+import com.google.cloud.vision.v1.ImageAnnotatorSettings;
 import com.google.protobuf.ByteString;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,25 @@ import java.util.Map;
 public class OCRService {
     
     /**
+     * Google Credentials를 사용하여 ImageAnnotatorClient를 생성합니다.
+     */
+    private ImageAnnotatorClient createImageAnnotatorClient() throws IOException {
+        try {
+            // GOOGLE_APPLICATION_CREDENTIALS 환경 변수에서 인증 정보 로드
+            GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+            
+            ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
+                    .setCredentialsProvider(() -> credentials)
+                    .build();
+            
+            return ImageAnnotatorClient.create(settings);
+        } catch (IOException e) {
+            log.error("Google Vision API 클라이언트 생성 실패: {}", e.getMessage());
+            throw new IOException("Failed to create Google Vision API client: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
      * Google Vision API를 사용하여 이미지에서 텍스트를 추출합니다.
      *
      * @param file 텍스트를 추출할 이미지 파일
@@ -37,7 +58,7 @@ public class OCRService {
         
         Map<String, Object> ocrResult = new HashMap<>();
         
-        try (ImageAnnotatorClient vision = ImageAnnotatorClient.create()) {
+        try (ImageAnnotatorClient vision = createImageAnnotatorClient()) {
             // 이미지 데이터를 ByteString으로 변환
             ByteString imgBytes = ByteString.copyFrom(file.getBytes());
             Image image = Image.newBuilder().setContent(imgBytes).build();
@@ -143,7 +164,7 @@ public class OCRService {
         
         Map<String, Object> ocrResult = new HashMap<>();
         
-        try (ImageAnnotatorClient vision = ImageAnnotatorClient.create()) {
+        try (ImageAnnotatorClient vision = createImageAnnotatorClient()) {
             ByteString imgBytes = ByteString.copyFrom(imageBytes);
             Image image = Image.newBuilder().setContent(imgBytes).build();
             

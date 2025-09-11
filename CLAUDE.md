@@ -10,37 +10,32 @@ Compass is an AI-powered personalized travel planning service built with Spring 
 
 ### Development & Build
 ```bash
-# Run tests (requires JAVA_HOME set to Java 17)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test
+# Run tests - RECOMMENDED FOR DEVELOPMENT (Windows compatible)
+./gradlew unitTest
 
-# Run unit tests only (Redis 불필요) - RECOMMENDED FOR DEVELOPMENT
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew unitTest
+# Run all tests (requires Redis running)
+./gradlew test
 
-# Run integration tests only (Redis 필요)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew integrationTest
+# Run integration tests only
+./gradlew integrationTest
 
 # Run a single test class
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test --tests SimpleKeywordDetectorTest
+./gradlew test --tests SimpleKeywordDetectorTest
 
 # Build without tests (faster)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew clean build -x test
+./gradlew clean build -x test
 
-# Run application locally with environment variables
-export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home
-export $(cat .env | grep -v '^#' | xargs) && ./gradlew bootRun
+# Run application locally
+./gradlew bootRun
 
-# Run on different port (to avoid conflicts)
-export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home
-export $(cat .env | grep -v '^#' | xargs) && ./gradlew bootRun --args='--server.port=8081'
+# Run on different port
+./gradlew bootRun --args='--server.port=8081'
 
-# Run only PostgreSQL and Redis (for local development with IDE)
+# Development with Docker - start databases only
 docker-compose up -d postgres redis
 
-# Run complete stack (PostgreSQL + Redis + Spring Boot)
+# Full stack with Docker
 docker-compose up -d
-
-# Rebuild and restart after code changes
-docker-compose up -d --build
 
 # View application logs
 docker-compose logs -f app
@@ -103,9 +98,11 @@ The codebase is organized into four main domains, each developed independently:
 ### Spring AI Integration
 Spring AI is currently active in `build.gradle`:
 - Lines 46-48: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
-- Lines 83: Google Cloud Vision API dependency for OCR
-- Lines 99-103: Dependency management for Spring AI BOM
-- Environment variables required for OpenAI/Google Cloud are loaded from `.env` file
+- Lines 78-80: AWS SDK for S3 integration
+- Line 83: Google Cloud Vision API dependency for OCR  
+- Lines 88-92: Additional media processing libraries (Thumbnailator, WebP support)
+- Lines 105-109: Dependency management for Spring AI BOM
+- Environment variables required for OpenAI/Google Cloud/AWS are loaded from `.env` file
 
 ### Key API Endpoints
 
@@ -143,8 +140,12 @@ The `.env` file is required for local development. Team members can get it from:
 
 **Important**: 
 - Never commit `.env` file to Git (it's already in `.gitignore`)
-- The `.env` file contains all necessary API keys and configurations
-- Just place it in the project root directory and it will work
+- The `.env` file contains all necessary API keys and configurations:
+  - JWT secrets, OpenAI/Gemini API keys, Google Cloud credentials
+  - AWS S3 credentials (access key, secret key, bucket name)
+  - Database connection strings (PostgreSQL, Redis)
+- Place the `.env` file in the project root directory (same level as `build.gradle`)
+- The application automatically loads `.env` file on startup via Dotenv library
 
 ### Spring Profiles
 - **default**: Local development with local DB/Redis
@@ -174,10 +175,10 @@ The `.env` file is required for local development. Team members can get it from:
 - **Test categorization with @Tag annotation**:
   - `@Tag("unit")` - Unit tests that don't require Redis
   - `@Tag("integration")` - Integration tests that require Redis
-- Use test containers when needed for database testing
-- Performance testing with k6 scripts
+- Test containers for database testing
 - Test files located in `src/test/java/com/compass/`
-- **Redis transition strategy**: Tests can run without Redis using `unitTest` task
+- **Always use `./gradlew unitTest` for development** - runs without Redis dependency
+- Use `./gradlew test` only when Redis is available and needed
 
 ### Code Structure Patterns
 Each domain follows a layered architecture:
@@ -217,22 +218,19 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 ## Important Notes
 
-1. **Spring AI**: Currently active and configured for Gemini 2.0 Flash and GPT-4o-mini
+1. **Spring AI**: Active with Gemini 2.0 Flash (primary) and GPT-4o-mini (secondary)
 2. **Docker Development**: Use `docker-compose up -d postgres redis` for DB only when developing with IDE
 3. **Health Check**: Available at `http://localhost:8080/health`
 4. **Actuator Endpoints**: Prometheus metrics at `/actuator/prometheus`
-5. **Swagger UI**: Available at `/swagger-ui.html` when running locally
+5. **Swagger UI**: Available at `http://localhost:8080/swagger-ui.html` when running locally
 6. **Git Operations**: Do NOT perform any git commits or pushes - developer will handle all git operations manually
-7. **Developer Role**: Current developer is MEDIA domain specialist responsible for:
-   - File upload/download with S3 integration
-   - OCR functionality with Google Vision API
-   - Image validation and security scanning
-   - Metadata management in JSONB format
-8. **CHAT Domain LLM Configuration**:
-   - Primary Agent: Gemini 2.0 Flash (for general chat operations and function calling)
-   - Secondary Agent: GPT-4o-mini (for OpenAI compatibility)
-   - Framework: Spring AI (use Spring AI abstractions, not direct API calls)
-   - Function Calling: Enabled with travel-related functions (flights, hotels, weather, attractions)
+7. **Testing Strategy**: Always use `./gradlew unitTest` for development to avoid Redis dependency
+8. **LLM Configuration**:
+   - Primary: Gemini 2.0 Flash (general chat, function calling)
+   - Secondary: GPT-4o-mini (OpenAI compatibility)
+   - Framework: Spring AI abstractions only (not direct API calls)
+   - Function Calling: Travel-related functions (17 total functions available)
+9. **File Structure**: Four-domain architecture (USER, CHAT, TRIP, MEDIA) with layered design
 
 ## Development Methodology
 
@@ -248,36 +246,31 @@ Follow this strict development sequence for implementing features:
 **Important**: This order ensures proper layered architecture. Do NOT skip steps.
 
 ### Testing Requirements
-**MANDATORY**: After implementing any feature based on requirements definition:
+**MANDATORY**: After implementing any feature:
 
 1. **Unit Test Creation**:
    - Write unit tests for all new entities, services, and controllers
-   - **Add @Tag("unit") or @Tag("integration") to every test class**
-   - Minimum coverage: 80% for new code
+   - **Add `@Tag("unit")` or `@Tag("integration")` to every test class**
    - Use JUnit 5 and Mockito for testing
 
-2. **CI Pipeline Validation**:
-   - Run `./gradlew unitTest` for Redis-independent tests
-   - Run `./gradlew test` to ensure all tests pass (when Redis available)
-   - Verify compilation with `./gradlew compileJava`
-   - Check that new code doesn't break existing tests
+2. **Running Tests**:
+   - **Development**: `./gradlew unitTest` (Redis-independent, faster)
+   - **Full validation**: `./gradlew test` (requires Redis running)
+   - **Single test**: `./gradlew test --tests ClassName`
+   - **Build check**: `./gradlew compileJava`
 
-3. **Test Result Reporting**:
-   - Always report test results after implementation
-   - Include: Total tests, Passed, Failed, Skipped
-   - Document any known issues with explanations
-
-4. **Test Files Location**:
+3. **Test Files Location**:
    - Unit tests: `src/test/java/com/compass/domain/[domain]/`
    - Integration tests: `src/test/java/com/compass/integration/`
 
-5. **Quality Assurance Workflow**:
-   - After unit tests pass, run CI pipeline validation
-   - Double-check all tests are passing
-   - If all tests pass, create issue template for the completed feature
-   - Report completion with test results and issue template
-
-**Important**: Never mark a feature as complete without running tests and reporting results.
+4. **Test Tagging Examples**:
+   ```java
+   @Tag("unit")
+   class UserServiceTest { }
+   
+   @Tag("integration") 
+   class ChatControllerIntegrationTest { }
+   ```
 
 ### Code Quality and Refactoring Process
 **MANDATORY**: After completing any feature implementation or bug fix:
