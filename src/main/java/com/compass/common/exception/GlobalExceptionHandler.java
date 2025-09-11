@@ -21,12 +21,9 @@ public class GlobalExceptionHandler {
 
     // ================== 공통 에러 응답 객체 ==================
     @Getter
+    @AllArgsConstructor
     public static class ErrorResponse {
         private String message;
-        
-        public ErrorResponse(String message) {
-            this.message = message;
-        }
     }
 
     // ================== 핸들러 ==================

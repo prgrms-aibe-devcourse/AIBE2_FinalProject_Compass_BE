@@ -291,7 +291,7 @@ public class MediaService {
             
         } catch (Exception e) {
             log.error("OCR 처리 중 오류 발생 - 미디어 ID: {}", mediaId, e);
-            throw new FileValidationException("OCR 처리 중 오류가 발생했습니다: " + e.getMessage());
+            throw new com.compass.domain.media.exception.OCRProcessingException("OCR 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
     }
     

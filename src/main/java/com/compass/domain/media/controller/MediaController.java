@@ -152,6 +152,69 @@ public class MediaController {
         return ResponseEntity.ok().build();
     }
     
+    @PostMapping("/{id}/ocr")
+    @Operation(
+        summary = "OCR 텍스트 추출",
+        description = "업로드된 이미지에서 텍스트를 추출합니다. Google Cloud Vision API를 사용합니다."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "OCR 처리 성공",
+            content = @Content(schema = @Schema(implementation = com.compass.domain.media.dto.OCRResultDto.class))
+        ),
+        @ApiResponse(responseCode = "400", description = "이미지 파일이 아니거나 OCR 처리 불가"),
+        @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+        @ApiResponse(responseCode = "403", description = "파일 접근 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<Map<String, Object>> processOCR(
+            @Parameter(description = "OCR 처리할 미디어 ID", required = true)
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader) {
+        
+        Long userId = getUserIdFromToken(authHeader);
+        log.info("OCR 처리 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
+        
+        // OCR 처리 수행
+        mediaService.processOCRForMedia(id, userId);
+        
+        // OCR 결과 조회 및 반환
+        Map<String, Object> result = mediaService.getOCRResult(id, userId);
+        
+        return ResponseEntity.ok(result);
+    }
+    
+    @GetMapping("/{id}/ocr")
+    @Operation(
+        summary = "OCR 결과 조회",
+        description = "이미 처리된 OCR 결과를 조회합니다."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "OCR 결과 조회 성공",
+            content = @Content(schema = @Schema(implementation = com.compass.domain.media.dto.OCRResultDto.class))
+        ),
+        @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+        @ApiResponse(responseCode = "403", description = "파일 접근 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getOCRResult(
+            @Parameter(description = "OCR 결과를 조회할 미디어 ID", required = true)
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader) {
+        
+        Long userId = getUserIdFromToken(authHeader);
+        log.info("OCR 결과 조회 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
+        
+        Map<String, Object> result = mediaService.getOCRResult(id, userId);
+        
+        return ResponseEntity.ok(result);
+    }
+    
     @GetMapping("/health")
     @Operation(summary = "미디어 서비스 상태 확인", description = "미디어 서비스가 정상 작동하는지 확인합니다.")
     public ResponseEntity<String> healthCheck() {

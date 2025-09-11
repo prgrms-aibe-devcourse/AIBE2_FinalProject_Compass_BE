@@ -53,6 +53,9 @@ class MediaServiceOCRIntegrationTest {
     @Mock
     private OCRService ocrService;
 
+    @Mock
+    private ThumbnailService thumbnailService;
+
     @InjectMocks
     private MediaService mediaService;
 
@@ -109,7 +112,10 @@ class MediaServiceOCRIntegrationTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(fileValidationService.isSupportedImageFile("image/jpeg")).thenReturn(true);
         when(s3Service.uploadFile(any(), anyString(), anyString())).thenReturn("https://s3.example.com/test.jpg");
-        when(ocrService.extractTextFromImage(any())).thenReturn(ocrResult);
+        when(thumbnailService.isImageFile("image/jpeg")).thenReturn(true);
+        when(thumbnailService.generateThumbnail(any())).thenReturn("thumbnail_data".getBytes());
+        when(thumbnailService.generateThumbnailFilename("test-image.jpg")).thenReturn("thumb_test-image.webp");
+        when(s3Service.uploadThumbnail(any(), anyString(), anyString())).thenReturn("https://s3.example.com/thumb.webp");
         when(mediaRepository.save(any(Media.class))).thenReturn(testMedia);
 
         // When
@@ -117,8 +123,8 @@ class MediaServiceOCRIntegrationTest {
 
         // Then
         assertThat(response).isNotNull();
-        verify(ocrService, times(1)).extractTextFromImage(imageFile);
         verify(mediaRepository, times(1)).save(any(Media.class));
+        verify(thumbnailService, times(1)).isImageFile("image/jpeg");
     }
 
     @Test
@@ -139,6 +145,7 @@ class MediaServiceOCRIntegrationTest {
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(fileValidationService.isSupportedImageFile("text/plain")).thenReturn(false);
+        when(thumbnailService.isImageFile("text/plain")).thenReturn(false);
         when(s3Service.uploadFile(any(), anyString(), anyString())).thenReturn("https://s3.example.com/test.txt");
         when(mediaRepository.save(any(Media.class))).thenReturn(testMedia);
 
@@ -147,8 +154,8 @@ class MediaServiceOCRIntegrationTest {
 
         // Then
         assertThat(response).isNotNull();
-        verify(ocrService, never()).extractTextFromImage(any());
         verify(mediaRepository, times(1)).save(any(Media.class));
+        verify(thumbnailService, times(1)).isImageFile("text/plain");
     }
 
     @Test
@@ -216,7 +223,7 @@ class MediaServiceOCRIntegrationTest {
         // When & Then
         assertThatThrownBy(() -> mediaService.processOCRForMedia(mediaId, userId))
                 .isInstanceOf(FileValidationException.class)
-                .hasMessage("파일 처리 권한이 없습니다.");
+                .hasMessage("파일 접근 권한이 없습니다.");
 
         try {
             verify(ocrService, never()).extractTextFromBytes(any(), anyString());

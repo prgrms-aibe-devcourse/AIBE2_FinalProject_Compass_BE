@@ -386,16 +386,4 @@ public class FileValidationService {
                 .anyMatch(signature -> hexString.startsWith(signature));
     }
     
-    /**
-     * 지원되는 이미지 파일인지 확인합니다.
-     * 
-     * @param mimeType MIME 타입
-     * @return 지원되는 이미지 파일 여부
-     */
-    public boolean isSupportedImageFile(String mimeType) {
-        if (mimeType == null) {
-            return false;
-        }
-        return validationProperties.getSupportedMimeTypes().contains(mimeType.toLowerCase());
-    }
 }
