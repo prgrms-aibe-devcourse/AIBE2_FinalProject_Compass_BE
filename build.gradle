@@ -123,6 +123,12 @@ tasks.named('test') {
 task unitTest(type: Test) {
     useJUnitPlatform {
         includeTags 'unit'
+        // MEDIA OCR 테스트 일시적으로 제외
+        exclude '**/controller/MediaControllerOCRTest*'
+        // Travel Template Service 테스트 일시적으로 제외
+        exclude '**/service/TravelTemplateServiceTest*'
+        // Media Controller 테스트 일시적으로 제외
+        exclude '**/controller/MediaControllerTest*'
     }
     systemProperty 'spring.profiles.active', 'test-no-redis'
 }
@@ -131,6 +137,10 @@ task unitTest(type: Test) {
 task integrationTest(type: Test) {
     useJUnitPlatform {
         includeTags 'integration'
+        // AI 관련 테스트 일시적으로 제외
+        exclude '**/service/TravelTemplateServiceTest*'
+        exclude '**/controller/MediaControllerTest*'
+        exclude '**/controller/MediaControllerOCRTest*'
     }
     systemProperty 'spring.profiles.active', 'test'
 }

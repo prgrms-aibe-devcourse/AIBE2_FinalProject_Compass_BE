@@ -49,6 +49,10 @@ class MediaControllerOCRTest {
     void setUp() {
         when(jwtTokenProvider.getUsername(TEST_TOKEN)).thenReturn(TEST_EMAIL);
         when(mediaService.getUserIdByEmail(TEST_EMAIL)).thenReturn(TEST_USER_ID);
+
+        // 추가: 모든 토큰에 대해 동일한 이메일과 사용자 ID 반환하도록 설정
+        when(jwtTokenProvider.getUsername(anyString())).thenReturn(TEST_EMAIL);
+        when(mediaService.getUserIdByEmail(anyString())).thenReturn(TEST_USER_ID);
     }
 
     @Test

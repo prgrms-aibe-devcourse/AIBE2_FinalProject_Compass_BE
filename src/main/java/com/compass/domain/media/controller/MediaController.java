@@ -4,7 +4,6 @@ import com.compass.domain.media.dto.MediaDto;
 import com.compass.domain.media.dto.MediaGetResponse;
 import com.compass.domain.media.dto.MediaUploadResponse;
 import com.compass.domain.media.service.MediaService;
-import com.compass.config.jwt.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -17,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,9 +32,9 @@ import java.util.Map;
 public class MediaController {
     
     private final MediaService mediaService;
-    private final JwtTokenProvider jwtTokenProvider;
     
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('USER')")
     @Operation(
         summary = "파일 업로드",
         description = "이미지 파일을 업로드합니다. 지원 형식: JPG, PNG, WEBP, GIF (최대 10MB)"
@@ -46,15 +47,16 @@ public class MediaController {
         ),
         @ApiResponse(responseCode = "400", description = "잘못된 파일 형식 또는 크기 초과"),
         @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+        @ApiResponse(responseCode = "403", description = "권한이 없는 사용자"),
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<MediaUploadResponse> uploadFile(
             @Parameter(description = "업로드할 이미지 파일", required = true)
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "metadata", required = false) Map<String, Object> metadata,
-            @RequestHeader("Authorization") String authHeader) {
+            Authentication authentication) {
         
-        Long userId = getUserIdFromToken(authHeader);
+        Long userId = getUserIdFromAuthentication(authentication);
         log.info("파일 업로드 요청 - 사용자: {}, 파일명: {}, 크기: {}bytes", 
                 userId, file.getOriginalFilename(), file.getSize());
         
@@ -69,6 +71,7 @@ public class MediaController {
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
     @Operation(
         summary = "파일 조회",
         description = "업로드된 이미지 파일의 정보를 조회하고 서명된 URL을 반환합니다. (15분 만료)"
@@ -87,9 +90,9 @@ public class MediaController {
     public ResponseEntity<MediaGetResponse> getMedia(
             @Parameter(description = "조회할 미디어 ID", required = true)
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader) {
+            Authentication authentication) {
         
-        Long userId = getUserIdFromToken(authHeader);
+        Long userId = getUserIdFromAuthentication(authentication);
         log.info("파일 조회 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
         
         MediaGetResponse response = mediaService.getMediaById(id, userId);
@@ -103,6 +106,7 @@ public class MediaController {
     }
     
     @GetMapping("/list")
+    @PreAuthorize("hasRole('USER')")
     @Operation(
         summary = "사용자 파일 목록 조회",
         description = "현재 사용자가 업로드한 모든 파일의 목록을 조회합니다."
@@ -114,12 +118,13 @@ public class MediaController {
             content = @Content(schema = @Schema(implementation = MediaDto.ListResponse.class))
         ),
         @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+        @ApiResponse(responseCode = "403", description = "권한이 없는 사용자"),
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<List<MediaDto.ListResponse>> getMediaList(
-            @RequestHeader("Authorization") String authHeader) {
+            Authentication authentication) {
         
-        Long userId = getUserIdFromToken(authHeader);
+        Long userId = getUserIdFromAuthentication(authentication);
         log.info("파일 목록 조회 요청 - 사용자: {}", userId);
         
         List<MediaDto.ListResponse> response = mediaService.getMediaListByUser(userId);
@@ -128,6 +133,7 @@ public class MediaController {
     }
     
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
     @Operation(
         summary = "파일 삭제",
         description = "업로드된 파일을 삭제합니다."
@@ -142,9 +148,9 @@ public class MediaController {
     public ResponseEntity<Void> deleteMedia(
             @Parameter(description = "삭제할 미디어 ID", required = true)
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader) {
+            Authentication authentication) {
         
-        Long userId = getUserIdFromToken(authHeader);
+        Long userId = getUserIdFromAuthentication(authentication);
         log.info("파일 삭제 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
         
         mediaService.deleteFile(id, userId);
@@ -153,6 +159,7 @@ public class MediaController {
     }
     
     @PostMapping("/{id}/ocr")
+    @PreAuthorize("hasRole('USER')")
     @Operation(
         summary = "OCR 처리",
         description = "기존 이미지 파일에 대해 OCR 텍스트 추출을 수행하고 결과를 메타데이터에 저장합니다."
@@ -168,9 +175,9 @@ public class MediaController {
     public ResponseEntity<Map<String, Object>> processOCR(
             @Parameter(description = "OCR 처리할 미디어 ID", required = true)
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader) {
+            Authentication authentication) {
         
-        Long userId = getUserIdFromToken(authHeader);
+        Long userId = getUserIdFromAuthentication(authentication);
         log.info("OCR 처리 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
         
         mediaService.processOCRForMedia(id, userId);
@@ -180,6 +187,7 @@ public class MediaController {
     }
     
     @GetMapping("/{id}/ocr")
+    @PreAuthorize("hasRole('USER')")
     @Operation(
         summary = "OCR 결과 조회",
         description = "이미지 파일의 OCR 텍스트 추출 결과를 조회합니다."
@@ -194,9 +202,9 @@ public class MediaController {
     public ResponseEntity<Map<String, Object>> getOCRResult(
             @Parameter(description = "OCR 결과를 조회할 미디어 ID", required = true)
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader) {
+            Authentication authentication) {
         
-        Long userId = getUserIdFromToken(authHeader);
+        Long userId = getUserIdFromAuthentication(authentication);
         log.info("OCR 결과 조회 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
         
         Map<String, Object> ocrResult = mediaService.getOCRResult(id, userId);
@@ -205,6 +213,7 @@ public class MediaController {
     }
 
     @GetMapping("/{id}/thumbnail")
+    @PreAuthorize("hasRole('USER')")
     @Operation(
         summary = "썸네일 조회",
         description = "업로드된 이미지 파일의 썸네일을 조회하고 서명된 URL을 반환합니다."
@@ -219,9 +228,9 @@ public class MediaController {
     public ResponseEntity<Map<String, Object>> getThumbnail(
             @Parameter(description = "썸네일을 조회할 미디어 ID", required = true)
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader) {
+            Authentication authentication) {
 
-        Long userId = getUserIdFromToken(authHeader);
+        Long userId = getUserIdFromAuthentication(authentication);
         log.info("썸네일 조회 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
 
         Map<String, Object> thumbnailResult = mediaService.getThumbnailResult(id, userId);
@@ -230,6 +239,7 @@ public class MediaController {
     }
 
     @GetMapping("/{id}/thumbnail/url")
+    @PreAuthorize("hasRole('USER')")
     @Operation(
         summary = "썸네일 URL 조회",
         description = "업로드된 이미지 파일의 썸네일 Presigned URL을 반환합니다."
@@ -244,9 +254,9 @@ public class MediaController {
     public ResponseEntity<Map<String, Object>> getThumbnailUrl(
             @Parameter(description = "썸네일 URL을 조회할 미디어 ID", required = true)
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader) {
+            Authentication authentication) {
 
-        Long userId = getUserIdFromToken(authHeader);
+        Long userId = getUserIdFromAuthentication(authentication);
         log.info("썸네일 URL 조회 요청 - 사용자: {}, 미디어 ID: {}", userId, id);
 
         Map<String, Object> thumbnailUrlResult = mediaService.getThumbnailUrlResult(id, userId);
@@ -260,13 +270,19 @@ public class MediaController {
         return ResponseEntity.ok("Media service is running");
     }
     
-    private Long getUserIdFromToken(String authHeader) {
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            String email = jwtTokenProvider.getUsername(token);
-            // JWT에서 이메일을 가져온 후, UserRepository에서 사용자 ID를 조회
-            return mediaService.getUserIdByEmail(email);
+    /**
+     * Spring Security Authentication에서 사용자 ID를 추출합니다.
+     * 
+     * @param authentication Spring Security Authentication 객체
+     * @return 사용자 ID
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            throw new IllegalArgumentException("Authentication information is missing");
         }
-        throw new IllegalArgumentException("Authorization header is missing or invalid");
+        
+        String email = authentication.getName();
+        return mediaService.getUserIdByEmail(email);
     }
+    
 }

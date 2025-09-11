@@ -12,6 +12,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,11 +24,14 @@ class S3ServiceTest {
     @Mock
     private S3Client s3Client;
     
+    @Mock
+    private S3Presigner s3Presigner;
+    
     private S3Service s3Service;
     
     @BeforeEach
     void setUp() {
-        s3Service = new S3Service(s3Client);
+        s3Service = new S3Service(s3Client, s3Presigner);
         ReflectionTestUtils.setField(s3Service, "bucketName", "test-bucket");
         ReflectionTestUtils.setField(s3Service, "s3BaseUrl", "https://test-bucket.s3.ap-northeast-2.amazonaws.com");
         ReflectionTestUtils.setField(s3Service, "region", "ap-northeast-2");

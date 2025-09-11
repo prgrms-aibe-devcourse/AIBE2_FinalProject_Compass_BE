@@ -9,8 +9,11 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -21,12 +24,16 @@ import java.util.UUID;
 public class S3Service {
 
     private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
 
     @Value("${aws.s3.bucket-name:compass-media-bucket}")
     private String bucketName;
 
     @Value("${aws.s3.base-url:https://compass-media-bucket.s3.ap-northeast-2.amazonaws.com}")
     private String s3BaseUrl;
+    
+    @Value("${aws.s3.presigner.expiration-minutes:15}")
+    private int defaultExpirationMinutes;
 
     @Value("${aws.region:ap-northeast-2}")
     private String region;
@@ -121,6 +128,29 @@ public class S3Service {
                     .key(s3Key)
                     .build();
             
+            // 파일 크기 먼저 확인하여 메모리 보호
+            try {
+                HeadObjectRequest headRequest = HeadObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(s3Key)
+                        .build();
+                        
+                HeadObjectResponse headResponse = s3Client.headObject(headRequest);
+                long fileSize = headResponse.contentLength();
+                
+                // 100MB 제한 (메모리 보호)
+                long maxDownloadSize = 100 * 1024 * 1024L;
+                if (fileSize > maxDownloadSize) {
+                    log.warn("파일 크기가 너무 큼 - 키: {}, 크기: {} bytes, 제한: {} bytes", 
+                            s3Key, fileSize, maxDownloadSize);
+                    throw new S3UploadException("파일 크기가 다운로드 제한을 초과합니다. (최대 100MB)");
+                }
+                
+                log.info("파일 크기 확인 완료 - 키: {}, 크기: {} bytes", s3Key, fileSize);
+            } catch (S3Exception e) {
+                log.warn("파일 크기 확인 실패, 다운로드 계속 진행 - 키: {}", s3Key);
+            }
+            
             byte[] fileBytes = s3Client.getObject(getObjectRequest).readAllBytes();
             
             log.info("S3 파일 다운로드 완료 - 키: {}, 크기: {} bytes", s3Key, fileBytes.length);
@@ -141,12 +171,32 @@ public class S3Service {
      *
      * @param s3Url 원본 S3 URL
      * @param expiration 만료 시간 (분)
-     * @return 기본 S3 URL (presigner 미구현)
+     * @return 시간 제한이 있는 presigned URL
      */
     public String generatePresignedUrl(String s3Url, int expiration) {
-        log.info("기본 S3 URL 반환 - presigner 기능 미구현");
-        return s3Url;
+        try {
+            String s3Key = extractS3KeyFromUrl(s3Url);
+            
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Key)
+                    .build();
+            
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(expiration > 0 ? expiration : defaultExpirationMinutes))
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+            
+            String presignedUrl = s3Presigner.presignGetObject(presignRequest).url().toString();
+            log.info("Presigned URL 생성 성공 - 키: {}, 만료시간: {}분", s3Key, expiration);
+            return presignedUrl;
+            
+        } catch (Exception e) {
+            log.error("Presigned URL 생성 실패 - S3 URL: {}", s3Url, e);
+            throw new S3UploadException("보안 URL 생성에 실패했습니다: " + e.getMessage(), e);
+        }
     }
+    
 
     /**
      * 썸네일 파일을 S3에 업로드합니다.
