@@ -6,6 +6,7 @@ import com.compass.domain.media.entity.FileStatus;
 import com.compass.domain.media.entity.Media;
 import com.compass.domain.media.exception.FileValidationException;
 import com.compass.domain.media.repository.MediaRepository;
+import com.compass.domain.media.service.MediaService;
 import com.compass.domain.user.entity.User;
 import com.compass.domain.user.enums.Role;
 import com.compass.domain.user.repository.UserRepository;
