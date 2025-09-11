@@ -244,7 +244,7 @@ class TravelInfoCollectionServiceTest {
         assertThatThrownBy(() -> 
                 service.completeCollection("TIC_TEST1234"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("아직 모든 정보가 수집되지 않았습니다");
+                .hasMessageContaining("다음 정보가 필요합니다");
     }
     
     @Test

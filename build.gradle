@@ -79,17 +79,14 @@ dependencies {
     implementation 'software.amazon.awssdk:s3:2.20.162'
     implementation 'software.amazon.awssdk:auth:2.20.162'
     
-    // Google Cloud Vision API for OCR
-    implementation 'com.google.cloud:google-cloud-vision:3.36.0'
-    
     // Hypersistence Utils for JSON support
     implementation 'io.hypersistence:hypersistence-utils-hibernate-62:3.6.1'
-
-    // Thumbnail generation
+    
+    // Thumbnailator for image processing
     implementation 'net.coobird:thumbnailator:0.4.20'
-
-    // WebP image support
-    implementation 'org.sejda.imageio:webp-imageio:0.1.6'
+    
+    // Google Cloud Vision API for OCR
+    implementation 'com.google.cloud:google-cloud-vision:3.4.0'
 
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -99,6 +96,9 @@ dependencies {
 
     // Embedded Redis for testing
     testImplementation 'it.ozimov:embedded-redis:0.7.3'
+
+    //env
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 }
 
 // Spring AI BOM
@@ -123,12 +123,6 @@ tasks.named('test') {
 task unitTest(type: Test) {
     useJUnitPlatform {
         includeTags 'unit'
-        // MEDIA OCR 테스트 일시적으로 제외
-        exclude '**/controller/MediaControllerOCRTest*'
-        // Travel Template Service 테스트 일시적으로 제외
-        exclude '**/service/TravelTemplateServiceTest*'
-        // Media Controller 테스트 일시적으로 제외
-        exclude '**/controller/MediaControllerTest*'
     }
     systemProperty 'spring.profiles.active', 'test-no-redis'
 }
@@ -137,10 +131,6 @@ task unitTest(type: Test) {
 task integrationTest(type: Test) {
     useJUnitPlatform {
         includeTags 'integration'
-        // AI 관련 테스트 일시적으로 제외
-        exclude '**/service/TravelTemplateServiceTest*'
-        exclude '**/controller/MediaControllerTest*'
-        exclude '**/controller/MediaControllerOCRTest*'
     }
     systemProperty 'spring.profiles.active', 'test'
 }

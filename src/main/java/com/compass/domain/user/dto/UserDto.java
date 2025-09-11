@@ -1,5 +1,6 @@
 package com.compass.domain.user.dto;
 
+import com.compass.domain.user.entity.User;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -21,6 +22,18 @@ public class UserDto {
     private String provider;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    public static UserDto from(User user) {
+        return UserDto.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .nickname(user.getNickname())
+                .profileImageUrl(user.getProfileImageUrl())
+                .provider(user.getProvider())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .build();
+    }
 
     // Nested classes for other DTOs
     @Getter
@@ -63,4 +76,13 @@ public class UserDto {
         private String accessToken;
         private String refreshToken;
     }
+
+    @Getter
+    @NoArgsConstructor
+    public static class ProfileUpdateRequest {
+        private String nickname;
+        private String profileImageUrl;
+    }
+    
+    
 }

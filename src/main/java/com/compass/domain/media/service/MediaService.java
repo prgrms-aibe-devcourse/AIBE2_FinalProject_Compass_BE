@@ -31,17 +31,10 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class MediaService {
     
-    // OCR 처리 가능한 최대 파일 크기 (50MB)
-    private static final long MAX_OCR_FILE_SIZE = 50 * 1024 * 1024;
-    
-    // 일반 파일 업로드 최대 크기 (100MB)
-    private static final long MAX_UPLOAD_FILE_SIZE = 100 * 1024 * 1024;
-    
     private final MediaRepository mediaRepository;
     private final UserRepository userRepository;
     private final FileValidationService fileValidationService;
     private final S3Service s3Service;
-    private final OCRService ocrService;
     private final ThumbnailService thumbnailService;
     
     
@@ -57,12 +50,6 @@ public class MediaService {
         // 파일 검증
         fileValidationService.validateFile(file);
         
-        // 파일 크기 제한 검증
-        if (file.getSize() > MAX_UPLOAD_FILE_SIZE) {
-            throw new FileValidationException("파일 크기가 너무 큽니다. 최대 크기: " + 
-                    (MAX_UPLOAD_FILE_SIZE / 1024 / 1024) + "MB");
-        }
-        
         try {
             // 저장될 파일명 생성
             String storedFilename = generateStoredFilename(file.getOriginalFilename());
@@ -73,63 +60,14 @@ public class MediaService {
             // 메타데이터 생성 (request에서 받은 것과 자동 생성된 것 합치기)
             Map<String, Object> metadata = createMetadata(file, request.getMetadata());
             
-            // 이미지 파일인 경우 OCR 처리 및 썸네일 생성
-            if (fileValidationService.isSupportedImageFile(file.getContentType())) {
-                // OCR 처리 (파일 크기 제한 적용)
-                if (file.getSize() <= MAX_OCR_FILE_SIZE) {
-                    try {
-                        log.info("이미지 파일 OCR 처리 시작 - 파일: {}, 크기: {}MB", 
-                                file.getOriginalFilename(), file.getSize() / 1024 / 1024);
-                        Map<String, Object> ocrResult = ocrService.extractTextFromImage(file);
-                        metadata.put("ocr", ocrResult);
-                        log.info("OCR 처리 완료 - 파일: {}, 성공: {}",
-                                file.getOriginalFilename(), ocrResult.get("success"));
-                } catch (Exception e) {
-                    log.warn("OCR 처리 실패 - 파일: {}, 에러: {}",
-                            file.getOriginalFilename(), e.getMessage(), e);
-                    Map<String, Object> ocrError = new HashMap<>();
-                    ocrError.put("success", false);
-                    ocrError.put("error", "OCR processing failed: " + e.getMessage());
-                    ocrError.put("processedAt", java.time.LocalDateTime.now().toString());
-                    metadata.put("ocr", ocrError);
-                }
-                } else {
-                    // 파일이 OCR 제한 크기를 초과하는 경우
-                    log.info("OCR 생략 - 파일 크기가 제한을 초과함: {}, 크기: {}MB, 제한: {}MB", 
-                            file.getOriginalFilename(), 
-                            file.getSize() / 1024 / 1024, 
-                            MAX_OCR_FILE_SIZE / 1024 / 1024);
-                    
-                    Map<String, Object> ocrSkipped = new HashMap<>();
-                    ocrSkipped.put("success", false);
-                    ocrSkipped.put("error", "File too large for OCR processing (max: " + 
-                            (MAX_OCR_FILE_SIZE / 1024 / 1024) + "MB)");
-                    ocrSkipped.put("processedAt", java.time.LocalDateTime.now().toString());
-                    ocrSkipped.put("skipped", true);
-                    metadata.put("ocr", ocrSkipped);
-                }
-
-                // 썸네일 생성
-                try {
-                    log.info("썸네일 생성 시작 - 파일: {}", file.getOriginalFilename());
-                    byte[] thumbnailData = thumbnailService.generateThumbnail(file);
-                    String thumbnailFilename = thumbnailService.generateThumbnailFilename(storedFilename);
-                    String thumbnailS3Url = s3Service.uploadThumbnail(thumbnailData, userId.toString(), thumbnailFilename);
-
-                    // 썸네일 메타데이터 추가
-                    Map<String, Object> thumbnailMetadata = thumbnailService.createThumbnailMetadata(thumbnailS3Url, thumbnailFilename);
-                    metadata.put("thumbnail", thumbnailMetadata);
-
-                    log.info("썸네일 생성 완료 - 파일: {}, 썸네일 URL: {}", file.getOriginalFilename(), thumbnailS3Url);
-                } catch (Exception e) {
-                    log.warn("썸네일 생성 실패 - 파일: {}, 에러: {}",
-                            file.getOriginalFilename(), e.getMessage(), e);
-                    // 썸네일 생성 실패해도 업로드 계속 진행 (에러 맵 생성)
-                    Map<String, Object> thumbnailError = new HashMap<>();
-                    thumbnailError.put("success", false);
-                    thumbnailError.put("error", "Thumbnail generation failed: " + e.getMessage());
-                    thumbnailError.put("createdAt", java.time.LocalDateTime.now().toString());
-                    metadata.put("thumbnail", thumbnailError);
+            // 이미지 파일인 경우 썸네일 생성 및 업로드
+            String thumbnailUrl = null;
+            if (thumbnailService.isImageFile(file.getContentType())) {
+                thumbnailUrl = generateAndUploadThumbnail(file, userId.toString());
+                if (thumbnailUrl != null) {
+                    metadata.put("thumbnailUrl", thumbnailUrl);
+                    metadata.put("hasThumbnail", true);
+                    log.info("썸네일 생성 완료 - 원본: {}, 썸네일: {}", s3Url, thumbnailUrl);
                 }
             }
             
@@ -281,158 +219,30 @@ public class MediaService {
     }
     
     /**
-     * 기존 미디어 파일에 대해 OCR을 수행하고 결과를 메타데이터에 저장합니다.
-     * 트랜잭션 경계를 최적화하여 외부 API 호출을 분리합니다.
+     * 썸네일 생성 및 S3 업로드
+     * REQ-MEDIA-007: 300x300 WebP 포맷 썸네일 생성
      */
-    public void processOCRForMedia(Long mediaId, Long userId) {
-        log.info("기존 미디어 OCR 처리 시작 - ID: {}, 사용자: {}", mediaId, userId);
-        
-        // 1. 권한 검증 및 파일 정보 조회 (빠른 트랜잭션)
-        Media media = validateMediaAccess(mediaId, userId);
-        
-        if (!fileValidationService.isSupportedImageFile(media.getMimeType())) {
-            throw new FileValidationException("OCR은 이미지 파일만 지원합니다.");
-        }
-        
-        // 파일 크기 체크 (메모리 보호)
-        if (media.getFileSize() > MAX_OCR_FILE_SIZE) {
-            throw new FileValidationException("OCR 처리 가능한 최대 파일 크기를 초과했습니다. (최대: " + 
-                    (MAX_OCR_FILE_SIZE / 1024 / 1024) + "MB)");
-        }
-        
-        // 2. OCR 처리 (외부 API 호출, 트랜잭션 외부)
-        Map<String, Object> ocrResult = performOCRProcessing(media);
-        
-        // 3. 결과 저장 (빠른 트랜잭션)
-        updateMediaMetadata(mediaId, ocrResult);
-    }
-    
-    /**
-     * 미디어 접근 권한을 검증합니다.
-     */
-    @Transactional(readOnly = true)
-    public Media validateMediaAccess(Long mediaId, Long userId) {
-        Media media = mediaRepository.findById(mediaId)
-                .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
-        
-        if (!media.getUser().getId().equals(userId)) {
-            throw new FileValidationException("파일 처리 권한이 없습니다.");
-        }
-        
-        return media;
-    }
-    
-    /**
-     * OCR 처리를 수행합니다 (트랜잭션 외부).
-     */
-    private Map<String, Object> performOCRProcessing(Media media) {
+    private String generateAndUploadThumbnail(MultipartFile originalFile, String userId) {
         try {
-            // S3에서 파일 다운로드하여 OCR 처리
-            byte[] imageBytes = s3Service.downloadFile(media.getS3Url());
-            return ocrService.extractTextFromBytes(imageBytes, media.getOriginalFilename());
+            // 썸네일 생성
+            byte[] thumbnailBytes = thumbnailService.generateThumbnail(originalFile);
+            if (thumbnailBytes == null || thumbnailBytes.length == 0) {
+                log.warn("썸네일 생성 실패: {}", originalFile.getOriginalFilename());
+                return null;
+            }
+            
+            // 썸네일 파일명 생성
+            String thumbnailFilename = thumbnailService.generateThumbnailFilename(originalFile.getOriginalFilename());
+            
+            // S3에 썸네일 업로드
+            String thumbnailUrl = s3Service.uploadThumbnail(thumbnailBytes, userId, thumbnailFilename);
+            
+            log.info("썸네일 업로드 완료 - 파일명: {}, URL: {}", thumbnailFilename, thumbnailUrl);
+            return thumbnailUrl;
             
         } catch (Exception e) {
-            log.error("OCR 처리 중 오류 발생 - 미디어 ID: {}", media.getId(), e);
-            
-            // OCR 실패 정보를 포함한 결과 반환 (graceful degradation)
-            Map<String, Object> failedResult = new HashMap<>();
-            failedResult.put("success", false);
-            failedResult.put("error", "OCR processing failed: " + e.getMessage());
-            failedResult.put("processedAt", java.time.LocalDateTime.now().toString());
-            return failedResult;
+            log.error("썸네일 생성 및 업로드 중 오류 발생: {}", originalFile.getOriginalFilename(), e);
+            return null;
         }
-    }
-    
-    /**
-     * 미디어 메타데이터를 업데이트합니다.
-     */
-    @Transactional
-    public void updateMediaMetadata(Long mediaId, Map<String, Object> ocrResult) {
-        Media media = mediaRepository.findById(mediaId)
-                .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
-        
-        // 기존 메타데이터에 OCR 결과 추가
-        Map<String, Object> metadata = media.getMetadata() != null ? 
-                new HashMap<>(media.getMetadata()) : new HashMap<>();
-        metadata.put("ocr", ocrResult);
-        
-        media.updateMetadata(metadata);
-        mediaRepository.save(media);
-        
-        log.info("미디어 메타데이터 업데이트 완료 - ID: {}, OCR 성공: {}", 
-                mediaId, ocrResult.get("success"));
-    }
-    
-    /**
-     * 미디어 파일의 OCR 결과를 조회합니다.
-     */
-    @Transactional(readOnly = true)
-    public Map<String, Object> getOCRResult(Long mediaId, Long userId) {
-        log.info("OCR 결과 조회 시작 - ID: {}, 사용자: {}", mediaId, userId);
-        
-        Media media = mediaRepository.findById(mediaId)
-                .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
-        
-        if (!media.getUser().getId().equals(userId)) {
-            throw new FileValidationException("파일 조회 권한이 없습니다.");
-        }
-        
-        if (media.getMetadata() == null || !media.getMetadata().containsKey("ocr")) {
-            Map<String, Object> emptyResult = new HashMap<>();
-            emptyResult.put("success", false);
-            emptyResult.put("error", "OCR 결과가 없습니다. 이미지 파일이 아니거나 OCR이 처리되지 않았습니다.");
-            return emptyResult;
-        }
-        
-        return (Map<String, Object>) media.getMetadata().get("ocr");
-    }
-
-    /**
-     * 미디어 파일의 썸네일 결과를 조회합니다.
-     */
-    @Transactional(readOnly = true)
-    public Map<String, Object> getThumbnailResult(Long mediaId, Long userId) {
-        log.info("썸네일 결과 조회 시작 - ID: {}, 사용자: {}", mediaId, userId);
-
-        Media media = mediaRepository.findById(mediaId)
-                .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
-
-        if (!media.getUser().getId().equals(userId)) {
-            throw new FileValidationException("파일 조회 권한이 없습니다.");
-        }
-
-        if (media.getMetadata() == null || !media.getMetadata().containsKey("thumbnail")) {
-            Map<String, Object> emptyResult = new HashMap<>();
-            emptyResult.put("success", false);
-            emptyResult.put("error", "썸네일이 없습니다. 이미지 파일이 아니거나 썸네일 생성이 실패했습니다.");
-            return emptyResult;
-        }
-
-        return (Map<String, Object>) media.getMetadata().get("thumbnail");
-    }
-
-    /**
-     * 미디어 파일의 썸네일 URL 결과를 조회합니다.
-     */
-    @Transactional(readOnly = true)
-    public Map<String, Object> getThumbnailUrlResult(Long mediaId, Long userId) {
-        log.info("썸네일 URL 결과 조회 시작 - ID: {}, 사용자: {}", mediaId, userId);
-
-        Map<String, Object> thumbnailResult = getThumbnailResult(mediaId, userId);
-
-        if (!(Boolean) thumbnailResult.get("success")) {
-            return thumbnailResult;
-        }
-
-        // 썸네일 URL에 대해 Presigned URL 생성
-        String thumbnailUrl = (String) thumbnailResult.get("url");
-        String presignedThumbnailUrl = s3Service.generatePresignedUrl(thumbnailUrl, 15); // 15분 만료
-
-        Map<String, Object> result = new HashMap<>(thumbnailResult);
-        result.put("presignedUrl", presignedThumbnailUrl);
-
-        log.info("썸네일 URL 결과 조회 완료 - ID: {}, 사용자: {}", mediaId, userId);
-
-        return result;
     }
 }

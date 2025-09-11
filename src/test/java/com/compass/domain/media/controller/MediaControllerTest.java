@@ -1,9 +1,6 @@
 package com.compass.domain.media.controller;
 
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import;
-import com.compass.config.jwt.JwtTokenProvider;
-import com.compass.config.SwaggerConfig;
+import com.compass.config.BaseIntegrationTest;
 import com.compass.domain.media.dto.MediaGetResponse;
 import com.compass.domain.media.dto.MediaUploadResponse;
 import com.compass.domain.media.entity.FileStatus;
@@ -25,10 +22,8 @@ import java.util.HashMap;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.CacheControl;
 import java.time.Duration;
-import com.compass.config.jwt.JwtTokenProvider;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -38,9 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(MediaController.class)
-@Import({JwtTokenProvider.class, SwaggerConfig.class})
-class MediaControllerTest {
+class MediaControllerTest extends BaseIntegrationTest {
     
     @Autowired
     private MockMvc mockMvc;
@@ -51,9 +44,6 @@ class MediaControllerTest {
     @MockBean
     private S3Service s3Service;
 
-    @MockBean
-    private JwtTokenProvider jwtTokenProvider;
-
     // AI 서비스 빈들 모킹 (API 키가 필요하지 않도록)
     @MockBean
     private org.springframework.ai.openai.OpenAiChatModel openAiChatModel;
@@ -63,12 +53,9 @@ class MediaControllerTest {
     
     @Autowired
     private ObjectMapper objectMapper;
-
-    private final String TEST_TOKEN = "Bearer test-jwt-token";
-    private final String TEST_EMAIL = "test@example.com";
-    private final Long TEST_USER_ID = 1L;
     
     @Test
+    @WithMockUser(username = "testuser")
     @DisplayName("파일 업로드 성공")
     void uploadFile_Success() throws Exception {
         // Given
@@ -78,7 +65,7 @@ class MediaControllerTest {
             "image/jpeg",
             "test image content".getBytes()
         );
-
+        
         MediaUploadResponse mockResponse = MediaUploadResponse.builder()
             .id(1L)
             .originalFilename("test.jpg")
@@ -90,16 +77,12 @@ class MediaControllerTest {
             .metadata(new HashMap<>())
             .createdAt(LocalDateTime.now())
             .build();
-
-        // JWT 모킹 설정
-        when(jwtTokenProvider.getUsername("test-jwt-token")).thenReturn(TEST_EMAIL);
-        when(mediaService.getUserIdByEmail(TEST_EMAIL)).thenReturn(TEST_USER_ID);
-        when(mediaService.uploadFile(any(), eq(TEST_USER_ID))).thenReturn(mockResponse);
-
+        
+        when(mediaService.uploadFile(any(), eq(1L))).thenReturn(mockResponse);
+        
         // When & Then
         mockMvc.perform(multipart("/api/media/upload")
                 .file(file)
-                .header("Authorization", TEST_TOKEN)
                 .with(csrf()))
             .andDo(print())
             .andExpect(status().isOk())
@@ -111,6 +94,7 @@ class MediaControllerTest {
     }
     
     @Test
+    @WithMockUser(username = "testuser")
     @DisplayName("파일 업로드 실패 - 파일 검증 오류")
     void uploadFile_ValidationError() throws Exception {
         // Given
@@ -120,17 +104,13 @@ class MediaControllerTest {
             "application/pdf",
             "invalid file content".getBytes()
         );
-
-        // JWT 모킹 설정
-        when(jwtTokenProvider.getUsername("test-jwt-token")).thenReturn(TEST_EMAIL);
-        when(mediaService.getUserIdByEmail(TEST_EMAIL)).thenReturn(TEST_USER_ID);
-        when(mediaService.uploadFile(any(), eq(TEST_USER_ID)))
+        
+        when(mediaService.uploadFile(any(), eq(1L)))
             .thenThrow(new FileValidationException("허용되지 않는 파일 형식입니다."));
-
+        
         // When & Then
         mockMvc.perform(multipart("/api/media/upload")
                 .file(file)
-                .header("Authorization", TEST_TOKEN)
                 .with(csrf()))
             .andDo(print())
             .andExpect(status().isBadRequest())

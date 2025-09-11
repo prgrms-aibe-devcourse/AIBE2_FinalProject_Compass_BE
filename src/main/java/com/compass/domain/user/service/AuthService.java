@@ -12,13 +12,16 @@ import com.compass.domain.user.exception.InvalidCredentialsException;
 import com.compass.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -29,6 +32,10 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    private static final String REFRESH_TOKEN_PREFIX = "RT:";
+    private static final String BLACKLIST_PREFIX = "blacklist:";
 
     public UserDto signup(SignupRequestDto signupRequest) {
         // Check if email already exists
@@ -83,6 +90,21 @@ public class AuthService {
                 .expiresIn(jwtTokenProvider.getExpiration(accessToken))
                 .build();
     }
+
+    public void logout(String accessToken) {
+        // 1. 토큰 유효성 검증
+        if (!jwtTokenProvider.validateAccessToken(accessToken)) {
+            throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
+        }
+
+        // 2. 토큰에서 만료 시간 정보 추출
+        Long expiration = jwtTokenProvider.getExpiration(accessToken);
+
+        // 3. Redis에 (Key: "blacklist:{accessToken}", Value: "logout") 저장 및 만료 시간 설정
+        redisTemplate.opsForValue().set(BLACKLIST_PREFIX + accessToken, "logout", expiration, TimeUnit.MILLISECONDS);
+    }
+
+
 
     public JwtDto refreshToken(String refreshToken) {
         // Validate refresh token

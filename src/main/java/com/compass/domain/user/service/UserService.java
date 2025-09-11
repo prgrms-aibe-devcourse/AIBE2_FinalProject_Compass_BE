@@ -2,17 +2,25 @@ package com.compass.domain.user.service;
 
 import com.compass.config.jwt.JwtTokenProvider;
 import com.compass.domain.user.dto.UserDto;
+import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.entity.User;
+import com.compass.domain.user.entity.UserPreference;
 import com.compass.domain.user.enums.Role;
+import com.compass.domain.user.repository.UserPreferenceRepository;
 import com.compass.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -24,6 +32,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final UserPreferenceRepository userPreferenceRepository;
 
     @Transactional
     public UserDto.SignUpResponse signUp(UserDto.SignUpRequest request) {
@@ -69,6 +78,7 @@ public class UserService {
                 .refreshToken(refreshToken)
                 .build();
     }
+
     public void logout(String accessToken) {
         // 1. 토큰 유효성 검증
         if (!jwtTokenProvider.validateAccessToken(accessToken)) {
@@ -81,4 +91,58 @@ public class UserService {
         // 3. Redis에 (Key: "blacklist:{accessToken}", Value: "logout") 저장 및 만료 시간 설정
         redisTemplate.opsForValue().set(BLACKLIST_PREFIX + accessToken, "logout", expiration, TimeUnit.MILLISECONDS);
     }
+
+
+    @Transactional(readOnly = true)
+    public UserDto getUserProfileByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+        log.info("Fetched profile for user: {}", user.getEmail());
+        return UserDto.from(user);
+    }
+
+    @Transactional
+    public UserDto updateUserProfileByEmail(String email, UserDto.ProfileUpdateRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+        user.updateProfile(request.getNickname(), request.getProfileImageUrl());
+        log.info("Updated profile for user: {}", user.getEmail());
+        return UserDto.from(user);
+    }
+
+    @Transactional
+    public List<UserPreferenceDto.Response> updateUserTravelStyle(String email, UserPreferenceDto.UpdateRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+
+        // 선호도 값의 총합이 1.0인지 검증
+        BigDecimal totalValue = request.getPreferences().stream()
+                .map(UserPreferenceDto.PreferenceItem::getValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalValue.compareTo(BigDecimal.ONE) != 0) {
+            throw new IllegalArgumentException("선호도 값의 총합은 1.0이 되어야 합니다.");
+        }
+
+        // 기존 여행 스타일 선호도 삭제
+        userPreferenceRepository.deleteByUserAndPreferenceType(user, "TRAVEL_STYLE");
+
+        // 새로운 선호도 저장
+        List<UserPreference> preferences = request.getPreferences().stream()
+                .map(item -> UserPreference.builder()
+                        .user(user)
+                        .preferenceType("TRAVEL_STYLE")
+                        .preferenceKey(item.getKey())
+                        .preferenceValue(item.getValue())
+                        .build())
+                .collect(Collectors.toList());
+        // 3. 새로운 선호도 일괄 저장
+        userPreferenceRepository.saveAll(preferences);
+        log.info("Updated travel style preferences for user: {}", email);
+        // 4. 결과 반환
+        return preferences.stream().map(UserPreferenceDto.Response::from).collect(Collectors.toList());
+    }
+
+
+
 }
