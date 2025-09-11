@@ -193,21 +193,6 @@ public class TourApiResponse {
         @JsonProperty("createdtime")
         private String createdTime; // 등록일
         
-        @JsonProperty("homepage")
-        private String homepage; // 홈페이지
-        
-        @JsonProperty("overview")
-        private String overview; // 개요
-        
-        @JsonProperty("zipcode")
-        private String zipcode; // 우편번호
-        
-        @JsonProperty("sigunguname")
-        private String sigunguName; // 시군구명
-        
-        @JsonProperty("areaname")
-        private String areaname; // 지역명
-        
         // Getters and Setters
         public String getContentId() {
             return contentId;
@@ -335,46 +320,6 @@ public class TourApiResponse {
         
         public void setCreatedTime(String createdTime) {
             this.createdTime = createdTime;
-        }
-        
-        public String getHomepage() {
-            return homepage;
-        }
-        
-        public void setHomepage(String homepage) {
-            this.homepage = homepage;
-        }
-        
-        public String getOverview() {
-            return overview;
-        }
-        
-        public void setOverview(String overview) {
-            this.overview = overview;
-        }
-        
-        public String getZipcode() {
-            return zipcode;
-        }
-        
-        public void setZipcode(String zipcode) {
-            this.zipcode = zipcode;
-        }
-        
-        public String getSigunguName() {
-            return sigunguName;
-        }
-        
-        public void setSigunguName(String sigunguName) {
-            this.sigunguName = sigunguName;
-        }
-        
-        public String getAreaname() {
-            return areaname;
-        }
-        
-        public void setAreaname(String areaname) {
-            this.areaname = areaname;
         }
     }
 }

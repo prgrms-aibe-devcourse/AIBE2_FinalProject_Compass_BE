@@ -4,26 +4,31 @@ spring:
 
   application:
     name: compass-backend
+  main:
+    allow-bean-definition-overriding: true
     
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:compass}
-    username: ${DB_USERNAME:compass_user}
-    password: ${DB_PASSWORD:compass_password}
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
     
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
     show-sql: false
+  sql:
+    init:
+      mode: never
     
   redis:
-    host: ${REDIS_HOST}
-    port: ${REDIS_PORT}
-    password: ${REDIS_PASSWORD}
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
 
   security:
     user:
@@ -72,7 +77,7 @@ spring:
     vertex:
       ai:
         gemini:
-          project-id: ${GOOGLE_CLOUD_PROJECT_ID:dummy-project-id}
+          project-id: ${GOOGLE_CLOUD_PROJECT_ID:dummy-project}
           location: ${GOOGLE_CLOUD_LOCATION:us-central1}
           chat:
             options:
@@ -105,6 +110,17 @@ logging:
     com.compass: DEBUG
     org.springframework.web: INFO
     org.springframework.security: DEBUG
+
+# Tour API Configuration
+tour:
+  api:
+    base-url: https://apis.data.go.kr/B551011/KorService2
+    service-key: ${TOUR_API_SERVICE_KEY:a1276cb5e93f8b11431d3d2fbfe5e843c3da51d2cd537c50170ea15e87f343ff}
+    response-type: json
+    num-of-rows: 100
+    page-no: 1
+    arrange: A # A=제목순, B=조회순, C=수정일순, D=생성일순, E=거리순
+    default-area-code: "1" # 서울
 
 # AWS S3 Configuration
 aws:
