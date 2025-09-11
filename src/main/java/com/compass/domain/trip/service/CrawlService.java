@@ -168,7 +168,10 @@ public class CrawlService {
             int numOfRows = 100;
             boolean hasMoreData = true;
             
-            while (hasMoreData) {
+            // 샘플링: 각 지역당 최대 200개만 수집
+            int maxItemsPerArea = 200;
+            
+            while (hasMoreData && totalCollected < maxItemsPerArea) {
                 // API 호출
                 var response = tourApiClient.getAreaBasedList(areaCode, contentTypeId, pageNo, numOfRows);
                 
@@ -185,10 +188,24 @@ public class CrawlService {
                     break;
                 }
                 
-                // 데이터 변환 및 저장
+                // 데이터 변환 및 저장 (샘플링 제한 적용)
                 List<TourPlace> tourPlaces = convertToTourPlaces(items, areaCode, contentTypeId);
-                List<TourPlace> savedPlaces = saveTourPlaces(tourPlaces);
                 
+                // 샘플링: 남은 수집 가능한 개수만큼만 처리
+                int remainingItems = maxItemsPerArea - totalCollected;
+                if (remainingItems <= 0) {
+                    log.info("지역 {} 컨텐츠 타입 {} 샘플링 제한 도달 ({}개)", areaName, contentTypeName, maxItemsPerArea);
+                    break;
+                }
+                
+                // 남은 개수만큼만 처리
+                if (tourPlaces.size() > remainingItems) {
+                    tourPlaces = tourPlaces.subList(0, remainingItems);
+                    log.info("지역 {} 컨텐츠 타입 {} 샘플링 적용: {}개 중 {}개만 처리", 
+                            areaName, contentTypeName, items.size(), remainingItems);
+                }
+                
+                List<TourPlace> savedPlaces = saveTourPlaces(tourPlaces);
                 totalCollected += savedPlaces.size();
                 
                 // 크롤링 상태 업데이트
@@ -230,9 +247,6 @@ public class CrawlService {
      * Tour API 응답 아이템을 TourPlace 엔티티로 변환
      */
     private TourPlace convertToTourPlace(TourApiResponse.TourItem item, String areaCode, String contentTypeId) {
-        // 키워드 JSON 변환 (Tour API에는 tags가 없으므로 빈 배열로 설정)
-        JsonNode keywords = createKeywordsJson(null);
-        
         // 상세 정보 JSON 생성
         JsonNode details = createDetailsJson(item);
         
@@ -244,34 +258,16 @@ public class CrawlService {
                 .area(item.getAddr1())
                 .latitude(parseDouble(item.getMapY()))
                 .longitude(parseDouble(item.getMapX()))
-                .keywords(keywords)
                 .areaCode(areaCode)
                 .contentTypeId(contentTypeId)
                 .address(item.getAddr1())
-                .phoneNumber(item.getTel())
-                .homepageUrl(item.getHomepage())
                 .imageUrl(item.getFirstImage())
-                .overview(item.getOverview())
                 .dataSource("tour_api")
                 .crawledAt(LocalDateTime.now())
                 .details(details)
                 .build();
     }
 
-    /**
-     * 키워드 JSON 생성
-     */
-    private JsonNode createKeywordsJson(String tags) {
-        if (tags == null || tags.trim().isEmpty()) {
-            return objectMapper.createArrayNode();
-        }
-        
-        String[] tagArray = tags.split(",");
-        return objectMapper.valueToTree(Arrays.stream(tagArray)
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList()));
-    }
 
     /**
      * 상세 정보 JSON 생성
@@ -279,15 +275,10 @@ public class CrawlService {
     private JsonNode createDetailsJson(TourApiResponse.TourItem item) {
         Map<String, Object> details = new HashMap<>();
         details.put("tel", item.getTel());
-        details.put("homepage", item.getHomepage());
         details.put("firstImage", item.getFirstImage());
         details.put("firstImage2", item.getFirstImage2());
-        details.put("overview", item.getOverview());
-        details.put("zipcode", item.getZipcode());
         details.put("sigunguCode", item.getSigunguCode());
-        details.put("sigunguName", item.getSigunguName());
         details.put("areacode", item.getAreaCode());
-        details.put("areaname", item.getAreaname());
         
         return objectMapper.valueToTree(details);
     }
@@ -349,12 +340,8 @@ public class CrawlService {
         existing.setArea(newData.getArea());
         existing.setLatitude(newData.getLatitude());
         existing.setLongitude(newData.getLongitude());
-        existing.setKeywords(newData.getKeywords());
         existing.setAddress(newData.getAddress());
-        existing.setPhoneNumber(newData.getPhoneNumber());
-        existing.setHomepageUrl(newData.getHomepageUrl());
         existing.setImageUrl(newData.getImageUrl());
-        existing.setOverview(newData.getOverview());
         existing.setDetails(newData.getDetails());
         existing.setCrawledAt(LocalDateTime.now());
     }

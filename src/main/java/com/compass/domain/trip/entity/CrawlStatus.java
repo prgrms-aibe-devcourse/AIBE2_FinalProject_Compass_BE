@@ -1,6 +1,6 @@
 package com.compass.domain.trip.entity;
 
-import com.compass.common.entity.BaseEntity;
+import java.time.LocalDateTime;
 import com.compass.domain.trip.enums.CrawlStatusType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,8 +20,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
-public class CrawlStatus extends BaseEntity {
+public class CrawlStatus {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -111,4 +110,27 @@ public class CrawlStatus extends BaseEntity {
      */
     @Column(name = "duration_seconds")
     private Long durationSeconds;
+
+    /**
+     * 생성 일시
+     */
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    /**
+     * 수정 일시
+     */
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

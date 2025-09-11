@@ -132,13 +132,16 @@ src/main/java/com/compass/config/
 ```
 
 ### 🔄 다음 단계 준비
-- **REQ-CRAWL-002**: Phase-별 크롤링 구현
-- **REQ-CRAWL-003**: tour_places 테이블 구현
-- **데이터베이스 저장**: 수집된 데이터 RDS 저장
-- **AI 추천 시스템**: 수집된 데이터 기반 AI 추천
+- **REQ-CRAWL-002**: Phase-별 크롤링 구현 ✅ (완료)
+- **REQ-CRAWL-003**: tour_places 테이블 구현 ✅ (완료)
+- **데이터베이스 저장**: 수집된 데이터 RDS 저장 ✅ (완료)
+- **엔티티 최적화**: 불필요한 null 필드 제거로 효율성 향상 ✅ (완료)
+- **AI 추천 시스템**: 수집된 데이터 기반 AI 추천 (다음 단계)
 
 ## 📌 참고사항
 - 한국관광공사 Tour API KorService2 엔드포인트를 사용합니다.
 - API 키는 환경변수 `TOUR_API_SERVICE_KEY`로 관리됩니다.
 - 대용량 데이터 수집 시 Rate Limiting(100ms)을 적용합니다.
 - 수집된 데이터는 AI 추천 시스템의 기반 데이터로 활용됩니다.
+- **후속 작업**: REQ-CRAWL-002에서 엔티티 최적화 완료 (불필요한 null 필드 제거)
+- **데이터베이스**: AWS RDS PostgreSQL 연동으로 실제 운영 환경 구축

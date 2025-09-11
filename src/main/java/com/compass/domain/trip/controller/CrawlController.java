@@ -1,23 +1,28 @@
 package com.compass.domain.trip.controller;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.compass.domain.trip.entity.CrawlStatus;
 import com.compass.domain.trip.entity.TourPlace;
-import com.compass.domain.trip.enums.CrawlStatusType;
 import com.compass.domain.trip.repository.CrawlStatusRepository;
 import com.compass.domain.trip.repository.TourPlaceRepository;
 import com.compass.domain.trip.service.CrawlService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * 크롤링 관리 컨트롤러
@@ -199,6 +204,37 @@ public class CrawlController {
             response.put("areaCode", areaCode);
             
             return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    /**
+     * 간단한 크롤링 결과 조회 (H2 호환)
+     */
+    @GetMapping("/simple-results")
+    @Operation(summary = "간단한 크롤링 결과 조회", 
+               description = "H2 데이터베이스 호환 간단한 통계 정보를 조회합니다.")
+    public ResponseEntity<Map<String, Object>> getSimpleCrawlResults() {
+        log.info("간단한 크롤링 결과 조회 요청");
+        
+        try {
+            // 전체 관광지 개수 (기본 메서드)
+            long totalPlaces = tourPlaceRepository.count();
+            
+            // 모든 관광지 조회 (기본 메서드)
+            List<TourPlace> allPlaces = tourPlaceRepository.findAll();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("totalPlaces", totalPlaces);
+            response.put("message", "크롤링 결과 조회 성공");
+            response.put("samplePlaces", allPlaces.stream().limit(5).toList());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("간단한 크롤링 결과 조회 실패", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "크롤링 결과 조회 실패: " + e.getMessage());
+            return ResponseEntity.status(500).body(errorResponse);
         }
     }
 

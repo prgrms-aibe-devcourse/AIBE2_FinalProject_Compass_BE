@@ -1,11 +1,26 @@
 package com.compass.domain.trip.entity;
 
-import com.compass.common.entity.BaseEntity;
-import com.fasterxml.jackson.databind.JsonNode;
-import jakarta.persistence.*;
-import lombok.*;
+import java.time.LocalDateTime;
+
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * 관광지 정보 엔티티
@@ -23,8 +38,7 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
-public class TourPlace extends BaseEntity {
+public class TourPlace {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -72,12 +86,6 @@ public class TourPlace extends BaseEntity {
     @Column
     private Double longitude;
 
-    /**
-     * 키워드/태그 (JSON 배열)
-     */
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "keywords", columnDefinition = "jsonb")
-    private JsonNode keywords;
 
     /**
      * 지역 코드 (1: 서울, 6: 부산, 39: 제주)
@@ -98,52 +106,10 @@ public class TourPlace extends BaseEntity {
     private String address;
 
     /**
-     * 전화번호
-     */
-    @Column(length = 50)
-    private String phoneNumber;
-
-    /**
-     * 홈페이지 URL
-     */
-    @Column(length = 500)
-    private String homepageUrl;
-
-    /**
      * 대표 이미지 URL
      */
     @Column(name = "image_url", length = 500)
     private String imageUrl;
-
-    /**
-     * 개요/설명
-     */
-    @Column(columnDefinition = "TEXT")
-    private String overview;
-
-    /**
-     * 운영 시간
-     */
-    @Column(name = "operating_hours", length = 200)
-    private String operatingHours;
-
-    /**
-     * 휴무일
-     */
-    @Column(name = "closed_days", length = 200)
-    private String closedDays;
-
-    /**
-     * 입장료/이용료
-     */
-    @Column(name = "entrance_fee", length = 200)
-    private String entranceFee;
-
-    /**
-     * 반려동물 동반 가능 여부
-     */
-    @Column(name = "pet_friendly")
-    private Boolean petFriendly;
 
     /**
      * 추가 상세 정보 (JSON)
@@ -163,5 +129,28 @@ public class TourPlace extends BaseEntity {
      */
     @Column(name = "crawled_at")
     private java.time.LocalDateTime crawledAt;
+
+    /**
+     * 생성 일시
+     */
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    /**
+     * 수정 일시
+     */
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }
 
