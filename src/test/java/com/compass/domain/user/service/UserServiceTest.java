@@ -3,11 +3,14 @@ package com.compass.domain.user.service;
 import com.compass.config.jwt.JwtTokenProvider;
 import com.compass.domain.trip.repository.TravelHistoryRepository;
 import com.compass.domain.user.dto.UserDto;
+import com.compass.domain.user.dto.UserFeedbackDto;
 import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.entity.User;
+import com.compass.domain.user.entity.UserFeedback;
 import com.compass.domain.user.entity.UserPreference;
 import com.compass.domain.user.enums.BudgetLevel;
 import com.compass.domain.user.enums.Role;
+import com.compass.domain.user.repository.UserFeedbackRepository;
 import com.compass.domain.user.repository.UserPreferenceRepository;
 import com.compass.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -59,6 +62,9 @@ class UserServiceTest {
 
     @Mock
     private PreferenceAnalyzer preferenceAnalyzer;
+
+    @Mock
+    private UserFeedbackRepository userFeedbackRepository;
 
 
     @Test
@@ -426,6 +432,59 @@ class UserServiceTest {
         // DB에 아무것도 저장하거나 삭제하지 않았는지 확인
         verify(userPreferenceRepository, never()).deleteByUserAndPreferenceType(any(), any());
         verify(userPreferenceRepository, never()).save(any());
+    }
+
+
+
+    @Test
+    @DisplayName("피드백 저장 성공")
+    void saveFeedback_success() {
+        // given
+        String email = "feedback@example.com";
+        User mockUser = User.builder().email(email).build();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        UserFeedbackDto.CreateRequest request = new UserFeedbackDto.CreateRequest();
+        ReflectionTestUtils.setField(request, "satisfaction", 5);
+        ReflectionTestUtils.setField(request, "comment", "Great service!");
+        ReflectionTestUtils.setField(request, "revisitIntent", true);
+
+        // Mocking the save operation is crucial to avoid NullPointerException.
+        // By default, a mock method returns null. The service code then tries to call .getId() on this null object.
+        // We configure the mock to return a valid UserFeedback object, simulating the real repository behavior.
+        UserFeedback savedFeedbackMock = UserFeedback.builder().build();
+        when(userFeedbackRepository.save(any(UserFeedback.class))).thenReturn(savedFeedbackMock);
+
+        // when
+        userService.saveFeedback(email, request);
+
+        // then
+        ArgumentCaptor<UserFeedback> captor = ArgumentCaptor.forClass(UserFeedback.class);
+        verify(userFeedbackRepository).save(captor.capture());
+        UserFeedback savedFeedback = captor.getValue();
+
+        assertThat(savedFeedback.getUser()).isEqualTo(mockUser);
+        assertThat(savedFeedback.getSatisfaction()).isEqualTo(5);
+        assertThat(savedFeedback.getComment()).isEqualTo("Great service!");
+        assertThat(savedFeedback.getRevisitIntent()).isTrue();
+    }
+
+    @Test
+    @DisplayName("피드백 저장 실패 - 사용자를 찾을 수 없음")
+    void saveFeedback_fail_userNotFound() {
+        // given
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        UserFeedbackDto.CreateRequest request = new UserFeedbackDto.CreateRequest();
+        ReflectionTestUtils.setField(request, "satisfaction", 5);
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.saveFeedback(email, request));
+
+        assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+        verify(userFeedbackRepository, never()).save(any());
     }
 
 }
