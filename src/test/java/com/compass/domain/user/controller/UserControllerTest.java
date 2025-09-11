@@ -432,6 +432,29 @@ class UserControllerTest extends BaseIntegrationTest {
         resultActions.andExpect(status().isBadRequest());
     }
 
+    @Test
+    @DisplayName("선호도 분석 실행 성공 - 분석할 기록이 없어 204 No Content 반환")
+    void analyzeMyPreferences_success_noContent() throws Exception {
+        // given
+        // 여행 기록이 없는 새로운 사용자를 생성
+        User newUser = userRepository.save(User.builder()
+                .email("new@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("newUser")
+                .role(Role.USER)
+                .build());
+        String accessToken = jwtTokenProvider.createAccessToken(newUser.getEmail());
+
+        // when
+        // 실제 DB에는 이 사용자의 여행 기록이 없으므로, 분석 결과는 "NEW_TRAVELER"가 될 것임
+        ResultActions resultActions = mockMvc.perform(post("/api/users/preferences/analyze")
+                .header("Authorization", "Bearer " + accessToken));
+
+        // then
+        // 컨트롤러가 Optional.empty()를 받아 204 No Content를 반환하는지 검증
+        resultActions.andExpect(status().isNoContent());
+    }
+
 
 
 }

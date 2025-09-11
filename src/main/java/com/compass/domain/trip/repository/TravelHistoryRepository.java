@@ -1,6 +1,7 @@
 package com.compass.domain.trip.repository;
 
 import com.compass.domain.trip.entity.TravelHistory;
+import com.compass.domain.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -119,4 +120,7 @@ public interface TravelHistoryRepository extends JpaRepository<TravelHistory, Lo
            "AND th.aiSatisfaction >= :minSatisfaction ORDER BY th.aiSatisfaction DESC")
     List<TravelHistory> findHighAiSatisfactionTrips(@Param("userId") Long userId, 
                                                     @Param("minSatisfaction") Integer minSatisfaction);
+
+    // 특정 사용자의 최근 여행 기록을 생성일 기준 내림차순으로 10개까지 조회
+    List<TravelHistory> findTop10ByUserIdOrderByCreatedAtDesc(Long userId);
 }
