@@ -1,6 +1,8 @@
 package com.compass.domain.user.service;
 
 import com.compass.config.jwt.JwtTokenProvider;
+import com.compass.domain.trip.entity.TravelHistory;
+import com.compass.domain.trip.repository.TravelHistoryRepository;
 import com.compass.domain.user.dto.UserDto;
 import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.entity.User;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -33,6 +36,8 @@ public class UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisTemplate<String, Object> redisTemplate;
     private final UserPreferenceRepository userPreferenceRepository;
+    private final TravelHistoryRepository travelHistoryRepository;
+    private final PreferenceAnalyzer preferenceAnalyzer;
 
     @Transactional
     public UserDto.SignUpResponse signUp(UserDto.SignUpRequest request) {
@@ -141,6 +146,66 @@ public class UserService {
         log.info("Updated travel style preferences for user: {}", email);
         // 4. 결과 반환
         return preferences.stream().map(UserPreferenceDto.Response::from).collect(Collectors.toList());
+    }
+
+
+
+    @Transactional
+    public UserPreferenceDto.Response updateBudgetLevel(String email, UserPreferenceDto.BudgetUpdateRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+
+        final String preferenceType = "BUDGET_LEVEL";
+
+        // 기존 예산 레벨 선호도 삭제
+        userPreferenceRepository.deleteByUserAndPreferenceType(user, preferenceType);
+
+        // 새로운 선호도 저장
+        UserPreference newPreference = UserPreference.builder()
+                .user(user)
+                .preferenceType(preferenceType)
+                .preferenceKey(request.getLevel().name())
+                .preferenceValue(BigDecimal.ONE) // 단일 선택이므로 100%를 의미하는 1.0으로 저장
+                .build();
+
+        userPreferenceRepository.save(newPreference);
+        log.info("Updated budget level preference for user: {}, level: {}", email, request.getLevel());
+
+        return UserPreferenceDto.Response.from(newPreference);
+    }
+
+
+
+    @Transactional
+    public Optional<UserPreferenceDto.Response> analyzeAndSavePreferences(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+
+        // 1. 최근 여행 기록 조회
+        List<TravelHistory> histories = travelHistoryRepository.findTop10ByUserIdOrderByCreatedAtDesc(user.getId());
+
+        // 2. 분석기 실행
+        String analyzedType = preferenceAnalyzer.analyzeTravelStyleWithAi(histories);
+
+        // 3. (중요) 분석 결과가 유의미할 때만 저장 로직을 실행합니다.
+        if ("NEW_TRAVELER".equals(analyzedType)) {
+            log.info("No travel history for user: {}. Skipping preference analysis update.", email);
+            return Optional.empty(); // 아무것도 저장하지 않고, 빈 결과를 반환합니다.
+        }
+
+        // 4. 분석 결과 저장 (기존 값 덮어쓰기)
+        final String preferenceType = "ANALYZED_TRAVEL_TYPE";
+        userPreferenceRepository.deleteByUserAndPreferenceType(user, preferenceType);
+
+        UserPreference analyzedPreference = UserPreference.builder()
+                .user(user)
+                .preferenceType(preferenceType)
+                .preferenceKey(analyzedType)
+                .preferenceValue(BigDecimal.ONE) // 분석된 타입은 하나이므로 100%
+                .build();
+
+        userPreferenceRepository.save(analyzedPreference);
+        return Optional.of(UserPreferenceDto.Response.from(analyzedPreference));
     }
 
 

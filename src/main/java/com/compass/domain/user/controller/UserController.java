@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @RestController
@@ -90,6 +91,30 @@ public class UserController {
         }
         List<UserPreferenceDto.Response> responses = userService.updateUserTravelStyle(authentication.getName(), request);
         return ResponseEntity.ok(responses);
+    }
+
+    @PutMapping("/preferences/budget-level")
+    @Operation(summary = "예산 수준 설정", description = "사용자의 여행 예산 수준(BUDGET, STANDARD, LUXURY)을 설정합니다.")
+    public ResponseEntity<UserPreferenceDto.Response> updateBudgetLevel(
+            Authentication authentication,
+            @Valid @RequestBody UserPreferenceDto.BudgetUpdateRequest request) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        UserPreferenceDto.Response response = userService.updateBudgetLevel(authentication.getName(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/preferences/analyze")
+    @Operation(summary = "사용자 선호도 분석 실행", description = "사용자의 여행 기록을 바탕으로 여행 스타일을 자동으로 분석하고 저장합니다.")
+    public ResponseEntity<?> analyzeMyPreferences(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Optional<UserPreferenceDto.Response> optionalResponse = userService.analyzeAndSavePreferences(authentication.getName());
+
+        return optionalResponse.<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
 }
