@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.core.ResponseInputStream;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -160,6 +161,40 @@ public class S3Service {
     public String generatePresignedUrl(String s3Url, int expiration) {
         log.info("기본 S3 URL 반환 - presigner 기능 미구현");
         return s3Url;
+    }
+    
+    /**
+     * S3에서 파일을 다운로드합니다.
+     * 
+     * @param s3Url 다운로드할 파일의 S3 URL
+     * @return 파일 바이트 배열
+     */
+    public byte[] downloadFile(String s3Url) {
+        try {
+            String s3Key = extractS3KeyFromUrl(s3Url);
+            
+            log.info("S3 파일 다운로드 시작 - 버킷: {}, 키: {}", bucketName, s3Key);
+            
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Key)
+                    .build();
+            
+            try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(getObjectRequest)) {
+                 byte[] fileBytes = s3Object.readAllBytes();
+                 
+                 log.info("S3 파일 다운로드 완료 - 키: {}, 크기: {} bytes", s3Key, fileBytes.length);
+                 
+                 return fileBytes;
+             }
+            
+        } catch (S3Exception e) {
+            log.error("S3 파일 다운로드 중 오류 발생: {}", e.getMessage(), e);
+            throw new S3UploadException("S3 파일 다운로드 중 오류가 발생했습니다: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("파일 다운로드 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            throw new S3UploadException("파일 다운로드 중 예상치 못한 오류가 발생했습니다.", e);
+        }
     }
 
     /**

@@ -36,6 +36,7 @@ public class MediaService {
     private final FileValidationService fileValidationService;
     private final S3Service s3Service;
     private final ThumbnailService thumbnailService;
+    private final OCRService ocrService;
     
     
     @Transactional
@@ -244,5 +245,90 @@ public class MediaService {
             log.error("썸네일 생성 및 업로드 중 오류 발생: {}", originalFile.getOriginalFilename(), e);
             return null;
         }
+    }
+    
+    /**
+     * 기존 미디어에 대한 OCR 처리를 수행합니다.
+     * 
+     * @param mediaId 미디어 ID
+     * @param userId 사용자 ID
+     */
+    @Transactional
+    public void processOCRForMedia(Long mediaId, Long userId) {
+        log.info("OCR 처리 시작 - 미디어 ID: {}, 사용자: {}", mediaId, userId);
+        
+        // 미디어 조회
+        Media media = mediaRepository.findById(mediaId)
+                .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
+        
+        // 권한 체크
+        if (!media.getUser().getId().equals(userId)) {
+            throw new FileValidationException("파일 접근 권한이 없습니다.");
+        }
+        
+        // 이미지 파일인지 확인
+        if (!fileValidationService.isSupportedImageFile(media.getMimeType())) {
+            throw new FileValidationException("OCR은 이미지 파일만 지원합니다.");
+        }
+        
+        try {
+            // S3에서 파일 다운로드
+            byte[] imageBytes = s3Service.downloadFile(media.getS3Url());
+            
+            // OCR 처리
+            Map<String, Object> ocrResult = ocrService.extractTextFromBytes(imageBytes, media.getOriginalFilename());
+            
+            // 메타데이터에 OCR 결과 저장
+            Map<String, Object> metadata = media.getMetadata() != null ? 
+                new HashMap<>(media.getMetadata()) : new HashMap<>();
+            metadata.put("ocr", ocrResult);
+            metadata.put("ocrProcessedAt", LocalDateTime.now().toString());
+            
+            media.updateMetadata(metadata);
+            mediaRepository.save(media);
+            
+            log.info("OCR 처리 완료 - 미디어 ID: {}", mediaId);
+            
+        } catch (Exception e) {
+            log.error("OCR 처리 중 오류 발생 - 미디어 ID: {}", mediaId, e);
+            throw new FileValidationException("OCR 처리 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * OCR 결과를 조회합니다.
+     * 
+     * @param mediaId 미디어 ID
+     * @param userId 사용자 ID
+     * @return OCR 결과
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getOCRResult(Long mediaId, Long userId) {
+        log.info("OCR 결과 조회 - 미디어 ID: {}, 사용자: {}", mediaId, userId);
+        
+        // 미디어 조회
+        Media media = mediaRepository.findById(mediaId)
+                .orElseThrow(() -> new FileValidationException("파일을 찾을 수 없습니다."));
+        
+        // 권한 체크
+        if (!media.getUser().getId().equals(userId)) {
+            throw new FileValidationException("파일 접근 권한이 없습니다.");
+        }
+        
+        // 메타데이터에서 OCR 결과 추출
+        if (media.getMetadata() != null && media.getMetadata().containsKey("ocr")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> ocrResult = (Map<String, Object>) media.getMetadata().get("ocr");
+            log.info("OCR 결과 조회 완료 - 미디어 ID: {}", mediaId);
+            return ocrResult;
+        }
+        
+        // OCR 결과가 없는 경우
+        Map<String, Object> errorResult = new HashMap<>();
+        errorResult.put("success", false);
+        errorResult.put("error", "OCR 결과가 없습니다. 이미지 파일이 아니거나 OCR이 처리되지 않았습니다.");
+        
+        log.info("OCR 결과 없음 - 미디어 ID: {}", mediaId);
+        return errorResult;
     }
 }
