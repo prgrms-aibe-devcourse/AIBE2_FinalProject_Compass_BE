@@ -379,4 +379,59 @@ class UserControllerTest extends BaseIntegrationTest {
         // then
         resultActions.andExpect(status().isUnauthorized());
     }
+
+
+    @Test
+    @DisplayName("예산 수준 설정 성공")
+    void updateBudgetLevel_success() throws Exception {
+        // given
+        User savedUser = userRepository.save(User.builder()
+                .email("budget@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("budgetUser")
+                .role(Role.USER)
+                .build());
+        String accessToken = jwtTokenProvider.createAccessToken(savedUser.getEmail());
+
+        String requestBody = objectMapper.writeValueAsString(Map.of("level", "STANDARD"));
+
+        // when
+        ResultActions resultActions = mockMvc.perform(put("/api/users/preferences/budget-level")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.preferenceKey").value("STANDARD"))
+                .andExpect(jsonPath("$.preferenceValue").value(1.0));
+    }
+
+    @Test
+    @DisplayName("예산 수준 설정 실패 - 유효하지 않은 요청 값")
+    void updateBudgetLevel_fail_badRequest() throws Exception {
+        // given
+        User savedUser = userRepository.save(User.builder()
+                .email("budget@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("budgetUser")
+                .role(Role.USER)
+                .build());
+        String accessToken = jwtTokenProvider.createAccessToken(savedUser.getEmail());
+
+        // 'level' 필드가 없는 잘못된 요청
+        String requestBody = objectMapper.writeValueAsString(Map.of("invalidKey", "someValue"));
+
+        // when
+        ResultActions resultActions = mockMvc.perform(put("/api/users/preferences/budget-level")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
+
+        // then
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+
+
 }
