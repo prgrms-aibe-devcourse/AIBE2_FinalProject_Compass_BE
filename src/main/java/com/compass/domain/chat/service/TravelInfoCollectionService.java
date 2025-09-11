@@ -26,8 +26,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * 여행 정보 수집 서비스
@@ -44,7 +42,7 @@ public class TravelInfoCollectionService {
     private final NaturalLanguageParsingService parsingService;
     private final QuestionFlowEngine flowEngine;
     private final ObjectMapper objectMapper;
-    private TravelInfoCollectionCacheService cacheService;
+    private SessionManagementService sessionService;
     private TravelInfoValidator validator;
     
     @Autowired
@@ -56,7 +54,7 @@ public class TravelInfoCollectionService {
             NaturalLanguageParsingService parsingService,
             QuestionFlowEngine flowEngine,
             ObjectMapper objectMapper,
-            @Autowired(required = false) TravelInfoCollectionCacheService cacheService,
+            @Autowired(required = false) SessionManagementService sessionService,
             @Autowired(required = false) TravelInfoValidator validator) {
         this.collectionRepository = collectionRepository;
         this.userRepository = userRepository;
@@ -65,7 +63,7 @@ public class TravelInfoCollectionService {
         this.parsingService = parsingService;
         this.flowEngine = flowEngine;
         this.objectMapper = objectMapper;
-        this.cacheService = cacheService;
+        this.sessionService = sessionService;
         this.validator = validator;
     }
     
@@ -88,8 +86,11 @@ public class TravelInfoCollectionService {
         // Redis 캐시에서 먼저 확인 (REQ-FOLLOW-004)
         String tempSessionId = user.getId() + "_temp";
         Optional<TravelInfoCollectionState> cachedState = Optional.empty();
-        if (cacheService != null) {
-            cachedState = cacheService.getTravelContext(tempSessionId);
+        if (sessionService != null) {
+            TravelInfoCollectionState tempState = sessionService.loadSession(tempSessionId);
+            if (tempState != null) {
+                cachedState = Optional.of(tempState);
+            }
         }
         
         // 기존 미완료 세션 확인
@@ -129,8 +130,8 @@ public class TravelInfoCollectionService {
         newState = collectionRepository.save(newState);
         
         // Redis에 캐싱 (REQ-FOLLOW-004: 30분 TTL)
-        if (cacheService != null) {
-            cacheService.saveTravelContext(newState.getSessionId(), newState);
+        if (sessionService != null) {
+            sessionService.saveSession(newState.getSessionId(), newState);
         }
         
         // 다음 질문 생성
@@ -146,11 +147,8 @@ public class TravelInfoCollectionService {
         
         // Redis 캐시에서 먼저 조회 (REQ-FOLLOW-004)
         TravelInfoCollectionState state = null;
-        if (cacheService != null) {
-            Optional<TravelInfoCollectionState> cached = cacheService.getTravelContext(sessionId);
-            if (cached.isPresent()) {
-                state = cached.get();
-            }
+        if (sessionService != null) {
+            state = sessionService.loadSession(sessionId);
         }
         
         if (state == null) {
@@ -170,9 +168,8 @@ public class TravelInfoCollectionService {
         state = collectionRepository.save(state);
         
         // Redis 캐시 업데이트 (REQ-FOLLOW-004)
-        if (cacheService != null) {
-            cacheService.saveTravelContext(state.getSessionId(), state);
-            cacheService.refreshTTL(state.getSessionId());
+        if (sessionService != null) {
+            sessionService.saveSession(state.getSessionId(), state);
         }
         
         // 플로우 완료 여부 확인
@@ -223,8 +220,8 @@ public class TravelInfoCollectionService {
         collectionRepository.save(state);
         
         // Redis 캐시 삭제 (완료 시)
-        if (cacheService != null) {
-            cacheService.deleteTravelContext(sessionId);
+        if (sessionService != null) {
+            sessionService.deleteSession(sessionId);
         }
         
         // TripPlanningRequest로 변환
@@ -321,8 +318,8 @@ public class TravelInfoCollectionService {
         collectionRepository.save(state);
         
         // Redis 캐시 삭제 (취소 시)
-        if (cacheService != null) {
-            cacheService.deleteTravelContext(sessionId);
+        if (sessionService != null) {
+            sessionService.deleteSession(sessionId);
         }
     }
     
@@ -377,65 +374,28 @@ public class TravelInfoCollectionService {
     
     /**
      * 메시지에서 정보 추출 및 업데이트
+     * 원문을 그대로 저장하고 간단한 키워드 매칭만 수행
      */
     private boolean extractAndUpdateInfo(TravelInfoCollectionState state, String message) {
-        try {
-            // NaturalLanguageParsingService 사용
-            Map<String, Object> parsedInfo = parsingService.parseNaturalLanguageRequest(message);
-            
-            boolean updated = false;
-            
-            // 출발지
-            if (parsedInfo.containsKey("origin") && !state.isOriginCollected()) {
-                state.setOrigin((String) parsedInfo.get("origin"));
-                state.setOriginCollected(true);
-                updated = true;
-            }
-            
-            // 목적지
-            if (parsedInfo.containsKey("destination") && !state.isDestinationCollected()) {
-                state.setDestination((String) parsedInfo.get("destination"));
-                state.setDestinationCollected(true);
-                updated = true;
-            }
-            
-            // 기간
-            if (parsedInfo.containsKey("nights") && parsedInfo.get("nights") != null && !state.isDurationCollected()) {
-                state.setDurationNights(((Number) parsedInfo.get("nights")).intValue());
-                state.setDurationCollected(true);
-                updated = true;
-            }
-            
-            // 동행자
-            if (parsedInfo.containsKey("numberOfTravelers") && parsedInfo.get("numberOfTravelers") != null && !state.isCompanionsCollected()) {
-                state.setNumberOfTravelers(((Number) parsedInfo.get("numberOfTravelers")).intValue());
-                state.setCompanionType((String) parsedInfo.get("groupType"));
-                state.setCompanionsCollected(true);
-                updated = true;
-            }
-            
-            // 예산
-            if (parsedInfo.containsKey("budget") && !state.isBudgetCollected()) {
-                state.setBudgetLevel((String) parsedInfo.get("budget"));
-                state.setBudgetCollected(true);
-                updated = true;
-            }
-            
-            // 추가 정보 저장
-            if (!parsedInfo.isEmpty()) {
-                try {
-                    state.setAdditionalPreferences(objectMapper.writeValueAsString(parsedInfo));
-                } catch (JsonProcessingException e) {
-                    log.error("Failed to serialize additional preferences", e);
-                }
-            }
-            
-            return updated;
-            
-        } catch (Exception e) {
-            log.error("Failed to extract info from message: {}", message, e);
-            return false;
+        // 초기 메시지를 원문 그대로 저장
+        // 파싱하지 않고 키워드 기반으로만 어떤 정보인지 판단
+        boolean updated = false;
+        String lowerMessage = message.toLowerCase();
+        
+        // 간단한 키워드 매칭으로 타입 판별
+        if ((lowerMessage.contains("제주") || lowerMessage.contains("부산") || 
+             lowerMessage.contains("서울") || lowerMessage.contains("경주") ||
+             lowerMessage.contains("강릉") || lowerMessage.contains("여수")) && 
+            !state.isDestinationCollected()) {
+            // 목적지로 추정
+            state.setDestinationRaw(message);
+            state.setDestination(message);
+            state.setDestinationCollected(true);
+            updated = true;
+            log.info("Initial destination detected (raw): {}", message);
         }
+        
+        return updated;
     }
     
     /**
@@ -453,11 +413,12 @@ public class TravelInfoCollectionService {
     }
     
     /**
-     * 출발지 파싱
+     * 출발지 저장 (원문 그대로)
      */
     private void parseOrigin(TravelInfoCollectionState state, String response) {
         String origin = response.trim();
         if (!origin.isEmpty()) {
+            state.setOriginRaw(origin);
             state.setOrigin(origin);
             state.setOriginCollected(true);
             state.setCurrentStep(TravelInfoCollectionState.CollectionStep.DESTINATION);
@@ -465,12 +426,12 @@ public class TravelInfoCollectionService {
     }
     
     /**
-     * 목적지 파싱
+     * 목적지 저장 (원문 그대로)
      */
     private void parseDestination(TravelInfoCollectionState state, String response) {
-        // 단순하게 전체 응답을 목적지로 저장 (추후 정제 가능)
         String destination = response.trim();
         if (!destination.isEmpty()) {
+            state.setDestinationRaw(destination);
             state.setDestination(destination);
             state.setDestinationCollected(true);
             state.setCurrentStep(TravelInfoCollectionState.CollectionStep.DATES);
@@ -478,137 +439,123 @@ public class TravelInfoCollectionService {
     }
     
     /**
-     * 날짜 파싱
+     * 날짜 저장 (원문 그대로)
      */
     private void parseDates(TravelInfoCollectionState state, String response) {
-        // TravelParsingUtils 사용
-        TravelParsingUtils.DateRange dateRange = TravelParsingUtils.parseDateRange(response);
+        // 원문 저장
+        state.setDatesRaw(response.trim());
+        state.setDatesCollected(true);
         
-        if (dateRange != null) {
-            state.setStartDate(dateRange.startDate());
-            state.setEndDate(dateRange.endDate());
-            state.setDatesCollected(true);
-            state.setDurationNights(dateRange.getNights());
-            state.setDurationCollected(true);
-            state.setCurrentStep(TravelInfoCollectionState.CollectionStep.COMPANIONS);
-            return;
-        }
-        
-        // 기존 파싱 로직 유지 (형식이 다른 경우)
-        Pattern datePattern = Pattern.compile("(\\d{1,2})월\\s*(\\d{1,2})일");
-        Matcher matcher = datePattern.matcher(response);
-        List<LocalDate> dates = new ArrayList<>();
-        int currentYear = LocalDate.now().getYear();
-        
-        while (matcher.find()) {
-            int month = Integer.parseInt(matcher.group(1));
-            int day = Integer.parseInt(matcher.group(2));
-            dates.add(LocalDate.of(currentYear, month, day));
-        }
-        
-        if (dates.size() >= 2) {
-            state.setStartDate(dates.get(0));
-            state.setEndDate(dates.get(1));
-            state.setDatesCollected(true);
-            calculateDuration(state);
-            state.setCurrentStep(TravelInfoCollectionState.CollectionStep.COMPANIONS);
-        } else if (dates.size() == 1) {
-            // 단일 날짜만 제공된 경우
-            state.setStartDate(dates.get(0));
-            // 기간 정보가 있으면 종료일 계산
-            if (state.getDurationNights() != null) {
-                state.setEndDate(dates.get(0).plusDays(state.getDurationNights()));
-                state.setDatesCollected(true);
-                state.setCurrentStep(TravelInfoCollectionState.CollectionStep.COMPANIONS);
+        // 간단한 날짜 파싱 시도 (선택적)
+        try {
+            TravelParsingUtils.DateRange dateRange = TravelParsingUtils.parseDateRange(response);
+            if (dateRange != null) {
+                state.setStartDate(dateRange.startDate());
+                state.setEndDate(dateRange.endDate());
+                state.setDurationNights(dateRange.getNights());
+                state.setDurationCollected(true);
             }
+        } catch (Exception e) {
+            log.debug("Date parsing failed, but raw data saved: {}", e.getMessage());
         }
+        
+        // 다음 단계로 이동
+        state.setCurrentStep(TravelInfoCollectionState.CollectionStep.COMPANIONS);
     }
     
     /**
-     * 기간 파싱
+     * 기간 저장 (원문 그대로)
      */
     private void parseDuration(TravelInfoCollectionState state, String response) {
-        // TravelParsingUtils 사용
-        int nights = TravelParsingUtils.parseDurationNights(response);
-        
-        state.setDurationNights(nights);
+        // 원문 저장
+        state.setDurationRaw(response.trim());
         state.setDurationCollected(true);
         
-        // 시작 날짜가 있으면 종료 날짜 계산
-        if (state.getStartDate() != null && state.getEndDate() == null) {
-            state.setEndDate(state.getStartDate().plusDays(nights));
-            state.setDatesCollected(true);
+        // 간단한 기간 파싱 시도 (선택적)
+        try {
+            int nights = TravelParsingUtils.parseDurationNights(response);
+            state.setDurationNights(nights);
+            
+            // 시작 날짜가 있으면 종료 날짜 계산
+            if (state.getStartDate() != null && state.getEndDate() == null) {
+                state.setEndDate(state.getStartDate().plusDays(nights));
+                state.setDatesCollected(true);
+            }
+        } catch (Exception e) {
+            log.debug("Duration parsing failed, but raw data saved: {}", e.getMessage());
         }
         
         state.setCurrentStep(TravelInfoCollectionState.CollectionStep.COMPANIONS);
     }
     
     /**
-     * 동행자 파싱
+     * 동행자 저장 (원문 그대로)
      */
     private void parseCompanions(TravelInfoCollectionState state, String response) {
-        String lowerResponse = response.toLowerCase();
+        // 원문 저장
+        state.setCompanionsRaw(response.trim());
+        state.setCompanionsCollected(true);
         
-        // 동행자 타입 판단
-        if (lowerResponse.contains("혼자") || lowerResponse.contains("나홀로")) {
-            state.setCompanionType("solo");
-            state.setNumberOfTravelers(1);
-            state.setCompanionsCollected(true);
-        } else if (lowerResponse.contains("연인") || lowerResponse.contains("배우자") || 
-                   lowerResponse.contains("커플") || lowerResponse.contains("둘이")) {
-            state.setCompanionType("couple");
-            state.setNumberOfTravelers(2);
-            state.setCompanionsCollected(true);
-        } else if (lowerResponse.contains("가족")) {
-            state.setCompanionType("family");
-            // 인원 수 파싱 시도
-            int travelerCount = TravelParsingUtils.parseTravelerCount(response, "family");
-            state.setNumberOfTravelers(travelerCount);
-            state.setCompanionsCollected(true);
-        } else if (lowerResponse.contains("친구")) {
-            state.setCompanionType("friends");
-            int travelerCount = TravelParsingUtils.parseTravelerCount(response, "friends");
-            state.setNumberOfTravelers(travelerCount);
-            state.setCompanionsCollected(true);
+        // 간단한 동행자 파싱 시도 (선택적)
+        try {
+            String lowerResponse = response.toLowerCase();
+            
+            if (lowerResponse.contains("혼자") || lowerResponse.contains("나홀로")) {
+                state.setCompanionType("solo");
+                state.setNumberOfTravelers(1);
+            } else if (lowerResponse.contains("연인") || lowerResponse.contains("배우자") || 
+                       lowerResponse.contains("커플") || lowerResponse.contains("둘이")) {
+                state.setCompanionType("couple");
+                state.setNumberOfTravelers(2);
+            } else if (lowerResponse.contains("가족")) {
+                state.setCompanionType("family");
+                int travelerCount = TravelParsingUtils.parseTravelerCount(response, "family");
+                state.setNumberOfTravelers(travelerCount);
+            } else if (lowerResponse.contains("친구")) {
+                state.setCompanionType("friends");
+                int travelerCount = TravelParsingUtils.parseTravelerCount(response, "friends");
+                state.setNumberOfTravelers(travelerCount);
+            }
+        } catch (Exception e) {
+            log.debug("Companion parsing failed, but raw data saved: {}", e.getMessage());
         }
         
-        if (state.isCompanionsCollected()) {
-            state.setCurrentStep(TravelInfoCollectionState.CollectionStep.BUDGET);
-        }
+        state.setCurrentStep(TravelInfoCollectionState.CollectionStep.BUDGET);
     }
     
     /**
-     * 예산 파싱
+     * 예산 저장 (원문 그대로)
      */
     private void parseBudget(TravelInfoCollectionState state, String response) {
-        String lowerResponse = response.toLowerCase();
+        // 원문 저장
+        state.setBudgetRaw(response.trim());
+        state.setBudgetCollected(true);
         
-        // 예산 수준 판단
-        if (lowerResponse.contains("알뜰") || lowerResponse.contains("저렴") || 
-            lowerResponse.contains("가성비")) {
-            state.setBudgetLevel("budget");
-            state.setBudgetCollected(true);
-        } else if (lowerResponse.contains("적당") || lowerResponse.contains("보통") || 
-                   lowerResponse.contains("중간")) {
-            state.setBudgetLevel("moderate");
-            state.setBudgetCollected(true);
-        } else if (lowerResponse.contains("럭셔리") || lowerResponse.contains("프리미엄") || 
-                   lowerResponse.contains("고급")) {
-            state.setBudgetLevel("luxury");
-            state.setBudgetCollected(true);
+        // 간단한 예산 파싱 시도 (선택적)
+        try {
+            String lowerResponse = response.toLowerCase();
+            
+            if (lowerResponse.contains("알뜰") || lowerResponse.contains("저렴") || 
+                lowerResponse.contains("가성비")) {
+                state.setBudgetLevel("budget");
+            } else if (lowerResponse.contains("적당") || lowerResponse.contains("보통") || 
+                       lowerResponse.contains("중간")) {
+                state.setBudgetLevel("moderate");
+            } else if (lowerResponse.contains("럭셔리") || lowerResponse.contains("프리미엄") || 
+                       lowerResponse.contains("고급")) {
+                state.setBudgetLevel("luxury");
+            }
+            
+            Integer amount = TravelParsingUtils.parseMoneyAmount(response);
+            if (amount != null) {
+                state.setBudgetPerPerson(amount);
+                state.setBudgetCurrency("KRW");
+            }
+        } catch (Exception e) {
+            log.debug("Budget parsing failed, but raw data saved: {}", e.getMessage());
         }
         
-        // 구체적인 금액 파싱
-        Integer amount = TravelParsingUtils.parseMoneyAmount(response);
-        if (amount != null) {
-            state.setBudgetPerPerson(amount);
-            state.setBudgetCurrency("KRW");
-            state.setBudgetCollected(true);
-        }
-        
-        if (state.isBudgetCollected()) {
-            state.setCurrentStep(TravelInfoCollectionState.CollectionStep.CONFIRMATION);
-        }
+        state.setCurrentStep(TravelInfoCollectionState.CollectionStep.CONFIRMATION);
     }
     
     /**
@@ -624,10 +571,12 @@ public class TravelInfoCollectionService {
     
     /**
      * TripPlanningRequest로 변환
+     * 원문 필드들을 포함하여 전달
      */
     private TripPlanningRequest convertToTripPlanningRequest(TravelInfoCollectionState state) {
         TripPlanningRequest request = new TripPlanningRequest();
         
+        // 파싱된 데이터
         request.setDestination(state.getDestination());
         request.setStartDate(state.getStartDate());
         request.setEndDate(state.getEndDate());
@@ -643,16 +592,42 @@ public class TravelInfoCollectionService {
         // Origin은 수집된 값 사용
         request.setOrigin(state.getOrigin());
         
-        // 추가 정보가 있으면 preferences에 추가
+        // 원문 데이터를 preferences에 추가
+        Map<String, Object> preferences = new HashMap<>();
+        
+        // 원문 필드들 추가
+        if (state.getOriginRaw() != null) {
+            preferences.put("originRaw", state.getOriginRaw());
+        }
+        if (state.getDestinationRaw() != null) {
+            preferences.put("destinationRaw", state.getDestinationRaw());
+        }
+        if (state.getDatesRaw() != null) {
+            preferences.put("datesRaw", state.getDatesRaw());
+        }
+        if (state.getDurationRaw() != null) {
+            preferences.put("durationRaw", state.getDurationRaw());
+        }
+        if (state.getCompanionsRaw() != null) {
+            preferences.put("companionsRaw", state.getCompanionsRaw());
+        }
+        if (state.getBudgetRaw() != null) {
+            preferences.put("budgetRaw", state.getBudgetRaw());
+        }
+        
+        // 기존 추가 정보가 있으면 병합
         if (state.getAdditionalPreferences() != null) {
             try {
-                Map<String, Object> preferences = objectMapper.readValue(
+                @SuppressWarnings("unchecked")
+                Map<String, Object> additionalPrefs = objectMapper.readValue(
                         state.getAdditionalPreferences(), Map.class);
-                request.setPreferences(preferences);
+                preferences.putAll(additionalPrefs);
             } catch (JsonProcessingException e) {
                 log.error("Failed to parse additional preferences", e);
             }
         }
+        
+        request.setPreferences(preferences);
         
         return request;
     }

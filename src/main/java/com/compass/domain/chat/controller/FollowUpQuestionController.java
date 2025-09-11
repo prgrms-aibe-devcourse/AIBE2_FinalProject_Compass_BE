@@ -3,6 +3,7 @@ package com.compass.domain.chat.controller;
 import com.compass.domain.chat.dto.FollowUpResponseDto;
 import com.compass.domain.chat.dto.ValidationResult;
 import com.compass.domain.chat.service.FollowUpQuestionService;
+import com.compass.domain.chat.exception.FollowUpException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -39,19 +40,44 @@ public class FollowUpQuestionController {
                description = "Initialize a new follow-up question session for travel planning")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Session started successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid request")
+        @ApiResponse(responseCode = "400", description = "Invalid request"),
+        @ApiResponse(responseCode = "409", description = "Duplicate request detected")
     })
     public ResponseEntity<FollowUpResponseDto> startSession(
+            @RequestHeader(value = "X-User-ID", required = false) String userId,
             @Parameter(description = "Initial message and user context")
             @RequestBody Map<String, Object> request) {
         
-        String userId = (String) request.get("userId");
+        // Request body에서 userId가 없으면 헤더에서 사용
+        if (userId == null) {
+            Object userIdObj = request.get("userId");
+            if (userIdObj != null) {
+                userId = String.valueOf(userIdObj);
+            }
+        }
         String initialMessage = (String) request.get("message");
+        String clientRequestId = (String) request.get("requestId"); // 클라이언트가 제공하는 요청 ID (중복 방지용)
         
-        log.info("Starting follow-up session for user: {} with message: {}", userId, initialMessage);
+        // 중복 요청 체크를 위한 키 생성
+        String dedupeKey = userId + ":" + (clientRequestId != null ? clientRequestId : initialMessage);
+        
+        log.info("Starting follow-up session for user: {} with message: {} (requestId: {}, dedupeKey: {})", 
+                userId, initialMessage, clientRequestId, dedupeKey);
         
         try {
-            FollowUpResponseDto response = followUpService.startSession(userId, initialMessage);
+            // ThreadId가 제공된 경우, 기존 세션 재사용 여부 확인
+            String threadId = (String) request.get("threadId");
+            
+            // 중복 요청 방지를 위한 체크 (같은 메시지로 5초 이내 재요청 차단)
+            if (followUpService.isDuplicateRequest(dedupeKey)) {
+                log.warn("Duplicate request detected for key: {}", dedupeKey);
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(FollowUpResponseDto.builder()
+                                .message("중복 요청이 감지되었습니다. 잠시 후 다시 시도해주세요.")
+                                .build());
+            }
+            
+            FollowUpResponseDto response = followUpService.startSession(userId, initialMessage, threadId);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error starting follow-up session", e);
@@ -174,6 +200,76 @@ public class FollowUpQuestionController {
                     .body(ValidationResult.builder()
                             .valid(false)
                             .userFriendlyMessage("검증 중 오류가 발생했습니다.")
+                            .build());
+        }
+    }
+    
+    /**
+     * 사용자 응답 처리 (프론트엔드 호환 엔드포인트)
+     * 캘린더 UI와 기타 프론트엔드 컴포넌트에서 사용
+     */
+    @PostMapping("/answer")
+    @Operation(summary = "Process user answer (Frontend compatible)", 
+               description = "Process user's answer from frontend components like calendar UI")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Answer processed successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request"),
+        @ApiResponse(responseCode = "404", description = "Session not found")
+    })
+    public ResponseEntity<FollowUpResponseDto> processAnswer(
+            @Parameter(description = "Session ID, answer and optional metadata")
+            @RequestBody Map<String, Object> request) {
+        
+        String sessionId = (String) request.get("sessionId");
+        String answer = (String) request.get("answer");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> metadata = (Map<String, Object>) request.get("metadata");
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(FollowUpResponseDto.builder()
+                            .message("세션 ID가 필요합니다.")
+                            .build());
+        }
+        
+        // 메타데이터 처리 (날짜 정보 등)
+        if (metadata != null) {
+            log.info("Processing answer with metadata for session: {} - Answer: {}, Metadata: {}", 
+                    sessionId, answer, metadata);
+            
+            // 날짜 정보가 메타데이터에 있는 경우 처리
+            if (metadata.containsKey("startDate") && metadata.containsKey("endDate")) {
+                String dateRange = metadata.get("startDate") + " ~ " + metadata.get("endDate");
+                if (answer == null || answer.isEmpty()) {
+                    answer = dateRange;
+                }
+            }
+            
+            // 스킵 요청 처리
+            if (Boolean.TRUE.equals(metadata.get("skipped"))) {
+                answer = "나중에 결정할게요";
+            }
+        }
+        
+        if (answer == null || answer.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(FollowUpResponseDto.builder()
+                            .sessionId(sessionId)
+                            .message("응답을 입력해주세요.")
+                            .build());
+        }
+        
+        log.info("Processing answer for session: {} - Answer: {}", sessionId, answer);
+        
+        try {
+            FollowUpResponseDto response = followUpService.processUserResponse(sessionId, answer);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error processing user answer", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(FollowUpResponseDto.builder()
+                            .sessionId(sessionId)
+                            .message("응답 처리 중 오류가 발생했습니다.")
                             .build());
         }
     }

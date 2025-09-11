@@ -53,26 +53,30 @@ public final class ProgressCalculator {
     
     /**
      * 여행 계획 생성 가능 여부 판단
-     * 최소 필수 정보: 목적지, 날짜/기간, 동행자
+     * 모든 필수 정보가 수집되어야 계획 생성 가능 (100% 완료)
      */
     public static boolean canGenerateTravelPlan(TravelInfoCollectionState state) {
         if (state == null) {
             return false;
         }
         
+        // 모든 필수 필드가 수집되었는지 확인
+        boolean hasOrigin = state.isOriginCollected();
         boolean hasDestination = state.isDestinationCollected();
         boolean hasTimeInfo = state.isDatesCollected() || state.isDurationCollected();
         boolean hasCompanions = state.isCompanionsCollected();
+        boolean hasBudget = state.isBudgetCollected();
         
         int completedCount = countCompletedFields(state);
         double completionRatio = (double) completedCount / FollowUpConstants.TOTAL_REQUIRED_FIELDS;
         
-        // 필수 정보가 있고, 전체 완성도가 50% 이상일 때
-        boolean canGenerate = hasDestination && hasTimeInfo && hasCompanions
-                            && completionRatio >= FollowUpConstants.COMPLETION_THRESHOLD_FOR_PLAN;
+        // 모든 필수 정보가 수집되고, 완성도가 100%일 때만 계획 생성 가능
+        boolean canGenerate = hasOrigin && hasDestination && hasTimeInfo 
+                            && hasCompanions && hasBudget
+                            && completionRatio >= 1.0;
         
-        log.debug("Can generate plan check - Destination: {}, Time: {}, Companions: {}, Completion: {:.0%} = {}",
-                 hasDestination, hasTimeInfo, hasCompanions, completionRatio, canGenerate);
+        log.debug("Can generate plan check - Origin: {}, Destination: {}, Time: {}, Companions: {}, Budget: {}, Completion: {:.0%} = {}",
+                 hasOrigin, hasDestination, hasTimeInfo, hasCompanions, hasBudget, completionRatio, canGenerate);
         
         return canGenerate;
     }

@@ -20,18 +20,21 @@ public class DestinationResponseProcessor implements ResponseProcessor {
     
     @Override
     public void process(TravelInfoCollectionState state, String response) {
-        // REQ-FOLLOW-003: LLM 파싱 우선 사용
-        String destination = parsingService.parseDestination(response);
+        // 원문 그대로 저장
+        state.setDestinationRaw(response.trim());
+        state.setDestination(response.trim());
+        state.setDestinationCollected(true);
+        log.info("Destination collected (raw): {}", response.trim());
         
-        if (destination != null && !destination.isEmpty()) {
-            state.setDestination(destination);
-            state.setDestinationCollected(true);
-            log.info("Destination collected via LLM parsing: {}", destination);
-        } else {
-            // 파싱 실패 시 원본 저장 (REQ-FOLLOW-006에서 재질문 처리)
-            state.setParsingFailed(true);
-            state.setFailedField("destination");
-            log.warn("Failed to parse destination from response: {}", response);
+        // 선택적으로 LLM 파싱 시도 (실패해도 계속 진행)
+        try {
+            String parsedDestination = parsingService.parseDestination(response);
+            if (parsedDestination != null && !parsedDestination.isEmpty()) {
+                state.setDestination(parsedDestination);
+                log.debug("Destination parsed by LLM: {}", parsedDestination);
+            }
+        } catch (Exception e) {
+            log.debug("LLM parsing failed, using raw destination: {}", e.getMessage());
         }
     }
     

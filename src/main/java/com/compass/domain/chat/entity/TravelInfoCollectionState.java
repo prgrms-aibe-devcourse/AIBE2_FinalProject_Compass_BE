@@ -44,7 +44,7 @@ public class TravelInfoCollectionState implements Serializable {
     @Column(name = "session_id", unique = true, nullable = false)
     private String sessionId;
     
-    // 수집된 정보 필드들
+    // 수집된 정보 필드들 - 파싱된 데이터
     @Column(name = "origin")
     private String origin;
     
@@ -74,6 +74,38 @@ public class TravelInfoCollectionState implements Serializable {
     
     @Column(name = "budget_level")
     private String budgetLevel; // budget, moderate, luxury
+    
+    // 여행 스타일과 선호도 필드들
+    @Column(name = "travel_style")
+    private String travelStyle; // relaxed, active, cultural, adventure, shopping, food
+    
+    @Column(name = "main_interests", columnDefinition = "TEXT")
+    private String mainInterests; // JSON array of interests
+    
+    @Column(name = "accommodation_preference")
+    private String accommodationPreference; // hotel, guesthouse, airbnb, resort, hostel
+    
+    @Column(name = "transport_preference")
+    private String transportPreference; // car, public, walk, taxi
+    
+    // 원문 저장 필드들 - 사용자 입력 그대로 저장
+    @Column(name = "origin_raw", columnDefinition = "TEXT")
+    private String originRaw;
+    
+    @Column(name = "destination_raw", columnDefinition = "TEXT")
+    private String destinationRaw;
+    
+    @Column(name = "dates_raw", columnDefinition = "TEXT")
+    private String datesRaw;
+    
+    @Column(name = "duration_raw", columnDefinition = "TEXT")
+    private String durationRaw;
+    
+    @Column(name = "companions_raw", columnDefinition = "TEXT")
+    private String companionsRaw;
+    
+    @Column(name = "budget_raw", columnDefinition = "TEXT")
+    private String budgetRaw;
     
     // 수집 상태 추적
     @Column(name = "origin_collected")
@@ -140,6 +172,7 @@ public class TravelInfoCollectionState implements Serializable {
         DURATION,       // 기간 수집 중
         COMPANIONS,     // 동행자 수집 중
         BUDGET,         // 예산 수집 중
+        TRAVEL_STYLE,   // 여행 스타일 수집 중
         CONFIRMATION,   // 확인 단계
         COMPLETED       // 완료
     }
@@ -158,29 +191,32 @@ public class TravelInfoCollectionState implements Serializable {
     
     /**
      * 다음 수집 단계 결정
+     * 날짜가 수집되면 기간도 자동으로 수집된 것으로 처리
      */
     public CollectionStep getNextRequiredStep() {
         if (!originCollected) return CollectionStep.ORIGIN;
         if (!destinationCollected) return CollectionStep.DESTINATION;
         if (!datesCollected) return CollectionStep.DATES;
-        if (!durationCollected) return CollectionStep.DURATION;
+        // DURATION 단계는 건너뛰기 - 날짜에서 자동 계산됨
         if (!companionsCollected) return CollectionStep.COMPANIONS;
         if (!budgetCollected) return CollectionStep.BUDGET;
+        if (travelStyle == null || travelStyle.trim().isEmpty()) return CollectionStep.TRAVEL_STYLE;
         return CollectionStep.CONFIRMATION;
     }
     
     /**
      * 수집 진행률 계산 (0-100%)
+     * 날짜가 수집되면 기간도 자동으로 포함됨
      */
     public int getCompletionPercentage() {
         int collected = 0;
         if (originCollected) collected++;
         if (destinationCollected) collected++;
-        if (datesCollected) collected++;
-        if (durationCollected) collected++;
+        if (datesCollected) collected += 2;  // 날짜와 기간을 함께 계산
         if (companionsCollected) collected++;
         if (budgetCollected) collected++;
-        return (collected * 100) / 6;  // 이제 6개 필드
+        if (travelStyle != null && !travelStyle.trim().isEmpty()) collected++;
+        return (collected * 100) / 7;  // 총 7개 필드
     }
     
     /**
@@ -200,25 +236,31 @@ public class TravelInfoCollectionState implements Serializable {
         
         if (originCollected) {
             info.put("origin", origin);
+            info.put("originRaw", originRaw);
         }
         if (destinationCollected) {
             info.put("destination", destination);
+            info.put("destinationRaw", destinationRaw);
         }
         if (datesCollected) {
             info.put("startDate", startDate);
             info.put("endDate", endDate);
+            info.put("datesRaw", datesRaw);
         }
         if (durationCollected) {
             info.put("durationNights", durationNights);
+            info.put("durationRaw", durationRaw);
         }
         if (companionsCollected) {
             info.put("numberOfTravelers", numberOfTravelers);
             info.put("companionType", companionType);
+            info.put("companionsRaw", companionsRaw);
         }
         if (budgetCollected) {
             info.put("budgetPerPerson", budgetPerPerson);
             info.put("budgetCurrency", budgetCurrency);
             info.put("budgetLevel", budgetLevel);
+            info.put("budgetRaw", budgetRaw);
         }
         
         return info;

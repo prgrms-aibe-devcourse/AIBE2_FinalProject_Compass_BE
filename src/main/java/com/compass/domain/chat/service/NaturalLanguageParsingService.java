@@ -145,6 +145,46 @@ public class NaturalLanguageParsingService {
     }
     
     /**
+     * 단계별 특화 파싱 - 출발지
+     * REQ-FOLLOW-003: LLM을 활용한 정확한 출발지 추출
+     */
+    public String parseOrigin(String userInput) {
+        try {
+            if (geminiChatModel == null) {
+                return null; // 출발지는 기본 파싱 없음
+            }
+            
+            String prompt = """
+                Extract the departure location (origin) from this Korean text.
+                Text: "%s"
+                
+                Common patterns:
+                - "~에서 출발" (departing from ~)
+                - "~부터" (from ~)
+                - "출발지: ~" (departure: ~)
+                - "~에서 시작" (starting from ~)
+                
+                Return ONLY the origin location without any explanation.
+                If no origin is found, return "UNKNOWN".
+                """.formatted(userInput);
+            
+            VertexAiGeminiChatOptions options = VertexAiGeminiChatOptions.builder()
+                    .temperature(0.1)
+                    .maxOutputTokens(50)
+                    .build();
+            
+            ChatResponse response = geminiChatModel.call(new Prompt(prompt, options));
+            String origin = response.getResult().getOutput().getContent().trim();
+            
+            return origin.equals("UNKNOWN") ? null : origin;
+            
+        } catch (Exception e) {
+            logger.error("Failed to parse origin with LLM", e);
+            return null;
+        }
+    }
+    
+    /**
      * 단계별 특화 파싱 - 목적지
      * REQ-FOLLOW-003: LLM을 활용한 정확한 목적지 추출
      */
@@ -155,8 +195,16 @@ public class NaturalLanguageParsingService {
             }
             
             String prompt = """
-                Extract the travel destination from this text.
+                Extract the travel destination from this Korean text.
                 Text: "%s"
+                
+                Common patterns:
+                - "~로 여행" (travel to ~)
+                - "~에 가고싶어" (want to go to ~)
+                - "목적지: ~" (destination: ~)
+                - "~여행" (~ travel)
+                
+                Popular Korean destinations: 제주, 부산, 서울, 경주, 전주, 강릉, 여수
                 
                 Return ONLY the destination name without any explanation.
                 If no destination is found, return "UNKNOWN".
@@ -184,17 +232,36 @@ public class NaturalLanguageParsingService {
      */
     public com.compass.domain.chat.util.TravelParsingUtils.DateRange parseDates(String userInput) {
         try {
+            // 영어 키워드도 처리
+            if (userInput.toLowerCase().contains("next-weekend") || 
+                userInput.toLowerCase().contains("next weekend")) {
+                java.time.LocalDate today = java.time.LocalDate.now();
+                java.time.LocalDate nextSaturday = today.with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.SATURDAY));
+                java.time.LocalDate nextSunday = nextSaturday.plusDays(1);
+                
+                return new com.compass.domain.chat.util.TravelParsingUtils.DateRange(
+                    nextSaturday, nextSunday
+                );
+            }
+            
             if (geminiChatModel == null) {
                 return com.compass.domain.chat.util.TravelParsingUtils.parseDateRange(userInput);
             }
             
             String prompt = """
-                Extract travel dates from this text.
+                Extract travel dates from this Korean or English text.
                 Text: "%s"
                 Today's date: %s
                 
+                Common patterns:
+                - "M월 D일" (Month Day)
+                - "다음주" (next week)
+                - "다음 주말", "next-weekend", "next weekend" (next weekend - Saturday to Sunday)
+                - "이번 주말" (this weekend)
+                - "M월 D일부터 M월 D일까지" (from date to date)
+                
                 Return in format: YYYY-MM-DD ~ YYYY-MM-DD
-                If only duration is mentioned, calculate from today.
+                If only duration is mentioned without specific dates, return "UNKNOWN".
                 If no dates found, return "UNKNOWN".
                 """.formatted(userInput, java.time.LocalDate.now());
             
@@ -215,6 +282,53 @@ public class NaturalLanguageParsingService {
         } catch (Exception e) {
             logger.error("Failed to parse dates with LLM, falling back", e);
             return com.compass.domain.chat.util.TravelParsingUtils.parseDateRange(userInput);
+        }
+    }
+    
+    /**
+     * 단계별 특화 파싱 - 기간
+     * REQ-FOLLOW-003: LLM을 활용한 여행 기간 추출
+     */
+    public Integer parseDuration(String userInput) {
+        try {
+            if (geminiChatModel == null) {
+                return com.compass.domain.chat.util.TravelParsingUtils.parseDurationNights(userInput);
+            }
+            
+            String prompt = """
+                Extract travel duration in nights from this Korean text.
+                Text: "%s"
+                
+                Common patterns:
+                - "당일치기" = 0 nights
+                - "1박2일" = 1 night
+                - "2박3일" = 2 nights
+                - "3박4일" = 3 nights
+                - "N박" = N nights
+                - "N일" = N-1 nights
+                
+                Return ONLY the number of nights as an integer.
+                If no duration is found, return -1.
+                """.formatted(userInput);
+            
+            VertexAiGeminiChatOptions options = VertexAiGeminiChatOptions.builder()
+                    .temperature(0.1)
+                    .maxOutputTokens(20)
+                    .build();
+            
+            ChatResponse response = geminiChatModel.call(new Prompt(prompt, options));
+            String durationStr = response.getResult().getOutput().getContent().trim();
+            
+            try {
+                int nights = Integer.parseInt(durationStr);
+                return nights >= 0 ? nights : null;
+            } catch (NumberFormatException e) {
+                return null;
+            }
+            
+        } catch (Exception e) {
+            logger.error("Failed to parse duration with LLM, falling back", e);
+            return com.compass.domain.chat.util.TravelParsingUtils.parseDurationNights(userInput);
         }
     }
     

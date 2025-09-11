@@ -24,6 +24,11 @@ public class FollowUpResponseDto {
     private String sessionId;
     
     /**
+     * ChatThread ID
+     */
+    private String threadId;
+    
+    /**
      * 질문 유형 (follow-up, clarification, complete)
      */
     private String questionType;
@@ -49,9 +54,14 @@ public class FollowUpResponseDto {
     private List<String> exampleAnswers;
     
     /**
-     * 입력 타입 (text, select, date-range 등)
+     * 입력 타입 (text, select, date-range, multi-select 등)
      */
     private String inputType;
+    
+    /**
+     * UI 타입 힌트 (calendar, checkbox-group 등)
+     */
+    private String uiType;
     
     /**
      * 현재 단계
@@ -87,4 +97,38 @@ public class FollowUpResponseDto {
      * 세션 만료 여부
      */
     private boolean isExpired;
+    
+    /**
+     * 세션 만료 여부 (alias for isExpired)
+     */
+    private boolean isSessionExpired;
+    
+    /**
+     * FollowUpQuestionDto로부터 FollowUpResponseDto 생성
+     * REQ-FOLLOW: Frontend 응답을 위한 변환 메서드
+     */
+    public static FollowUpResponseDto from(FollowUpQuestionDto questionDto) {
+        if (questionDto == null) {
+            return null;
+        }
+        
+        return FollowUpResponseDto.builder()
+            .sessionId(questionDto.getSessionId())
+            .threadId(questionDto.getSessionId()) // sessionId를 threadId로도 사용
+            .questionType("follow-up") // 기본값
+            .question(questionDto.getPrimaryQuestion())
+            .helpText(questionDto.getHelpText())
+            .quickOptions(questionDto.getQuickOptions())
+            .exampleAnswers(questionDto.getExampleAnswers())
+            .inputType(questionDto.getInputType())
+            .currentStep(questionDto.getCurrentStep() != null ? questionDto.getCurrentStep().toString() : null)
+            .collectedInfo(questionDto.getCollectedInfo())
+            .progressPercentage(questionDto.getProgressPercentage())
+            .isComplete(false) // 질문 중이므로 false
+            .canGeneratePlan(questionDto.isCanSkip()) // skip 가능하면 계획 생성 가능
+            .message(null)
+            .isExpired(false)
+            .isSessionExpired(false)
+            .build();
+    }
 }

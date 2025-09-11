@@ -18,9 +18,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
+import java.util.ArrayList;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.compass.domain.user.repository.UserRepository;
+import com.compass.domain.user.entity.User;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * Chat Controller
@@ -36,16 +43,19 @@ public class ChatController {
     private final ChatModelService geminiChatService;
     private final ChatModelService openAiChatService;
     private final PromptTemplateService promptTemplateService;
+    private final UserRepository userRepository;
     
     public ChatController(
             ChatService chatService,
             @Qualifier("geminiChatService") ChatModelService geminiChatService,
             @Qualifier("openAIChatService") ChatModelService openAiChatService,
-            PromptTemplateService promptTemplateService) {
+            PromptTemplateService promptTemplateService,
+            UserRepository userRepository) {
         this.chatService = chatService;
         this.geminiChatService = geminiChatService;
         this.openAiChatService = openAiChatService;
         this.promptTemplateService = promptTemplateService;
+        this.userRepository = userRepository;
     }
 
     // ============= CHAT1 팀 기능 (기본 CRUD) =============
@@ -55,7 +65,27 @@ public class ChatController {
      */
     @PostMapping("/threads")
     public ResponseEntity<ChatDtos.ThreadDto> createChatThread(
-            @RequestHeader("X-User-ID") String userId) {
+            @RequestHeader(value = "X-User-ID", required = false) String headerUserId,
+            Principal principal) {
+        
+        // Try to get user ID from header first
+        String userId = headerUserId;
+        
+        // If no header, try to get from JWT principal (email) and convert to ID
+        if (userId == null && principal != null) {
+            String email = principal.getName();
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null) {
+                userId = user.getId().toString();
+            }
+        }
+        
+        // If no user ID available, return error
+        if (userId == null) {
+            log.error("No user ID available for creating chat thread");
+            return ResponseEntity.badRequest().build();
+        }
+        
         ChatDtos.ThreadDto newThread = chatService.createThread(userId);
         return new ResponseEntity<>(newThread, HttpStatus.CREATED);
     }
@@ -65,9 +95,29 @@ public class ChatController {
      */
     @GetMapping("/threads")
     public ResponseEntity<List<ChatDtos.ThreadDto>> getChatThreads(
-            @RequestHeader("X-User-ID") String userId,
+            @RequestHeader(value = "X-User-ID", required = false) String headerUserId,
+            Principal principal,
             @RequestParam(defaultValue = "0") int skip,
             @RequestParam(defaultValue = "20") int limit) {
+        
+        // Try to get user ID from header first
+        String userId = headerUserId;
+        
+        // If no header, try to get from JWT principal (email) and convert to ID
+        if (userId == null && principal != null) {
+            String email = principal.getName();
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null) {
+                userId = user.getId().toString();
+            }
+        }
+        
+        // If still no user ID, return empty list
+        if (userId == null) {
+            log.warn("No user ID available for getting chat threads");
+            return ResponseEntity.ok(new ArrayList<>());
+        }
+        
         List<ChatDtos.ThreadDto> threads = chatService.getUserThreads(userId, skip, limit);
         return ResponseEntity.ok(threads);
     }
@@ -78,8 +128,28 @@ public class ChatController {
     @PostMapping("/threads/{threadId}/messages")
     public ResponseEntity<List<ChatDtos.MessageDto>> sendMessage(
             @PathVariable String threadId,
-            @RequestHeader("X-User-ID") String userId,
+            @RequestHeader(value = "X-User-ID", required = false) String headerUserId,
+            Principal principal,
             @Valid @RequestBody ChatDtos.MessageCreateDto messageDto) {
+        
+        // Try to get user ID from header first
+        String userId = headerUserId;
+        
+        // If no header, try to get from JWT principal (email) and convert to ID
+        if (userId == null && principal != null) {
+            String email = principal.getName();
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null) {
+                userId = user.getId().toString();
+            }
+        }
+        
+        // If no user ID available, return error
+        if (userId == null) {
+            log.error("No user ID available for sending message");
+            return ResponseEntity.badRequest().build();
+        }
+        
         List<ChatDtos.MessageDto> messages = chatService.addMessageToThread(threadId, userId, messageDto);
         if (messages == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
@@ -93,9 +163,50 @@ public class ChatController {
     @GetMapping("/threads/{threadId}/messages")
     public ResponseEntity<List<ChatDtos.MessageDto>> getMessagesInThread(
             @PathVariable String threadId,
-            @RequestHeader("X-User-ID") String userId,
+            @RequestHeader(value = "X-User-ID", required = false) String headerUserId,
+            Principal principal,
             @RequestParam(defaultValue = "50") int limit,
             @RequestParam(required = false) Long before) {
+        
+        // Debug logging
+        log.debug("getMessagesInThread - headerUserId: {}, principal: {}", headerUserId, principal);
+        
+        // Try to get user ID from header first
+        String userId = headerUserId;
+        
+        // If no header, try to get from JWT principal (email) and convert to ID
+        if (userId == null && principal != null) {
+            String email = principal.getName();
+            log.debug("Getting user by email from principal: {}", email);
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null) {
+                userId = user.getId().toString();
+                log.debug("Found user with ID: {} for email: {}", userId, email);
+            } else {
+                log.warn("No user found for email: {}", email);
+            }
+        }
+        
+        // If still no user ID, try to get from SecurityContext (for JWT authentication)
+        if (userId == null) {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
+                String email = authentication.getName();
+                log.debug("Getting user by email from SecurityContext: {}", email);
+                User user = userRepository.findByEmail(email).orElse(null);
+                if (user != null) {
+                    userId = user.getId().toString();
+                    log.debug("Found user with ID: {} for email from SecurityContext: {}", userId, email);
+                }
+            }
+        }
+        
+        // If no user ID available, return error
+        if (userId == null) {
+            log.error("No user ID available for getting messages - headerUserId: {}, principal: {}", headerUserId, principal);
+            return ResponseEntity.badRequest().build();
+        }
+        
         List<ChatDtos.MessageDto> messages = chatService.getMessages(threadId, userId, limit, before);
         if (messages == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
@@ -275,4 +386,5 @@ public class ChatController {
         response.put("openai", "Ready (fallback)");
         return ResponseEntity.ok(response);
     }
+    
 }

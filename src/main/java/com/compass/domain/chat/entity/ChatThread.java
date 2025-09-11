@@ -89,7 +89,7 @@ public class ChatThread {
         if (title != null && !title.equals("새 대화") && !title.isBlank()) {
             return title;
         }
-        return "새 대화";
+        return "New conversation";
     }
     
     /**

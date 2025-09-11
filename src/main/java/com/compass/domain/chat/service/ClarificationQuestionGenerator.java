@@ -319,7 +319,10 @@ public class ClarificationQuestionGenerator {
             FollowUpQuestionDto.QuickOption.builder()
                 .value("강릉").label("강릉").icon("🏖️").build(),
             FollowUpQuestionDto.QuickOption.builder()
-                .value("경주").label("경주").icon("🏛️").build()
+                .value("경주").label("경주").icon("🏛️").build(),
+            FollowUpQuestionDto.QuickOption.builder()
+                .value("custom").label("직접입력").icon("✏️")
+                .description("다른 도시를 직접 입력하세요").build()
         );
     }
     
@@ -334,7 +337,10 @@ public class ClarificationQuestionGenerator {
             FollowUpQuestionDto.QuickOption.builder()
                 .value("광주").label("광주/전남").icon("🌻").build(),
             FollowUpQuestionDto.QuickOption.builder()
-                .value("대전").label("대전/충청").icon("🏢").build()
+                .value("대전").label("대전/충청").icon("🏢").build(),
+            FollowUpQuestionDto.QuickOption.builder()
+                .value("custom").label("직접입력").icon("✏️")
+                .description("다른 도시를 직접 입력하세요").build()
         );
     }
     

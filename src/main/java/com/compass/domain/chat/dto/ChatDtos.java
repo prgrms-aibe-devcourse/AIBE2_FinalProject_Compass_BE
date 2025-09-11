@@ -1,5 +1,6 @@
 package com.compass.domain.chat.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
@@ -19,13 +20,28 @@ public class ChatDtos {
             String threadId,
             String role, // "user" or "ai"
             String content,
-            long timestamp
-    ) {}
+            long timestamp,
+            FollowUpResponseDto followUpQuestion // REQ-FOLLOW: Follow-up question data
+    ) {
+        // Backward compatibility constructor
+        public MessageDto(String id, String threadId, String role, String content, long timestamp) {
+            this(id, threadId, role, content, timestamp, null);
+        }
+    }
 
     public record ThreadDto(
             String id,
             String userId,
+            @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
             LocalDateTime createdAt,
-            String latestMessagePreview
-    ) {}
+            String latestMessagePreview,
+            @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+            LocalDateTime lastMessageAt,
+            String title
+    ) {
+        // Backward compatibility constructor
+        public ThreadDto(String id, String userId, LocalDateTime createdAt, String latestMessagePreview) {
+            this(id, userId, createdAt, latestMessagePreview, null, latestMessagePreview);
+        }
+    }
 }

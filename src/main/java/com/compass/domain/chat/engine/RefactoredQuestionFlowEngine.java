@@ -6,6 +6,7 @@ import com.compass.domain.chat.entity.TravelInfoCollectionState;
 import com.compass.domain.chat.processor.ResponseProcessor;
 import com.compass.domain.chat.service.FollowUpQuestionGenerator;
 import com.compass.domain.chat.service.ClarificationQuestionGenerator;
+import com.compass.domain.chat.service.SessionManagementService;
 import com.compass.domain.chat.util.TravelInfoValidator;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,9 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
     
     @Autowired(required = false)
     private TravelInfoValidator validator;
+    
+    @Autowired(required = false)
+    private SessionManagementService sessionService;
     
     @PostConstruct
     public void init() {
@@ -73,6 +77,7 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
         TravelInfoCollectionState.CollectionStep currentStep = state.getCurrentStep();
         if (currentStep == null) {
             currentStep = state.getNextRequiredStep();
+            state.setCurrentStep(currentStep);
         }
         
         // 이전 파싱 실패 상태 초기화
@@ -102,7 +107,15 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
         
         // 파싱 성공 시에만 다음 단계로 이동
         if (!state.isParsingFailed()) {
-            state.setCurrentStep(state.getNextRequiredStep());
+            TravelInfoCollectionState.CollectionStep nextStep = state.getNextRequiredStep();
+            state.setCurrentStep(nextStep);
+            log.info("Moving to next step: {}", nextStep);
+        }
+        
+        // 세션 저장 (Redis 또는 메모리)
+        if (sessionService != null && state.getSessionId() != null) {
+            sessionService.saveSession(state.getSessionId(), state);
+            log.debug("Session saved after processing response: {}", state.getSessionId());
         }
         
         return state;
@@ -110,12 +123,22 @@ public class RefactoredQuestionFlowEngine implements QuestionFlowEngine {
     
     @Override
     public boolean isFlowComplete(TravelInfoCollectionState state) {
-        // 필수 정보 수집 완료 여부 확인
+        // 필수 정보 수집 완료 여부 확인 (7개 필드)
+        // 출발지는 선택사항이므로 체크하지 않음
         boolean coreInfoCollected = state.isDestinationCollected() &&
                                     state.isDatesCollected() &&
                                     state.isDurationCollected() &&
                                     state.isCompanionsCollected() &&
-                                    state.isBudgetCollected();
+                                    state.isBudgetCollected() &&
+                                    (state.getTravelStyle() != null && !state.getTravelStyle().trim().isEmpty());
+        
+        log.info("Flow completion check - Destination: {}, Dates: {}, Duration: {}, Companions: {}, Budget: {}, TravelStyle: {}",
+                state.isDestinationCollected(),
+                state.isDatesCollected(),
+                state.isDurationCollected(),
+                state.isCompanionsCollected(),
+                state.isBudgetCollected(),
+                state.getTravelStyle() != null && !state.getTravelStyle().trim().isEmpty());
         
         log.info("Flow completion check - Core info collected: {}", coreInfoCollected);
         return coreInfoCollected;

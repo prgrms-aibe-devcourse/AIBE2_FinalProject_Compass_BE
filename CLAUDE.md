@@ -1,432 +1,162 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with this repository.
 
 ## Project Overview
 
-Compass is an AI-powered personalized travel planning service built with Spring Boot, Spring AI, and RAG (Retrieval-Augmented Generation) technology. The backend provides APIs for authentication, chat functionality, and personalized travel recommendations.
+Compass is an AI-powered personalized travel planning service built with Spring Boot and Spring AI. The backend provides REST APIs for authentication, chat functionality, and personalized travel recommendations using LLM integration.
 
 ## Essential Commands
 
-### Development & Build
+### Docker 실행 (필수)
 ```bash
-# Run tests (requires JAVA_HOME set to Java 17)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test
-
-# Run unit tests only (Redis 불필요) - RECOMMENDED FOR DEVELOPMENT
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew unitTest
-
-# Run integration tests only (Redis 필요)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew integrationTest
-
-# Run a single test class
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test --tests SimpleKeywordDetectorTest
-
-# Build without tests (faster)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew clean build -x test
-
-# Run application locally with environment variables
-export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home
-export $(cat .env | grep -v '^#' | xargs) && ./gradlew bootRun
-
-# Run on different port (to avoid conflicts)
-export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home
-export $(cat .env | grep -v '^#' | xargs) && ./gradlew bootRun --args='--server.port=8081'
-
-# Run only PostgreSQL and Redis (for local development with IDE)
-docker-compose up -d postgres redis
-
-# Run complete stack (PostgreSQL + Redis + Spring Boot)
+# ⚠️ 백엔드는 반드시 Docker로 실행
 docker-compose up -d
 
-# Rebuild and restart after code changes
-docker-compose up -d --build
-
-# View application logs
+# 로그 확인
 docker-compose logs -f app
 
-# Stop all services
+# 중지
 docker-compose down
-
-# Complete cleanup (removes all data)
-docker-compose down -v
 ```
 
-### Database Access
+### 테스트 실행
 ```bash
-# Access PostgreSQL
-docker exec -it compass-postgres psql -U compass_user -d compass
+# Unit tests (Redis 불필요)
+JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew unitTest
 
-# Access Redis
-docker exec -it compass-redis redis-cli
+# 전체 테스트
+JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test
+
+# 빌드 (테스트 제외)
+JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew clean build -x test
+```
+
+### Frontend 실행
+```bash
+cd /Users/kmj/Documents/GitHub/AIBE2_FinalProject_Compass_BE/FE
+npm install
+npm start  # http://localhost:3000
 ```
 
 ## Architecture Overview
 
-### Three-Layer Domain Structure
-The codebase is organized into three main domains, each developed independently:
+### Domain Structure
+프로젝트는 5개 도메인으로 구성되어 있으며, 각 팀이 독립적으로 개발합니다:
 
-1. **USER Domain** (`src/main/java/com/compass/domain/user/`)
-   - Authentication/Authorization with JWT
-   - User profile management
-   - Preference management
+1. **USER Domain** - 인증/인가, 프로필 관리
+2. **CHAT1 Domain** - 기본 채팅 기능
+3. **CHAT2 Domain** - LLM 통합, Function Calling, Follow-up 질문 ⭐ **(현재 담당)**
+4. **MEDIA Domain** - 이미지 처리, OCR
+5. **TRIP Domain** - 여행 계획, RAG 추천
 
-2. **CHAT Domain** (`src/main/java/com/compass/domain/chat/`)
-   - Chat thread management
-   - Message CRUD operations
-   - LLM integration (Gemini, GPT-4)
-   - OCR functionality
-   - Function Calling with Spring AI
-
-3. **TRIP Domain** (`src/main/java/com/compass/domain/trip/`)
-   - Travel planning
-   - RAG-based recommendations
-   - Weather API integration
-   - Personalization pipeline
+**⚠️ 중요**: 
+- 현재 개발자는 **CHAT2 팀** 담당입니다
+- 다른 도메인 코드는 가능한 수정하지 않습니다
+- CHAT2 책임 영역: LLM 통합, Function Calling, Follow-up 시스템
 
 ### Technology Stack
-- **Framework**: Spring Boot 3.x with Java 17
-- **Databases**: PostgreSQL 15 (main), Redis 7 (vector store & cache)
-- **AI/ML**: Spring AI 1.0.0-M5 with Gemini 2.0 Flash, GPT-4o-mini
-- **Security**: JWT-based authentication
-- **Monitoring**: Prometheus + Grafana with Micrometer
-- **Deployment**: Docker, AWS Elastic Beanstalk, AWS Lambda (MCP servers)
-
-### Spring AI Integration
-Spring AI is currently active in `build.gradle`:
-- Lines 42-44: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
-- Lines 88-92: Dependency management for Spring AI BOM
-- Environment variables required for OpenAI/Google Cloud are loaded from `.env` file
-
-### Key API Endpoints
-
-**Authentication** (`/api/auth/*`):
-- POST `/api/auth/signup` - User registration
-- POST `/api/auth/login` - Login with JWT token
-- POST `/api/auth/refresh` - Token refresh
-
-**Chat** (`/api/chat/*`):
-- POST `/api/chat/threads` - Create chat thread
-- GET `/api/chat/threads` - List chat threads
-- POST `/api/chat/threads/{id}/messages` - Send message
-- GET `/api/chat/threads/{id}/messages` - Get messages
-- POST `/api/chat/function` - Function calling with AI
-
-**Trip** (`/api/trips/*`):
-- POST `/api/trips` - Create trip plan
-- GET `/api/trips/{id}` - Get trip details
-- GET `/api/trips/recommend` - Get RAG recommendations
+- **Framework**: Spring Boot 3.x, Java 17
+- **AI/ML**: Spring AI 1.0.0-M5 (Gemini 2.0 Flash, GPT-4o-mini)
+- **Database**: AWS RDS PostgreSQL, Redis 7
+- **Security**: JWT 인증
+- **Deployment**: Docker, AWS
 
 ## Configuration
 
-### Environment Variables
-The `.env` file is required for local development. Team members can get it from:
-- **Discord #compass-backend channel** (pinned message)
-- **Team leader** via direct message
+### 환경 변수
+```bash
+# 필수 파일 (프로젝트 루트에 위치)
+.env  # API 키 및 설정값
+/Users/kmj/Documents/GitHub/AIBE2_FinalProject_Compass_BE/travelagent-468611-1ae0c9d4e187.json  # Google Cloud 인증
+```
 
-**Important**: 
-- Never commit `.env` file to Git (it's already in `.gitignore`)
-- The `.env` file contains all necessary API keys and configurations
-- Just place it in the project root directory and it will work
+**주의**: `.env` 파일은 절대 커밋하지 마세요 (`.gitignore`에 포함됨)
 
 ### Spring Profiles
-- **default**: Local development with local DB/Redis
-- **docker**: Running inside Docker container
-- **test**: Test environment with test databases
-- **test-no-redis**: Unit test environment without Redis (for CI/CD)
-- **local-no-redis**: Local development without Redis
+- **docker-rds**: Docker 컨테이너 + AWS RDS (권장)
+- **test**: 테스트 환경
+- **test-no-redis**: Redis 없는 단위 테스트
 
 ## Development Guidelines
 
 ### Branch Strategy
-- Main branch: `main`
-- Feature branches: `feature/domain-feature` (e.g., `feature/user-auth`, `feature/chat-function`)
-- Fix branches: `fix/domain-issue` (e.g., `fix/chat-message-error`)
+- Main: `main`
+- Feature: `feature/domain-feature` (예: `feature/chat2-followup`)
+- Fix: `fix/domain-issue`
 
 ### Commit Convention
-- `feat:` New feature
-- `fix:` Bug fix
-- `refactor:` Code refactoring
-- `docs:` Documentation
-- `chore:` Build/config changes
-- `test:` Test additions/changes
+- `feat:` 새 기능
+- `fix:` 버그 수정
+- `refactor:` 리팩토링
+- `test:` 테스트
+- `docs:` 문서
 
-### Testing Approach
-- Unit tests with JUnit 5 and Mockito
-- Integration tests for API endpoints
-- **Test categorization with @Tag annotation**:
-  - `@Tag("unit")` - Unit tests that don't require Redis
-  - `@Tag("integration")` - Integration tests that require Redis
-- Use test containers when needed for database testing
-- Performance testing with k6 scripts
-- Test files located in `src/test/java/com/compass/`
-- **Redis transition strategy**: Tests can run without Redis using `unitTest` task
+### Testing
+- 모든 테스트에 `@Tag("unit")` 또는 `@Tag("integration")` 추가
+- 최소 커버리지: 80%
+- 테스트 위치: `src/test/java/com/compass/domain/[domain]/`
 
-### Code Structure Patterns
-Each domain follows a layered architecture:
-- `controller/` - REST API endpoints
-- `service/` - Business logic
-- `repository/` - Data access
-- `entity/` - JPA entities
-- `dto/` - Data transfer objects
-- `exception/` - Domain-specific exceptions
-- `function/` - Spring AI function calling implementations (CHAT domain)
-- `prompt/` - Prompt templates for AI interactions (CHAT domain)
-- `parser/` - Input/output parsers for AI responses (CHAT domain)
+## Clean Code Guidelines
 
-### Database Schema
-- Users table with authentication details
-- Chat threads and messages with user associations
-- Trip plans with JSONB for flexible data storage
-- Redis for vector embeddings and caching
+### 읽기 쉬운 코드
+- 명확한 변수/메서드명 사용
+- 메서드는 20줄 이내
+- 한 메서드는 한 가지 일만
+- 중첩 깊이 최대 3레벨
 
-## CI/CD Pipeline
+### 구조화
+- 일관된 코드 포맷팅
+- 관련 기능은 함께 그룹화
+- 논리적 섹션 간 빈 줄 추가
 
-GitHub Actions workflow (`.github/workflows/ci.yml`):
-1. Runs on push/PR to main/develop branches
-2. Sets up PostgreSQL and Redis test containers
-3. Runs tests with `./gradlew test`
-4. Builds JAR with `./gradlew build`
-5. Uploads test results and JAR artifacts
+### 의존성 관리
+- 의존성 주입 일관되게 사용
+- 순환 의존성 방지
+- 인터페이스로 추상화
+
+### 에러 처리
+- 구체적인 예외 사용
+- 의미 있는 에러 메시지
+- Optional 활용
+
+## CHAT2 Domain Workflow
+
+### 여행 정보 수집 플로우
+모든 사용자 입력은 여행 계획 요청으로 처리됩니다:
+
+1. **사용자 입력** → LLM이 정보 추출
+2. **필수 정보 체크** (순차적):
+   - 출발지 (origin)
+   - 목적지 (destination)
+   - 날짜 (dates)
+   - 기간 (duration)
+   - 동행자 (companions)
+   - 예산 (budget)
+   - 여행 스타일 (travelStyle)
+
+3. **누락 정보 수집** → Follow-up 질문 생성
+4. **정보 완료** → 여행 계획 생성
+
+### 핵심 서비스
+- **ChatServiceImpl**: 메인 채팅 서비스
+- **TravelInfoCollectionService**: 정보 수집 관리
+- **FollowUpQuestionGenerator**: 후속 질문 생성
+- **TravelQuestionFlowEngine**: 플로우 제어
+- **NaturalLanguageParsingService**: 사용자 입력 파싱
+
+### API Endpoints
+- POST `/api/chat/follow-up/question` - Follow-up 질문 생성
+- POST `/api/chat/follow-up/response` - 사용자 응답 처리
+- GET `/api/chat/follow-up/state/{threadId}` - 수집 상태 조회
 
 ## Important Notes
 
-1. **Spring AI**: Currently active and configured for Gemini 2.0 Flash and GPT-4o-mini
-2. **Docker Development**: Use `docker-compose up -d postgres redis` for DB only when developing with IDE
-3. **Health Check**: Available at `http://localhost:8080/health`
-4. **Actuator Endpoints**: Prometheus metrics at `/actuator/prometheus`
-5. **Swagger UI**: Available at `/swagger-ui.html` when running locally
-6. **Git Operations**: Do NOT perform any git commits or pushes - developer will handle all git operations manually
-7. **Developer Role**: Current developer is CHAT2 team member responsible for:
-   - LLM integration (Gemini, GPT-4)
-   - Function Calling implementation
-   - OCR functionality
-   - RAG personalization
-8. **CHAT Domain LLM Configuration**:
-   - Primary Agent: Gemini 2.0 Flash (for general chat operations and function calling)
-   - Secondary Agent: GPT-4o-mini (for OpenAI compatibility)
-   - Framework: Spring AI (use Spring AI abstractions, not direct API calls)
-   - Function Calling: Enabled with travel-related functions (flights, hotels, weather, attractions)
-
-## Development Methodology
-
-### REST API Development Order
-Follow this strict development sequence for implementing features:
-
-1. **Entity Setup**: Define JPA entities with proper relationships and constraints
-2. **Repository Development**: Create repository interfaces extending JpaRepository
-3. **Service Development**: Implement business logic in service layer
-4. **Controller Development**: Create REST endpoints with proper validation
-5. **Testing**: Write unit and integration tests
-
-**Important**: This order ensures proper layered architecture. Do NOT skip steps.
-
-### Testing Requirements
-**MANDATORY**: After implementing any feature based on requirements definition:
-
-1. **Unit Test Creation**:
-   - Write unit tests for all new entities, services, and controllers
-   - **Add @Tag("unit") or @Tag("integration") to every test class**
-   - Minimum coverage: 80% for new code
-   - Use JUnit 5 and Mockito for testing
-
-2. **CI Pipeline Validation**:
-   - Run `./gradlew unitTest` for Redis-independent tests
-   - Run `./gradlew test` to ensure all tests pass (when Redis available)
-   - Verify compilation with `./gradlew compileJava`
-   - Check that new code doesn't break existing tests
-
-3. **Test Result Reporting**:
-   - Always report test results after implementation
-   - Include: Total tests, Passed, Failed, Skipped
-   - Document any known issues with explanations
-
-4. **Test Files Location**:
-   - Unit tests: `src/test/java/com/compass/domain/[domain]/`
-   - Integration tests: `src/test/java/com/compass/integration/`
-
-5. **Quality Assurance Workflow**:
-   - After unit tests pass, run CI pipeline validation
-   - Double-check all tests are passing
-   - If all tests pass, create issue template for the completed feature
-   - Report completion with test results and issue template
-
-**Important**: Never mark a feature as complete without running tests and reporting results.
-
-### Code Quality and Refactoring Process
-**MANDATORY**: After completing any feature implementation or bug fix:
-
-1. **Code Analysis Phase**:
-   - Review the entire codebase for SOLID principle violations
-   - Identify duplicate code across services and utilities
-   - Check for resource inefficiencies (redundant DB calls, duplicate parsing)
-   - Look for OCP violations (switch statements that grow with new requirements)
-
-2. **Refactoring Implementation**:
-   - Apply Strategy Pattern for extensible behavior (see `ResponseProcessor` pattern)
-   - Extract common logic to utility classes (see `TravelParsingUtils`, `TravelInfoValidator`)
-   - Use `@Primary` annotation to override legacy implementations
-   - Consolidate duplicate parsing and validation logic
-   - Centralize constants to avoid magic numbers (see `TravelConstants`)
-
-3. **Quality Verification**:
-   - Run all unit tests after refactoring
-   - Ensure CI pipeline passes
-   - Document refactoring decisions in code comments
-
-### Clean Code Guidelines for Code Review
-**IMPORTANT**: Write code that is easy for other team members to review:
-
-1. **Readability First**:
-   - Use descriptive variable and method names
-   - Keep methods short (ideally < 20 lines)
-   - One method should do one thing well
-   - Avoid deep nesting (max 3 levels)
-
-2. **Clear Structure**:
-   - Follow consistent code formatting
-   - Group related functionality together
-   - Use proper spacing and indentation
-   - Add blank lines between logical sections
-
-3. **Self-Documenting Code**:
-   - Code should explain itself without excessive comments
-   - Use meaningful constants instead of magic numbers
-   - Extract complex conditions into well-named methods
-   - Use enums for fixed sets of values
-
-4. **Dependency Management**:
-   - Use dependency injection consistently
-   - Avoid circular dependencies
-   - Keep coupling loose between components
-   - Use interfaces for abstraction
-
-5. **Error Handling**:
-   - Use specific exceptions, not generic ones
-   - Provide meaningful error messages
-   - Handle edge cases explicitly
-   - Use Optional for nullable returns
-
-6. **Testing**:
-   - Write tests that clearly show what's being tested
-   - Use descriptive test method names (Korean is OK for clarity)
-   - Test one behavior per test method
-   - Include both positive and negative test cases
-
-Example of clean code:
-```java
-// BAD
-public void proc(String s, int n) {
-    if(s!=null&&n>0&&n<365) {
-        // complex logic here
-    }
-}
-
-// GOOD
-public void processTravel(String destination, int durationDays) {
-    if (!isValidTravelRequest(destination, durationDays)) {
-        throw new InvalidTravelRequestException(
-            String.format("Invalid travel request: destination=%s, duration=%d", 
-                         destination, durationDays)
-        );
-    }
-    // process travel logic
-}
-
-private boolean isValidTravelRequest(String destination, int durationDays) {
-    return destination != null && 
-           !destination.trim().isEmpty() &&
-           durationDays >= TravelConstants.MIN_DURATION_DAYS &&
-           durationDays <= TravelConstants.MAX_DURATION_DAYS;
-}
-```
-
-### Database ERD Updates
-- Any structural changes to the database must be reflected in `/docs/DATABASE_ERD.md`
-- Update both the Mermaid diagram and table specifications
-- Keep DDL scripts synchronized with entity changes
-
-## Function Calling Architecture
-
-The CHAT domain implements Spring AI Function Calling with the following structure:
-
-### Key Components
-- **FunctionCallingConfiguration** (`chat/config/`): Bean definitions for travel functions
-- **TravelFunctions** (`chat/function/`): Implementation of travel-related functions
-- **FunctionCallingChatService** (`chat/service/`): Orchestrates AI conversations with function calls
-- **Model classes** (`chat/function/model/`): Request/Response DTOs for each function
-
-### Available Functions
-- Flight search
-- Hotel search
-- Restaurant search
-- Attraction search
-- Weather information
-- Cultural experiences
-- Leisure activities
-- Cafe search
-- Exhibition search
-
-### Prompt Templates
-The system uses a hierarchical prompt template structure:
-- **AbstractPromptTemplate**: Base template with common functionality
-- **Travel-specific templates**: 
-  - TravelPlanningPrompt
-  - TravelRecommendationPrompt
-  - DailyItineraryPrompt
-  - BudgetOptimizationPrompt
-  - DestinationDiscoveryPrompt
-  - LocalExperiencePrompt
-
-## CHAT Domain Service Architecture
-
-The CHAT domain has evolved to use a prompt template-based approach with specialized services:
-
-### Core Services
-- **ChatModelService**: Manages LLM interactions (Gemini 2.0 Flash, GPT-4o-mini)
-- **PromptTemplateService**: Orchestrates prompt template selection and processing
-- **TravelTemplateService**: Generates travel-specific responses using templates
-- **FunctionCallingChatService**: Handles function calling for external API integration
-- **NaturalLanguageParsingService**: Parses user input to extract travel parameters
-- **PromptEngineeringService**: Optimizes prompts for better LLM responses
-- **SimpleKeywordDetector**: Automatically selects appropriate templates based on user input
-
-### Processing Flow
-1. User message → NaturalLanguageParsingService (extract parameters)
-2. Parameters → SimpleKeywordDetector (select template)
-3. Template → PromptTemplateService (build enriched prompt)
-4. Prompt → ChatModelService (get LLM response)
-5. Response → FunctionCallingChatService (if external data needed)
-6. Final response → User
-
-### New API Endpoints
-- POST `/api/chat/travel` - Template-based travel chat with personalization
-- GET `/api/chat/templates` - List available prompt templates
-- GET `/api/chat/templates/{name}` - Get template details
-
-## Project Status
-
-The project has evolved from initial setup to a functional AI travel assistant with:
-- Spring Boot application configured with Spring AI
-- Docker Compose for local development
-- PostgreSQL and Redis integration (with Redis-optional testing)
-- JWT authentication system
-- Function Calling implementation for travel services
-- **Advanced prompt template system with keyword detection**
-- **Personalization using UserContext and TravelHistory**
-- Integration tests for AI functionalities
-- **CI/CD pipeline with Redis-independent testing**
-
-Current Implementation Status (CHAT2 Team):
-- ✅ REQ-PROMPT-001, 002, 003: Template system completed
-- ✅ REQ-LLM-004: Personalization models implemented
-- ✅ REQ-AI-003: Basic itinerary templates (Day Trip, 1N2D, 2N3D, 3N4D) implemented
-- ✅ REQ-FOLLOW-002, 003, 004: Follow-up question system with flow engine
-- ✅ REQ-FOLLOW-005: Travel info validation system with 3-level verification
-- ✅ CI/CD issues resolved with test separation strategy
-- ✅ Unit tests: 100% passing (including TravelInfoValidatorTest, TravelInfoCollectionServiceTest)
-
-Current focus areas:
-- Implementing RAG-based personalization
-- Integrating Function Calling with prompt templates
-- Expanding follow-up question generation
+1. **Git 작업 금지**: 모든 git 작업은 개발자가 직접 수행
+2. **Docker 필수**: 백엔드는 반드시 Docker로 실행
+3. **CHAT2 팀 역할**:
+   - LLM 통합 (Gemini, GPT-4)
+   - Function Calling 구현
+   - Follow-up 질문 시스템
+   - 여행 정보 수집 플로우
+4. **Spring AI 사용**: 직접 API 호출 대신 Spring AI 추상화 사용
