@@ -37,6 +37,7 @@ gcp-key.json
 gcp-key*.json
 *-credentials.json
 travelagent-*.json
+compass-*.json
 
 # OS
 .DS_Store

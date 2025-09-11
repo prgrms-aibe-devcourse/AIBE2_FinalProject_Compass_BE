@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -176,17 +177,23 @@ public class UserService {
 
 
     @Transactional
-    public UserPreferenceDto.Response analyzeAndSavePreferences(String email) {
+    public Optional<UserPreferenceDto.Response> analyzeAndSavePreferences(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
 
         // 1. 최근 여행 기록 조회
-        List<TravelHistory> histories = travelHistoryRepository.findTop10ByUserOrderByCreatedAtDesc(user);
+        List<TravelHistory> histories = travelHistoryRepository.findTop10ByUserIdOrderByCreatedAtDesc(user.getId());
 
         // 2. 분석기 실행
-        String analyzedType = preferenceAnalyzer.analyzeTravelStyle(histories);
+        String analyzedType = preferenceAnalyzer.analyzeTravelStyleWithAi(histories);
 
-        // 3. 분석 결과 저장 (기존 값 덮어쓰기)
+        // 3. (중요) 분석 결과가 유의미할 때만 저장 로직을 실행합니다.
+        if ("NEW_TRAVELER".equals(analyzedType)) {
+            log.info("No travel history for user: {}. Skipping preference analysis update.", email);
+            return Optional.empty(); // 아무것도 저장하지 않고, 빈 결과를 반환합니다.
+        }
+
+        // 4. 분석 결과 저장 (기존 값 덮어쓰기)
         final String preferenceType = "ANALYZED_TRAVEL_TYPE";
         userPreferenceRepository.deleteByUserAndPreferenceType(user, preferenceType);
 
@@ -198,7 +205,7 @@ public class UserService {
                 .build();
 
         userPreferenceRepository.save(analyzedPreference);
-        return UserPreferenceDto.Response.from(analyzedPreference);
+        return Optional.of(UserPreferenceDto.Response.from(analyzedPreference));
     }
 
 

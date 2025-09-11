@@ -1,6 +1,7 @@
 package com.compass.domain.user.service;
 
 import com.compass.config.jwt.JwtTokenProvider;
+import com.compass.domain.trip.repository.TravelHistoryRepository;
 import com.compass.domain.user.dto.UserDto;
 import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.entity.User;
@@ -22,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +53,13 @@ class UserServiceTest {
 
     @Mock
     private UserPreferenceRepository userPreferenceRepository;
+
+    @Mock
+    private TravelHistoryRepository travelHistoryRepository;
+
+    @Mock
+    private PreferenceAnalyzer preferenceAnalyzer;
+
 
     @Test
     @DisplayName("회원가입 성공")
@@ -390,6 +399,32 @@ class UserServiceTest {
                 () -> userService.updateBudgetLevel(email, request));
 
         assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+        verify(userPreferenceRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("선호도 분석 시 여행 기록이 없으면 빈 Optional 반환")
+    void analyzeAndSavePreferences_returnsEmpty_forNewUser() {
+        // given
+        String email = "new@example.com";
+        User mockUser = User.builder().email(email).build();
+        ReflectionTestUtils.setField(mockUser, "id", 1L); // user.getId()를 사용하므로 ID 설정
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        // 여행 기록이 비어있다고 설정
+        // User 객체가 아닌 Long 타입의 ID로 조회하도록 변경된 메서드를 모킹합니다.
+        when(travelHistoryRepository.findTop10ByUserIdOrderByCreatedAtDesc(mockUser.getId())).thenReturn(Collections.emptyList());
+
+        // 분석기가 "NEW_TRAVELER"를 반환하도록 설정
+        when(preferenceAnalyzer.analyzeTravelStyleWithAi(Collections.emptyList())).thenReturn("NEW_TRAVELER");
+
+        // when
+        Optional<UserPreferenceDto.Response> result = userService.analyzeAndSavePreferences(email);
+
+        // then
+        assertThat(result).isEmpty();
+        // DB에 아무것도 저장하거나 삭제하지 않았는지 확인
+        verify(userPreferenceRepository, never()).deleteByUserAndPreferenceType(any(), any());
         verify(userPreferenceRepository, never()).save(any());
     }
 

@@ -122,5 +122,5 @@ public interface TravelHistoryRepository extends JpaRepository<TravelHistory, Lo
                                                     @Param("minSatisfaction") Integer minSatisfaction);
 
     // 특정 사용자의 최근 여행 기록을 생성일 기준 내림차순으로 10개까지 조회
-    List<TravelHistory> findTop10ByUserOrderByCreatedAtDesc(User user);
+    List<TravelHistory> findTop10ByUserIdOrderByCreatedAtDesc(Long userId);
 }
