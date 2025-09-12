@@ -56,8 +56,8 @@ aws:
     vertex:
       ai:
         gemini:
-          project-id: travelagent-468611
-          location: us-central1
+          project-id: ${GCP_PROJECT_ID:test-project}
+          location: ${GCP_LOCATION:us-central1}
           chat:
             options:
               model: gemini-2.0-flash
