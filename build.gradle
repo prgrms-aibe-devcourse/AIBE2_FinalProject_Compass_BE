@@ -63,8 +63,10 @@ dependencies {
     implementation 'io.micrometer:micrometer-registry-prometheus'
 
     // Lombok
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    testCompileOnly 'org.projectlombok:lombok:1.18.30'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
 
     // Development Tools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -81,6 +83,19 @@ dependencies {
     
     // Hypersistence Utils for JSON support
     implementation 'io.hypersistence:hypersistence-utils-hibernate-62:3.6.1'
+
+    // Media: Image processing (thumbnails) + WebP plugin
+    implementation 'net.coobird:thumbnailator:0.4.20'
+    implementation 'com.twelvemonkeys.imageio:imageio-webp:3.10.1'
+
+    // Media: Google Cloud Vision for OCR (Guava 버전 충돌 해결)
+    implementation('com.google.cloud:google-cloud-vision:3.19.0') {
+        exclude group: 'com.google.guava', module: 'guava'
+    }
+    implementation 'com.google.guava:guava:32.1.3-jre'
+
+    // Media processing dependencies
+    implementation 'net.coobird:thumbnailator:0.4.20'
 
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

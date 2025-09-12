@@ -10,28 +10,26 @@ Compass is an AI-powered personalized travel planning service built with Spring 
 
 ### Development & Build
 ```bash
-# Run tests (requires JAVA_HOME set to Java 17)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test
+# Run tests (requires Java 17 - Windows environment)
+./gradlew test
 
 # Run unit tests only (Redis 불필요) - RECOMMENDED FOR DEVELOPMENT
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew unitTest
+./gradlew unitTest
 
 # Run integration tests only (Redis 필요)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew integrationTest
+./gradlew integrationTest
 
 # Run a single test class
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test --tests SimpleKeywordDetectorTest
+./gradlew test --tests SimpleKeywordDetectorTest
 
 # Build without tests (faster)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew clean build -x test
+./gradlew clean build -x test
 
-# Run application locally with environment variables
-export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home
-export $(cat .env | grep -v '^#' | xargs) && ./gradlew bootRun
+# Run application locally with environment variables (Windows)
+./gradlew bootRun
 
 # Run on different port (to avoid conflicts)
-export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home
-export $(cat .env | grep -v '^#' | xargs) && ./gradlew bootRun --args='--server.port=8081'
+./gradlew bootRun --args='--server.port=8081'
 
 # Run only PostgreSQL and Redis (for local development with IDE)
 docker-compose up -d postgres redis
@@ -84,18 +82,26 @@ The codebase is organized into three main domains, each developed independently:
    - Weather API integration
    - Personalization pipeline
 
+4. **MEDIA Domain** (`src/main/java/com/compass/domain/media/`)
+   - File upload/download with S3 integration
+   - OCR text extraction from images
+   - Thumbnail generation for images
+   - Media metadata management
+
 ### Technology Stack
-- **Framework**: Spring Boot 3.x with Java 17
+- **Framework**: Spring Boot 3.3.13 with Java 17
 - **Databases**: PostgreSQL 15 (main), Redis 7 (vector store & cache)
 - **AI/ML**: Spring AI 1.0.0-M5 with Gemini 2.0 Flash, GPT-4o-mini
 - **Security**: JWT-based authentication
+- **Media Processing**: Thumbnailator, Google Cloud Vision OCR, WebP support
+- **Cloud Storage**: AWS S3 for file storage
 - **Monitoring**: Prometheus + Grafana with Micrometer
 - **Deployment**: Docker, AWS Elastic Beanstalk, AWS Lambda (MCP servers)
 
 ### Spring AI Integration
 Spring AI is currently active in `build.gradle`:
-- Lines 42-44: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
-- Lines 88-92: Dependency management for Spring AI BOM
+- Lines 46-48: Spring AI dependencies (openai, vertex-ai-gemini, redis-store)
+- Lines 114-118: Dependency management for Spring AI BOM
 - Environment variables required for OpenAI/Google Cloud are loaded from `.env` file
 
 ### Key API Endpoints
@@ -116,6 +122,12 @@ Spring AI is currently active in `build.gradle`:
 - POST `/api/trips` - Create trip plan
 - GET `/api/trips/{id}` - Get trip details
 - GET `/api/trips/recommend` - Get RAG recommendations
+
+**Media** (`/api/media/*`):
+- POST `/api/media/upload` - File upload to S3
+- GET `/api/media/{id}` - Get media metadata
+- GET `/api/media/{id}/download` - Download file
+- GET `/api/media/{id}/thumbnail` - Get thumbnail image
 
 ## Configuration
 
@@ -417,16 +429,15 @@ The project has evolved from initial setup to a functional AI travel assistant w
 - Integration tests for AI functionalities
 - **CI/CD pipeline with Redis-independent testing**
 
-Current Implementation Status (CHAT2 Team):
-- ✅ REQ-PROMPT-001, 002, 003: Template system completed
-- ✅ REQ-LLM-004: Personalization models implemented
-- ✅ REQ-AI-003: Basic itinerary templates (Day Trip, 1N2D, 2N3D, 3N4D) implemented
-- ✅ REQ-FOLLOW-002, 003, 004: Follow-up question system with flow engine
-- ✅ REQ-FOLLOW-005: Travel info validation system with 3-level verification
-- ✅ CI/CD issues resolved with test separation strategy
-- ✅ Unit tests: 100% passing (including TravelInfoValidatorTest, TravelInfoCollectionServiceTest)
+Current Implementation Status:
+- ✅ **CHAT2 Team**: Template system, personalization models, itinerary templates, follow-up questions
+- ✅ **USER Team**: Authentication, preference management, budget settings
+- 🔄 **MEDIA Team**: File upload/S3 integration, OCR processing, thumbnail generation (in progress)
+- ✅ **CI/CD**: Test separation strategy with Redis-independent unit tests
+
+Current branch: `MEDIA-/-REQ-MEDIA-007-썸네일-생성`
 
 Current focus areas:
-- Implementing RAG-based personalization
-- Integrating Function Calling with prompt templates
-- Expanding follow-up question generation
+- Completing MEDIA domain thumbnail generation feature
+- RAG-based personalization integration
+- Media processing optimization

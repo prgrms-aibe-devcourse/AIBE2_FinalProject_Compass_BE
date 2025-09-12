@@ -30,6 +30,11 @@ spring:
     port: ${REDIS_PORT:6379}
     password: ${REDIS_PASSWORD:}
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   security:
     user:
       name: user
@@ -91,7 +96,7 @@ spring:
 
 server:
   port: 8080
-  
+
 management:
   endpoints:
     web:
@@ -133,7 +138,7 @@ aws:
 
 # JWT Configuration for JwtTokenProvider
 jwt:
-  secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-key-for-access-token}
-  refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-key-for-refresh-token}
+  secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-key-for-jwt-access-token-minimum-32-chars}
+  refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-key-for-jwt-refresh-token-minimum-32-chars}
   access-expiration: 3600000  # 1 hour
   refresh-expiration: 604800000  # 7 days
