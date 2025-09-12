@@ -38,6 +38,15 @@ spring.ai:
   openai:
     api-key: test-key
 
+# AWS S3 설정 (테스트용 더미 값)
+aws:
+  access-key-id: test-access-key
+  secret-access-key: test-secret-key
+  region: ap-northeast-2
+  s3:
+    bucket-name: test-bucket
+    base-url: https://test-bucket.s3.ap-northeast-2.amazonaws.com
+
 # 로깅 레벨 설정
 logging:
   level:
