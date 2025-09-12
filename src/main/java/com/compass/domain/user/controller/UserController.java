@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -108,11 +109,11 @@ public class UserController {
 
     @PostMapping("/preferences/analyze")
     @Operation(summary = "사용자 선호도 분석 실행", description = "사용자의 여행 기록을 바탕으로 여행 스타일을 자동으로 분석하고 저장합니다.")
-    public ResponseEntity<?> analyzeMyPreferences(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
+    public ResponseEntity<?> analyzeMyPreferences(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        Optional<UserPreferenceDto.Response> optionalResponse = userService.analyzeAndSavePreferences(authentication.getName());
+        Optional<List<UserPreferenceDto.Response>> optionalResponse = userService.analyzeAndSavePreferences(userDetails.getUsername());
 
         return optionalResponse.<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());

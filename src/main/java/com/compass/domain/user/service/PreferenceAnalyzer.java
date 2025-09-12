@@ -1,5 +1,6 @@
 package com.compass.domain.user.service;
 
+import com.compass.domain.user.enums.TravelTemplateType;
 import com.compass.domain.trip.entity.TravelHistory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,9 +10,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -20,6 +19,19 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PreferenceAnalyzer {
 
+    // AI에게 전달할 프롬프트의 '틀'을 정의합니다. %s 부분은 Enum의 이름 목록으로 동적으로 채워집니다.
+    private static final String SYSTEM_PROMPT_TEMPLATE = """
+             You are a travel preference analyzer.
+             Your task is to analyze the user's past travel history and suggest up to 9 relevant travel styles from the predefined list below.
+             The output must be a comma-separated list of strings, exactly matching the names from the provided list, in lowercase and with underscores, in order of relevance (most relevant first).
+             Do not add any extra text, just the comma-separated list.
+ 
+             Available travel styles:
+             [%s]
+
+            Analyze the provided JSON data of travel histories and return only the single most fitting travel style name from the list above.
+            """;
+
     // 프로젝트의 다른 서비스와 동일하게, @Qualifier를 사용하여 Gemini 모델을 명시적으로 주입받습니다.
     @Qualifier("geminiChatClient")
     private final ChatClient chatClient;
@@ -27,11 +39,11 @@ public class PreferenceAnalyzer {
 
     /**
      * 사용자의 여행 기록을 바탕으로, Spring AI(Gemini)를 활용하여 여행 스타일을 지능적으로 분석/분류합니다.
-     * 프롬프트는 추후 더 개선해볼 예정입니다.
+     * @return 분석된 여행 템플릿 이름 리스트 (최대 9개)
      */
-    public String analyzeTravelStyleWithAi(List<TravelHistory> histories) {
+    public List<String> analyzeTravelStyleWithAi(List<TravelHistory> histories) {
         if (histories == null || histories.isEmpty()) {
-            return "NEW_TRAVELER";
+            return Collections.emptyList();
         }
 
         try {
@@ -39,12 +51,12 @@ public class PreferenceAnalyzer {
                     histories.stream().map(this::toSimplifiedHistory).collect(Collectors.toList())
             );
 
-            String systemPrompt = """
-                     You are a travel preference analyzer. Your task is to analyze the user's past travel history and classify them into a single, representative traveler type.
-                     The output must be a single, concise string in English, using uppercase letters and underscores.
-                     Example types: BUDGET_ACTIVITY_SEEKER, LUXURY_RELAXATION_TRAVELER, FAMILY_SIGHTSEEING_EXPLORER, SOLO_CULTURAL_ADVENTURER.
-                     Analyze the provided JSON data of travel histories and return only the most fitting traveler type.
-                     """;
+            // 1. Enum을 통해 정의된 모든 여행 템플릿 이름 목록을 가져옵니다.
+            List<String> templateNames = TravelTemplateType.getNames();
+            String availableTemplates = String.join(", ", templateNames);
+
+            // 2. 템플릿 목록을 포함하여 AI에게 전달할 최종 프롬프트를 생성합니다.
+            String systemPrompt = String.format(SYSTEM_PROMPT_TEMPLATE, availableTemplates);
 
             String analysisResult = chatClient.prompt()
                     .system(systemPrompt)
@@ -52,12 +64,26 @@ public class PreferenceAnalyzer {
                     .call()
                     .content();
 
-            log.info("AI Analysis Result: {}", analysisResult);
-            return analysisResult.trim().replaceAll("\\s+", "_").toUpperCase();
+            // 3. AI의 답변(콤마로 구분된 문자열)을 파싱하고 검증합니다.
+            List<String> analyzedStyles = Arrays.stream(analysisResult.split(","))
+                    .map(style -> style.trim().replaceAll("\\s+", "_").toLowerCase())
+                    .filter(templateNames::contains) // 우리가 준 목록에 있는 것만 필터링
+                    .distinct() // 중복 제거
+                    .limit(9)   // 최대 9개로 제한
+                    .toList();
+
+            if (!analyzedStyles.isEmpty()) {
+                log.info("AI Analysis Result: {}", analyzedStyles);
+                return analyzedStyles; // 소문자, 언더스코어 형태의 리스트를 반환
+            }
+
+            // 4. AI가 유효한 답변을 하나도 주지 못했다면, 규칙 기반으로 대체합니다.
+            log.warn("AI did not return any valid template names from the response: '{}'. Falling back to rule-based analysis.", analysisResult);
+            return List.of(analyzeTravelStyleWithRules(histories));
 
         } catch (Exception e) {
             log.error("AI-based analysis failed, falling back to rule-based analysis.", e);
-            return analyzeTravelStyleWithRules(histories);
+            return List.of(analyzeTravelStyleWithRules(histories)); // 규칙 기반 결과도 리스트로 감싸서 반환
         }
     }
 

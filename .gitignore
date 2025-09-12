@@ -74,3 +74,9 @@ frontend/
 FE/
 compass-frontend/
 compass-fe/
+
+
+ # Ignore specific documentation folders
+ # e.g., AI prompt templates that might be managed elsewhere or are just for reference
+ docs/Preference/
+ docs/user/

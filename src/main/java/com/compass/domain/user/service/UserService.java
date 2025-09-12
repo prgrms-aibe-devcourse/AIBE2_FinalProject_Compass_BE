@@ -182,36 +182,45 @@ public class UserService {
 
 
     @Transactional
-    public Optional<UserPreferenceDto.Response> analyzeAndSavePreferences(String email) {
+    public Optional<List<UserPreferenceDto.Response>> analyzeAndSavePreferences(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
 
         // 1. 최근 여행 기록 조회
         List<TravelHistory> histories = travelHistoryRepository.findTop10ByUserIdOrderByCreatedAtDesc(user.getId());
 
-        // 2. 분석기 실행
-        String analyzedType = preferenceAnalyzer.analyzeTravelStyleWithAi(histories);
+        // 2. 분석기 실행 (이제 여러 개의 결과를 리스트로 받음)
+        List<String> analyzedTypes = preferenceAnalyzer.analyzeTravelStyleWithAi(histories);
 
-        // 3. (중요) 분석 결과가 유의미할 때만 저장 로직을 실행합니다.
-        if ("NEW_TRAVELER".equals(analyzedType)) {
+        // 3. (중요) 분석 결과가 있을 때만 저장 로직을 실행합니다.
+        if (analyzedTypes.isEmpty()) {
             log.info("No travel history for user: {}. Skipping preference analysis update.", email);
             return Optional.empty(); // 아무것도 저장하지 않고, 빈 결과를 반환합니다.
         }
-
-        // 4. 분석 결과 저장 (기존 값 덮어쓰기)
+// Hidden Lines
         final String preferenceType = "ANALYZED_TRAVEL_TYPE";
         userPreferenceRepository.deleteByUserAndPreferenceType(user, preferenceType);
 
-        UserPreference analyzedPreference = UserPreference.builder()
-                .user(user)
-                .preferenceType(preferenceType)
-                .preferenceKey(analyzedType)
-                .preferenceValue(BigDecimal.ONE) // 분석된 타입은 하나이므로 100%
-                .build();
+        // 5. 분석된 여러 개의 타입을 모두 저장합니다.
+        List<UserPreference> newPreferences = analyzedTypes.stream()
+                .map(type -> UserPreference.builder()
+                        .user(user)
+                        .preferenceType(preferenceType)
+                        .preferenceKey(type.toUpperCase()) // DB에는 대문자로 저장
+                        .preferenceValue(BigDecimal.ONE) // 각 타입은 동등한 가치로 저장
+                        .build())
+                .toList();
 
-        userPreferenceRepository.save(analyzedPreference);
-        return Optional.of(UserPreferenceDto.Response.from(analyzedPreference));
+        List<UserPreference> savedPreferences = userPreferenceRepository.saveAll(newPreferences);
+
+        // 여러 개의 결과를 DTO 리스트로 변환하여 반환합니다.
+        List<UserPreferenceDto.Response> responses = savedPreferences.stream()
+                .map(UserPreferenceDto.Response::from)
+                .toList();
+
+        return Optional.of(responses);
     }
+
 
 
     @Transactional
