@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, fix/media ]
   pull_request:
     branches: [ main, develop ]
 
@@ -10,31 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: compass_test
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -47,7 +22,6 @@ jobs:
 
     - name: Cache Gradle packages
       uses: actions/cache@v4
-
       with:
         path: |
           ~/.gradle/caches
@@ -62,32 +36,8 @@ jobs:
     - name: Clean Gradle cache
       run: ./gradlew clean --no-daemon
 
-    - name: Create test .env file
-      run: |
-        echo "JWT_ACCESS_SECRET=test-access-secret-key-for-ci-testing-purposes-256-bit-minimum-length" > .env
-        echo "JWT_REFRESH_SECRET=test-refresh-secret-key-for-ci-testing-purposes-256-bit-minimum-length" >> .env
-        echo "DB_HOST=localhost" >> .env
-        echo "DB_PORT=5432" >> .env
-        echo "DB_NAME=compass_test" >> .env
-        echo "DB_USERNAME=test_user" >> .env
-        echo "DB_PASSWORD=test_password" >> .env
-        echo "REDIS_HOST=localhost" >> .env
-        echo "REDIS_PORT=6379" >> .env
-        echo "GOOGLE_APPLICATION_CREDENTIALS=/home/runner/work/AIBE2_FinalProject_Compass_BE/AIBE2_FinalProject_Compass_BE/travelagent-468611-1ae0c9d4e187.json" >> .env
-
-    - name: Run tests
-      env:
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DB_NAME: compass_test
-        DB_USERNAME: test_user
-        DB_PASSWORD: test_password
-        REDIS_HOST: localhost
-        REDIS_PORT: 6379
-        JWT_ACCESS_SECRET: test-access-secret-key-for-ci-testing-purposes-256-bit-minimum-length
-        JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci-testing-purposes-256-bit-minimum-length
-        GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/AIBE2_FinalProject_Compass_BE/AIBE2_FinalProject_Compass_BE/travelagent-468611-1ae0c9d4e187.json
-      run: ./gradlew test --continue
+    - name: Run unit tests (Redis-independent)
+      run: ./gradlew unitTest --continue
 
     - name: Build application
       run: ./gradlew build -x test

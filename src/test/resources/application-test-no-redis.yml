@@ -21,22 +21,24 @@ spring:
         format_sql: false
     show-sql: false
     defer-datasource-initialization: true
-
-# JWT 설정
-jwt:
-  access-secret: test-access-secret-key-for-unit-test-12345678901234567890
-  refresh-secret: test-refresh-secret-key-for-unit-test-12345678901234567890
-  access-expiration: 3600000
-  refresh-expiration: 604800000
-
-# Spring AI 설정 (테스트용 더미 값)
-spring.ai:
-  vertex.ai:
-    gemini:
-      project-id: test-project
-      location: us-central1
-  openai:
-    api-key: test-key
+  
+  # JWT 설정
+  security:
+    jwt:
+      secret: test-access-secret-key-for-unit-test-12345678901234567890
+      refresh-secret: test-refresh-secret-key-for-unit-test-12345678901234567890
+      access-expiration: 3600000
+      refresh-expiration: 604800000
+  
+  # Spring AI 설정 (테스트용 더미 값)
+  ai:
+    vertex:
+      ai:
+        gemini:
+          project-id: test-project
+          location: us-central1
+    openai:
+      api-key: test-key
 
 # AWS S3 설정 (테스트용 더미 값)
 aws:
