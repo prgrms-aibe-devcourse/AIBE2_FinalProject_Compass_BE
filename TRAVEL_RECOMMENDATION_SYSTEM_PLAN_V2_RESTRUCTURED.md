@@ -623,21 +623,167 @@ public record ReservationInfo(
 
 ---
 
+## 📅 핵심 개발 우선순위 (간소화 & 구체화)
+
+### 개발 기간: 3일 집중 개발
+
+---
+
+### 🔴 Day 1: MVP 핵심 기능 (필수)
+
+#### CHAT2 팀: LLM & Function Calling 구현
+```java
+// 1. MainLLMOrchestrator.java 구현
+@Configuration
+public class FunctionCallingConfig {
+    @Bean("analyzeUserInput")  // Function Calling 도구 1
+    @Bean("startFollowUp")      // Function Calling 도구 2  
+    @Bean("generatePlan")       // Function Calling 도구 3
+}
+
+// 2. 시스템 프롬프트 (ChatServiceImpl.java)
+String SYSTEM_PROMPT = "당신은 여행 플래너입니다. Function Calling으로 작업을 수행하세요."; // 50토큰
+
+// 3. TravelInfoCollectionService.java - 정보 수집 상태 관리
+@Entity TravelInfoCollectionState {
+    String origin, destination, dates, budget;  // 필수 정보만
+    int collectionProgress;  // 0-100%
+}
+```
+
+#### TRIP 팀: 기본 여행 계획 생성
+```java
+// 1. generateTravelPlan Function Calling 도구
+@Bean
+@Description("여행 계획을 생성합니다")
+public Function<PlanRequest, PlanResponse> generateTravelPlan() {
+    // 하드코딩된 템플릿 기반 (복잡한 로직 X)
+    return request -> createBasicPlan(request);
+}
+
+// 2. Place.java 엔티티 & PlaceRepository
+@Entity Place {
+    String name, category, destination;
+    // Tour API에서 크롤링한 100개 데이터 INSERT
+}
+```
+
+---
+
+### 🟡 Day 2: 실용 기능 추가
+
+#### CHAT2 팀: Follow-up 질문 시스템
+```java
+// 1. FollowUpQuestionGenerator.java
+public class FollowUpQuestionGenerator {
+    // 2가지 전략만 구현
+    QUICK_STRATEGY: "빠른 질문 1-2개만"
+    DETAILED_STRATEGY: "상세 질문 3-4개"
+}
+
+// 2. 빠른 입력 폼 백엔드 API
+@PostMapping("/api/chat/quick-form")
+public ResponseEntity submitQuickForm(@RequestBody QuickFormRequest) {
+    // 폼 데이터 → TravelInfoCollectionState 저장
+}
+```
+
+#### TRIP 팀: 외부 API 연동
+```java
+// 1. searchWithPerplexity Function Calling 도구
+@Bean
+@Description("트렌디한 장소를 검색합니다")
+public Function<SearchRequest, List<Place>> searchWithPerplexity() {
+    // Perplexity API 호출 → 5개 장소만 반환
+}
+
+// 2. getWeatherInfo Function Calling 도구
+@Bean  
+@Description("날씨 정보를 가져옵니다")
+public Function<WeatherRequest, WeatherResponse> getWeatherInfo() {
+    // OpenWeatherMap API (7일 이내만)
+}
+
+// 3. searchTourAPI Function Calling 도구
+@Bean
+@Description("관광지를 검색합니다")
+public Function<TourRequest, List<Place>> searchTourAPI() {
+    // Tour API 기본 검색 (복잡한 필터 X)
+}
+```
+
+---
+
+### 🟢 Day 3: 통합 테스트
+
+#### 전체 팀: E2E 플로우 검증
+```java
+// 1. 전체 플로우 테스트
+@Test
+void testFullFlow() {
+    // Step 1: 사용자 입력
+    chatService.processMessage("제주도 3박4일 여행 계획 짜줘");
+    
+    // Step 2: LLM이 analyzeUserInput 도구 호출
+    // Step 3: 누락 정보 확인 → startFollowUp 도구 호출  
+    // Step 4: Follow-up 질문 응답
+    // Step 5: generatePlan 도구 호출
+    // Step 6: 여행 계획 반환
+}
+
+// 2. 에러 처리
+@ControllerAdvice
+public class GlobalExceptionHandler {
+    // Perplexity API 실패 → DB 장소만 사용
+    // Weather API 실패 → 날씨 정보 없이 진행
+}
+```
+
+---
+
+## ✅ 구체적 구현 체크리스트
+
+### Function Calling 도구 (총 7개만)
+1. `analyzeUserInput` - 사용자 입력 분석 (CHAT2)
+2. `startFollowUp` - Follow-up 시작 (CHAT2)
+3. `continueFollowUp` - Follow-up 계속 (CHAT2)
+4. `generateTravelPlan` - 계획 생성 (TRIP)
+5. `searchWithPerplexity` - 트렌디 장소 (TRIP)
+6. `getWeatherInfo` - 날씨 정보 (TRIP)
+7. `searchTourAPI` - 관광지 검색 (TRIP)
+
+### 데이터베이스 테이블 (기존 활용)
+- `chat_threads` - 대화 스레드 (있음)
+- `chat_messages` - 메시지 저장 (있음)
+- `travel_info_collection_states` - 수집 상태 (있음)
+- `places` - 장소 정보 (새로 생성함)
+- `follow_up_questions` - 질문 기록 (새로 생성함)
+
+### 제외 항목 (시간 부족)
+- ❌ OCR 이미지 처리
+- ❌ 8가지 적응형 전략 (2개만)
+- ❌ 대화형 수정 기능
+- ❌ Redis 캐싱
+- ❌ 복잡한 최적화
+- ❌ 상세 모니터링
+
+---
+
 ## 🚀 구현 우선순위
 
-### Phase 1: 핵심 기능 (1주차)
+### Phase 1: 핵심 기능 (Day 1-2)
 - [x] MainLLMOrchestrator 구현
 - [x] 빠른 입력 폼 UI
 - [x] 기본 Follow-up 시스템
 - [x] 여행 계획 생성
 
-### Phase 2: 고도화 (2주차)
+### Phase 2: 고도화 (Day 3-4)
 - [x] OCR 예약 정보 추출
 - [x] 적응형 질문 전략
 - [x] 날씨 API 연동
 - [x] 대화형 수정 기능
 
-### Phase 3: 최적화 (3주차)
+### Phase 3: 최적화 (Day 5)
 - [ ] 피로도 관리 정교화
 - [ ] 토큰 사용량 모니터링
 - [ ] 응답 속도 개선

@@ -38,7 +38,7 @@
 
 5. [대화 플로우](#5-대화-플로우)
    - 5.1 [기본 대화 플로우](#51-기본-대화-플로우)
-   - 5.2 [Adaptive Follow-up 플로우](#52-adaptive-follow-up-플로우)
+   - 5.2 [간단한 Follow-up 플로우](#52-간단한-follow-up-플로우)
    - 5.3 [여행 계획 생성 플로우](#53-여행-계획-생성-플로우)
 
 ### Part 4: 프로젝트 관리
@@ -212,11 +212,17 @@ public class ChatService {
 ### 1.1 목적 및 비전
 메인 LLM이 중앙 오케스트레이터 역할을 하며, 모든 기능을 Function Calling으로 호출하는 지능형 여행 계획 시스템
 
+**핵심 철학**:
+- **자유로운 대화**: MainLLMOrchestrator가 어떤 질문이든 자연스럽게 처리
+- **자연스러운 유도**: 강요하지 않고 대화를 여행 계획으로 부드럽게 이끌기
+- **효율적 정보 수집**: 빠른 입력으로 불필요한 대화 턴 최소화 (토큰 절약)
+
 ### 1.2 핵심 특징
 ✅ **단일 진입점**: 모든 사용자 요청이 메인 LLM을 통해 처리  
 ✅ **도구 기반 아키텍처**: 모든 기능이 독립적인 Function으로 구현  
 ✅ **동적 의사결정**: LLM이 상황에 따라 필요한 도구 선택  
-✅ **확장 가능**: 새로운 기능을 Function으로 추가하기 쉬움  
+✅ **확장 가능**: 새로운 기능을 Function으로 추가하기 쉬움
+✅ **비용 효율**: 토큰 사용량 최적화로 운영 비용 절감  
 
 ### 1.3 기대 효과
 - 사용자 맞춤형 여행 계획 자동 생성
@@ -239,8 +245,8 @@ public class ChatService {
     │
     └─→ Function Calling (필요시)
          ├─→ 꼬리질문 관련
-         │    ├─→ startFollowUpSession()      // 꼬리질문 시작
-         │    └─→ continueFollowUp()          // 꼬리질문 계속
+         │    ├─→ checkMissingInfo()           // 부족 정보 확인
+         │    └─→ fillMissingInfo()            // 부족 정보 채우기
          │
          ├─→ 검색 및 추천
          │    ├─→ recommendTemplates()        // 템플릿 추천
@@ -294,12 +300,495 @@ public class ChatService {
 | | saveGeneratedItinerary | 생성된 일정 저장 |
 | **분석** | analyzeUserTravelPatterns | 여행 패턴 분석 |
 
-### 2.3 데이터 흐름
-1. 사용자 입력 → MainLLMOrchestrator
-2. LLM이 의도 파악 및 필요 도구 선택
-3. Function Calling 실행
-4. 결과 통합 및 응답 생성
-5. 사용자에게 전달
+### 2.3 케이스별 구체적인 데이터 흐름
+
+#### Case 1: 여행 계획 준비 단계 (정보 수집)
+
+##### 1-1. 기본 정보 수집 플로우
+```
+[사용자: "제주도 여행 가고 싶어"]
+        ↓
+[MainLLMOrchestrator]
+        ↓
+    의도 분석: "여행 계획 요청"
+        ↓
+[Function Call: analyzeUserInput]
+        ↓
+    추출된 정보: {destination: "제주도"}
+    누락된 정보: [날짜, 인원, 예산, 스타일]
+        ↓
+[Function Call: checkMissingInfo]
+        ↓
+    PostgreSQL 저장:
+    - chat_threads 테이블: 새 스레드 생성
+    - travel_info_collection_states: 초기 상태 저장
+        ↓
+[응답: "제주도 여행 좋네요! 언제 가실 예정이신가요?"]
+```
+
+##### 1-2. OCR을 통한 예약 정보 자동 입력 플로우
+```
+[사용자: 항공권 사진 업로드]
+        ↓
+[MainLLMOrchestrator]
+        ↓
+[Function Call: processOCR]
+        ↓
+    OCR Service API 호출
+        ↓
+    텍스트 추출: "대한항공 KE1234..."
+        ↓
+    LLM 정보 파싱:
+    - 출발: 김포 09:00
+    - 도착: 제주 10:20
+    - 날짜: 2024-03-15
+        ↓
+    PostgreSQL 저장:
+    - reservation_info 테이블
+    - travel_info_collection_states 업데이트
+        ↓
+[응답: "항공권 정보 확인했습니다. 3월 15일 오전 9시 출발이시네요!"]
+```
+
+##### 1-3. Follow-up 질문 통한 추가 정보 수집
+```
+[현재 상태 조회]
+        ↓
+    PostgreSQL: travel_info_collection_states
+    수집된: {destination: "제주도", dates: "3/15-3/17"}
+    누락된: [인원, 예산, 스타일]
+        ↓
+[Function Call: fillMissingInfo]
+        ↓
+    질문 생성 로직:
+    if (dates > 2일 && !budget) → "예산은 얼마나 생각하시나요?"
+    if (!travelers) → "몇 분이서 가시나요?"
+        ↓
+[응답: "몇 분이서 가시나요? 혼자/2명/가족 중 선택해주세요"]
+        ↓
+[사용자: "2명"]
+        ↓
+    PostgreSQL 업데이트:
+    - travel_info_collection_states.travelers = 2
+    - collection_progress = 60%
+```
+
+##### 1-4. 목적지 미정 사용자 처리 플로우
+```
+[사용자: "여행 가고 싶은데 어디로 갈지 모르겠어"]
+        ↓
+[MainLLMOrchestrator]
+        ↓
+[Function Call: detectUndecidedDestination]
+        ↓
+    목적지 미정 감지: true
+        ↓
+[Function Call: askDepartureLocation]
+        ↓
+[응답: "어디에서 출발하시나요?"]
+        ↓
+[사용자: "서울에서 출발"]
+        ↓
+[Function Call: askTransportMode]
+        ↓
+[응답: "어떤 교통수단을 이용하실 예정인가요? 자동차/기차/버스 중 선택해주세요"]
+        ↓
+[사용자: "자동차로 갈 거예요"]
+        ↓
+[Function Call: askTimeRange]
+        ↓
+[응답: "운전으로 얼마나 이동하실 수 있나요?
+       🚗 1시간 이내 (경기도 근교)
+       🚗 2시간 이내 (충청/강원 일부)
+       🚗 3시간 이내 (전국 대부분)
+       🚗 4시간 이내 (부산/전남 등)"]
+        ↓
+[사용자: "2시간 정도까지는 괜찮아요"]
+        ↓
+[Function Call: getReachableAreas]
+    입력: {departure: "서울", transport: "car", hours: 2}
+        ↓
+    거리 계산 API 호출:
+    - 대전: 1.5시간 (140km)
+    - 춘천: 1.5시간 (100km)
+    - 속초: 2시간 (160km)
+    - 강릉: 2시간 (180km)
+        ↓
+[Function Call: searchDestinationsByTimeRange]
+    입력: {areas: ["대전", "춘천", "속초", "강릉"], travelStyle: null}
+        ↓
+    Perplexity API 병렬 호출:
+    - "대전 인기 관광지 2024"
+    - "춘천 가볼만한 곳"
+    - "속초 강릉 여행지 추천"
+        ↓
+    PostgreSQL places 테이블 조회:
+    - 각 지역별 인기 장소 TOP 5
+        ↓
+[LLM 추천 생성]
+    2시간 이내 추천 목적지:
+    🏔️ 강릉: 바다와 커피의 도시 (경포대, 안목해변)
+    🌲 춘천: 호수와 닭갈비 (남이섬, 소양강)
+    🏖️ 속초: 설악산과 해산물 (설악산, 속초해수욕장)
+    🏛️ 대전: 과학과 온천 (엑스포공원, 유성온천)
+        ↓
+[응답: "서울에서 2시간 이내 추천 여행지입니다:
+       1. 강릉 - 바다 보며 커피 마시기 좋아요
+       2. 춘천 - 남이섬과 닭갈비가 유명해요
+       3. 속초 - 설악산 등산과 회가 일품이에요
+       어느 곳이 마음에 드시나요?"]
+        ↓
+[사용자: "강릉이 좋을 것 같아요"]
+        ↓
+    목적지 확정: 강릉
+    PostgreSQL 업데이트:
+    - travel_info_collection_states.destination = "강릉"
+    - travel_info_collection_states.departure_location = "서울"
+    - travel_info_collection_states.transport_mode = "car"
+        ↓
+[이후 일반 Follow-up 플로우 진행]
+```
+
+#### Case 2: 여행 계획 생성 단계
+
+##### 2-1. 하이브리드 장소 검색 플로우
+```
+[모든 필수 정보 수집 완료]
+        ↓
+[Function Call: generateTravelPlan]
+        ↓
+    병렬 실행 시작:
+    
+    [Branch 1: DB 장소 조회]
+    PostgreSQL: places 테이블
+    SELECT * FROM places 
+    WHERE destination = '제주도'
+    AND category IN ('관광지', '맛집', '카페')
+    → 50개 기본 장소
+    
+    [Branch 2: Perplexity 트렌디 장소 검색]
+    Function Call: searchWithPerplexity
+    Query: "제주도 2024 SNS 핫플레이스 카페"
+    Perplexity API 호출
+    → 10개 트렌디 장소
+    
+    [Branch 3: 날씨 정보 조회]
+    Function Call: getWeatherInfo
+    OpenWeatherMap API 호출
+    Location: 제주도, Date: 2024-03-15
+    → 맑음, 18도
+        ↓
+    병렬 실행 결과 수집
+        ↓
+[LLM 최적 조합 선택]
+    - 기본 관광지 3개 (성산일출봉, 한라산, 우도)
+    - 트렌디 카페 3개 (애월 카페, 성산 오션뷰 카페)
+    - 검증된 맛집 2개 (흑돼지, 갈치조림)
+        ↓
+    PostgreSQL 저장:
+    - travel_plans 테이블: 전체 계획
+    - daily_itineraries 테이블: 일별 일정
+```
+
+##### 2-2. 시간 제약 반영 일정 생성 플로우
+```
+[예약 정보 기반 시간 계산]
+        ↓
+    첫날: 10:20 제주 도착 (from reservation_info)
+    실제 관광 시작: 11:00 (공항→시내 이동)
+    가능 시간: 11:00-22:00 (11시간)
+        ↓
+[첫날 일정 생성]
+    11:00-12:30: 공항→숙소 체크인
+    12:30-14:00: 점심 (제주 흑돼지)
+    14:00-17:00: 관광지 1곳 (성산일출봉)
+    17:00-18:00: 카페 (성산 오션뷰 카페)
+    18:00-19:30: 저녁
+    19:30-21:00: 야경/야시장
+        ↓
+    PostgreSQL 저장:
+    - daily_itineraries.day = 1
+    - daily_itineraries.activities = JSONB
+```
+
+##### 2-3. 날씨 기반 일정 조정 플로우
+```
+[날씨 확인 (1주일 이내)]
+        ↓
+    OpenWeatherMap API 결과:
+    Day 2: 비 80%, 강풍
+        ↓
+[제약사항 생성]
+    - INDOOR_PRIORITY: 실내 활동 우선
+    - NO_MOUNTAIN: 한라산 등산 제외
+        ↓
+[대체 일정 생성]
+    원래: 한라산 → 변경: 제주 아쿠아리움
+    원래: 해안 드라이브 → 변경: 박물관 투어
+        ↓
+    PostgreSQL 업데이트:
+    - daily_itineraries.weather_adjusted = true
+    - daily_itineraries.indoor_activities 증가
+```
+
+#### Case 3: 데이터 저장 및 캐싱 전략
+
+##### 3-1. PostgreSQL 데이터 저장 구조
+```
+// 여행 정보 수집 상태 (영구 저장)
+travel_info_collection_states:
+  - id, user_id, thread_id
+  - destination, dates, travelers, budget
+  - collection_progress, created_at, updated_at
+  
+// 생성된 여행 계획 (영구 저장)  
+travel_plans:
+  - id, user_id, thread_id
+  - plan_data (JSONB): 전체 일정
+  - created_at, status
+  
+// 장소 정보 (사전 크롤링)
+places:
+  - id, name, destination, category
+  - details (JSONB): 영업시간, 가격, 리뷰 등
+```
+
+##### 3-2. Redis 캐싱 전략 (옵션)
+```
+// 세션 데이터 (24시간)
+session:{sessionId} → TravelInfoCollectionState
+
+// Perplexity 검색 결과 (1시간)
+trendy:제주도:카페 → List<Place>
+
+// 날씨 정보 (30분)
+weather:제주도:2024-03-15 → WeatherData
+
+// Follow-up 상태 (세션 기간)
+followup:{threadId} → CurrentFollowUpState
+```
+
+#### 상세 Function Calling 플로우
+```java
+// Step 1: 사용자 입력 처리
+public ChatResponse processUserMessage(String userMessage, String threadId) {
+    // 1.1 컨텍스트 조회
+    ConversationContext context = getConversationContext(threadId);
+    
+    // 1.2 MainLLMOrchestrator 호출
+    String llmRequest = buildLLMRequest(userMessage, context);
+    
+    // 1.3 Function Calling 결정
+    FunctionCallDecision decision = mainLLM.analyze(llmRequest);
+    
+    // 1.4 Function 실행
+    Object result = executeFunctionCall(decision);
+    
+    // 1.5 응답 생성
+    return generateResponse(result, context);
+}
+
+// Step 2: Function Calling 실행 상세
+private Object executeFunctionCall(FunctionCallDecision decision) {
+    return switch(decision.functionName) {
+        // DB 조회 Functions
+        case "queryPlacesFromDB" -> {
+            // PostgreSQL 직접 조회
+            List<Place> places = placeRepository.findByDestination(
+                decision.params.get("destination")
+            );
+            yield places;
+        }
+        
+        case "saveTravelInfo" -> {
+            // PostgreSQL 저장 + Redis 캐시 업데이트
+            TravelInfo info = new TravelInfo(decision.params);
+            TravelInfo saved = travelInfoRepository.save(info);
+            redisTemplate.opsForValue().set(
+                "travel:" + saved.getId(), 
+                saved, 
+                Duration.ofHours(24)
+            );
+            yield saved;
+        }
+        
+        // 외부 API Functions
+        case "searchTrendyPlaces" -> {
+            // Perplexity API 호출
+            String query = buildPerplexityQuery(decision.params);
+            PerplexityResponse response = perplexityClient.search(query);
+            
+            // 결과를 DB에 캐싱
+            cacheTrendyPlaces(response.getPlaces());
+            yield response;
+        }
+        
+        case "getWeatherInfo" -> {
+            // OpenWeatherMap API 호출
+            WeatherData weather = weatherClient.getForecast(
+                decision.params.get("location"),
+                decision.params.get("date")
+            );
+            yield weather;
+        }
+        
+        case "processOCR" -> {
+            // OCR 처리 및 정보 추출
+            String imageData = decision.params.get("imageData");
+            String extractedText = ocrService.extract(imageData);
+            ReservationInfo info = parseReservationInfo(extractedText);
+            
+            // 추출된 정보 DB 저장
+            saveReservationInfo(info);
+            yield info;
+        }
+        
+        // 내부 처리 Functions
+        case "generateFollowUp" -> {
+            // 현재 상태 조회
+            TravelInfoCollectionState state = getCollectionState(
+                decision.params.get("sessionId")
+            );
+            
+            // 누락 정보 확인
+            List<String> missing = findMissingInfo(state);
+            
+            // 질문 생성
+            FollowUpQuestion question = generateQuestion(missing, state);
+            
+            // Redis에 임시 저장
+            cacheFollowUpState(question);
+            yield question;
+        }
+        
+        case "generateTravelPlan" -> {
+            // 1. DB에서 기본 장소 조회
+            List<Place> dbPlaces = queryPlacesFromDB(decision.params);
+            
+            // 2. Perplexity로 트렌디 장소 검색 (병렬)
+            CompletableFuture<List<Place>> trendyFuture = 
+                CompletableFuture.supplyAsync(() -> 
+                    searchTrendyPlaces(decision.params)
+                );
+            
+            // 3. 날씨 정보 조회 (병렬)
+            CompletableFuture<WeatherData> weatherFuture = 
+                CompletableFuture.supplyAsync(() -> 
+                    getWeatherInfo(decision.params)
+                );
+            
+            // 4. 결과 조합
+            List<Place> trendyPlaces = trendyFuture.join();
+            WeatherData weather = weatherFuture.join();
+            
+            // 5. LLM으로 최적 계획 생성
+            TravelPlan plan = llmPlanGenerator.generate(
+                dbPlaces, 
+                trendyPlaces, 
+                weather,
+                decision.params
+            );
+            
+            // 6. DB 저장
+            saveTravelPlan(plan);
+            yield plan;
+        }
+        
+        default -> throw new IllegalArgumentException(
+            "Unknown function: " + decision.functionName
+        );
+    };
+}
+```
+
+#### 데이터 저장 및 조회 패턴
+```java
+// PostgreSQL 데이터 구조
+@Entity
+@Table(name = "places")
+public class Place {
+    @Id private Long id;
+    private String name;
+    private String destination;
+    private String category;
+    @Column(columnDefinition = "jsonb")
+    private Map<String, Object> details;  // JSON 형태로 유연한 데이터 저장
+}
+
+// Redis 캐싱 전략
+@Service
+public class CacheService {
+    // 세션 데이터 (24시간)
+    public void cacheSession(String sessionId, Object data) {
+        redisTemplate.opsForValue().set(
+            "session:" + sessionId, 
+            data, 
+            Duration.ofHours(24)
+        );
+    }
+    
+    // Perplexity 검색 결과 (1시간)
+    public void cacheTrendyPlaces(List<Place> places) {
+        String key = "trendy:" + generateKey(places);
+        redisTemplate.opsForList().rightPushAll(key, places);
+        redisTemplate.expire(key, Duration.ofHours(1));
+    }
+    
+    // 날씨 정보 (30분)
+    public void cacheWeather(String location, WeatherData weather) {
+        redisTemplate.opsForValue().set(
+            "weather:" + location, 
+            weather, 
+            Duration.ofMinutes(30)
+        );
+    }
+}
+```
+
+#### 병렬 처리 및 최적화
+```java
+// 여러 Function을 병렬로 실행
+public TravelPlan optimizedPlanGeneration(PlanRequest request) {
+    // 병렬 실행을 위한 ThreadPool
+    ExecutorService executor = Executors.newFixedThreadPool(4);
+    
+    try {
+        // 모든 데이터 소스를 병렬로 조회
+        Future<List<Place>> dbPlacesFuture = executor.submit(() -> 
+            placeRepository.findByDestination(request.destination())
+        );
+        
+        Future<List<Place>> trendyPlacesFuture = executor.submit(() ->
+            perplexityService.searchTrendyPlaces(request)
+        );
+        
+        Future<WeatherData> weatherFuture = executor.submit(() ->
+            weatherService.getWeather(request.destination(), request.date())
+        );
+        
+        Future<List<TravelHistory>> historyFuture = executor.submit(() ->
+            historyRepository.findSimilarTravels(request)
+        );
+        
+        // 결과 수집
+        List<Place> dbPlaces = dbPlacesFuture.get();
+        List<Place> trendyPlaces = trendyPlacesFuture.get();
+        WeatherData weather = weatherFuture.get();
+        List<TravelHistory> similarTravels = historyFuture.get();
+        
+        // LLM으로 최적 조합 생성
+        return llmPlanGenerator.createOptimalPlan(
+            dbPlaces,
+            trendyPlaces,
+            weather,
+            similarTravels,
+            request
+        );
+        
+    } finally {
+        executor.shutdown();
+    }
+}
 
 ---
 
@@ -419,9 +908,9 @@ String userPrompt = """
     """;
 ```
 
-### 3.1 Adaptive Follow-up 도구 & 빠른 입력 인터페이스
+### 3.1 정보 수집 도구 (빠른 입력 & 간단한 Follow-up)
 
-여행 정보 수집을 위한 **두 가지 접근 방식**을 제공합니다.
+여행 정보 수집을 위한 **효율적인 접근 방식**을 제공합니다.
 
 #### 방식 1: 빠른 입력 인터페이스 (Quick Input Form) → 세부 니즈 파악
 사용자가 여행 계획을 언급하면 **기본 정보를 빠르게 수집**한 후, Function Calling으로 **세부 니즈를 파악**합니다.
@@ -471,12 +960,31 @@ interface QuickTravelForm {
   // 선택/추천 필드 (미정일 가능성 높음)
   destination: {
     selected: string,          // 사용자가 언급한 목적지
+    undecided: boolean,        // 목적지 미정 여부 체크
     suggestions: [             // 인기 목적지 제안
       "제주도", "부산", "강릉", "경주", "여수",
       "일본", "태국", "베트남", "대만"
     ],
     multiCity: boolean         // 다중 도시 여행 옵션
   },
+  
+  // 목적지 미정 시 추가 필드
+  undecidedDestinationInfo: {
+    departureLocation: string, // 출발지 (예: "서울", "부산")
+    transportMode: {           // 이동수단
+      type: ["car", "train", "bus", "flight"],
+      selected: string
+    },
+    timeRange: {              // 시간 범위 선택
+      options: [
+        { value: 1, label: "1시간 이내", distance: "~50km" },
+        { value: 2, label: "2시간 이내", distance: "~150km" },
+        { value: 3, label: "3시간 이내", distance: "~250km" },
+        { value: 4, label: "4시간 이내", distance: "~400km" }
+      ],
+      selected: number
+    }
+  }
   
   travelStyle: {
     options: [                 // 여행 스타일 선택
@@ -498,6 +1006,7 @@ interface QuickTravelForm {
 ├─────────────────────────────────────────────┤
 │ 📍 목적지: [부산 ▼] + 다른 도시 추가          │
 │    추천: 제주 | 강릉 | 경주 | 여수            │
+│    [ ] 목적지가 아직 정해지지 않았어요 🗺️      │
 │                                             │
 │ 📅 날짜: [2024.3.15] ~ [2024.3.17]          │
 │    □ 아직 미정                               │
@@ -515,8 +1024,34 @@ interface QuickTravelForm {
 └─────────────────────────────────────────────┘
 ```
 
-#### 방식 2: Adaptive Follow-up (대화형)
-정보가 부족하거나 사용자가 대화를 선호하는 경우 **자연스러운 대화**로 정보 수집
+**목적지 미정 선택 시 추가 UI**:
+```
+┌─────────────────────────────────────────────┐
+│ 🗺️ 목적지 찾기 도우미                         │
+├─────────────────────────────────────────────┤
+│                                             │
+│ 📍 출발지: [서울 ▼]                          │
+│    주요도시: 서울 | 부산 | 대구 | 인천       │
+│                                             │
+│ 🚗 이동수단:                                 │
+│    (•) 자동차  ( ) 기차  ( ) 버스           │
+│                                             │
+│ ⏱️ 이동 가능 시간:                           │
+│    ( ) 1시간 이내 (가까운 근교)              │
+│    (•) 2시간 이내 (주변 도시)                │
+│    ( ) 3시간 이내 (전국 대부분)              │
+│    ( ) 4시간 이내 (먼 거리)                 │
+│                                             │
+│ 선호하는 여행지 특성: (복수 선택)             │
+│    [ ] 바다 🌊  [ ] 산 🏔️  [ ] 도시 🏙️     │
+│    [ ] 역사 🏛️  [ ] 테마파크 🎢             │
+│                                             │
+│         [목적지 추천 받기]                    │
+└─────────────────────────────────────────────┘
+```
+
+#### 방식 2: 간단한 Follow-up (보조용)
+빠른 입력 후에도 **필수 정보가 부족한 경우에만** 1-2개 질문으로 보완
 
 **📋 필수 정보 체크리스트**:
 1. **목적지** (destinations) - 어디로 가는지
@@ -966,12 +1501,12 @@ public class NextDetailedQuestion {
 }
 ```
 
-#### startAdaptiveFollowUp
+#### checkMissingInfo
 ```java
 @Bean
-public Function<StartAdaptiveFollowUpRequest, AdaptiveFollowUpResponse> startAdaptiveFollowUp() {
+public Function<CheckMissingInfoRequest, MissingInfoResponse> checkMissingInfo() {
     return request -> {
-        log.info("LLM starting adaptive follow-up session");
+        log.info("Checking missing essential info");
         
         // 세션 생성
         String sessionId = UUID.randomUUID().toString();
@@ -1064,12 +1599,12 @@ public Function<GetNextQuestionRequest, NextQuestionResponse> getNextAdaptiveQue
 }
 ```
 
-#### continueAdaptiveFollowUp
+#### fillMissingInfo
 ```java
 @Bean
-public Function<ContinueAdaptiveFollowUpRequest, AdaptiveFollowUpResponse> continueAdaptiveFollowUp() {
+public Function<FillMissingInfoRequest, TravelInfoStatus> fillMissingInfo() {
     return request -> {
-        log.info("LLM continuing adaptive follow-up for session: {}", request.sessionId());
+        log.info("Filling missing info for thread: {}", request.threadId());
         
         // 현재 상태 조회
         TravelInfoCollectionState state = sessionService.getSession(request.sessionId());
@@ -1515,7 +2050,124 @@ public record NextQuestionDecision(
 ) {}
 ```
 
-### 2. 템플릿 추천 도구
+### 2. 하이브리드 장소 검색 시스템 (RDS + Perplexity API)
+
+여행 계획 생성 시 두 가지 데이터 소스를 활용하는 하이브리드 접근 방식:
+
+#### 데이터 소스 전략
+1. **RDS 데이터베이스 (기본 장소)**
+   - Tour API로 크롤링한 검증된 장소 정보
+   - LLM이 구조화한 JSON 형태로 저장
+   - 카테고리별 분류 (관광지, 맛집, 카페, 숙소 등)
+   - 빠른 조회와 안정적인 데이터 제공
+
+2. **Perplexity API (트렌디한 장소)**
+   - Function Calling으로 실시간 검색
+   - 사용자 니즈를 반영한 맞춤형 검색
+   - 최신 트렌드와 핫플레이스 발견
+   - 테마별 특화 장소 탐색
+
+#### searchTrendyPlacesWithPerplexity
+```java
+@Bean
+@Description("사용자 니즈를 반영한 트렌디한 장소를 Perplexity로 실시간 검색합니다")
+public Function<TrendyPlaceSearchRequest, TrendyPlaceSearchResponse> searchTrendyPlacesWithPerplexity() {
+    return request -> {
+        log.info("Perplexity로 트렌디한 장소 검색: {}", request.destination());
+        
+        // Perplexity API 호출을 위한 검색 쿼리 생성
+        String searchQuery = buildPerplexityQuery(
+            request.destination(),
+            request.theme(),           // "SNS 핫플레이스", "로컬 맛집" 등
+            request.userPreferences(), // 사용자 선호도
+            request.travelStyle()      // 여행 스타일
+        );
+        
+        // Perplexity API 호출
+        PerplexityResponse response = perplexityClient.search(searchQuery);
+        
+        // LLM이 검색 결과 평가 및 필터링
+        List<Place> trendyPlaces = evaluateAndFilter(response.getResults());
+        
+        return new TrendyPlaceSearchResponse(
+            trendyPlaces,
+            response.getSources(),
+            generatePlaceInsights(trendyPlaces)
+        );
+    };
+}
+```
+
+#### selectOptimalPlaces (DB + Perplexity 조합)
+```java
+@Bean
+@Description("DB와 Perplexity 검색 결과를 종합하여 최적의 장소를 선택합니다")
+public Function<PlaceSelectionRequest, PlaceSelectionResponse> selectOptimalPlaces() {
+    return request -> {
+        log.info("하이브리드 장소 선택 시작");
+        
+        // 1. RDS에서 기본 장소 조회
+        List<Place> dbPlaces = placeRepository.findByDestinationAndCategory(
+            request.destination(),
+            request.categories()
+        );
+        log.info("DB에서 {}개 장소 조회", dbPlaces.size());
+        
+        // 2. Perplexity로 트렌디한 장소 검색 (병렬 처리)
+        CompletableFuture<List<Place>> trendyPlacesFuture = 
+            CompletableFuture.supplyAsync(() -> 
+                searchTrendyPlacesWithPerplexity(request)
+            );
+        
+        // 3. 두 소스의 결과 병합
+        List<Place> trendyPlaces = trendyPlacesFuture.join();
+        log.info("Perplexity에서 {}개 트렌디 장소 발견", trendyPlaces.size());
+        
+        // 4. LLM이 종합 평가하여 최적 조합 선택
+        PlaceEvaluationResult evaluation = llmPlaceEvaluator.selectBestCombination(
+            dbPlaces,           // 검증된 기본 장소
+            trendyPlaces,       // 트렌디한 신규 장소
+            request.userNeeds(), // 사용자 요구사항
+            request.constraints() // 시간, 예산 제약
+        );
+        
+        // 5. 최종 선택된 장소들을 동선 최적화
+        List<Place> optimizedPlaces = optimizeRoute(evaluation.getSelectedPlaces());
+        
+        return new PlaceSelectionResponse(
+            optimizedPlaces,
+            evaluation.getSelectionRationale(),
+            Map.of(
+                "dbPlaces", dbPlaces.size(),
+                "trendyPlaces", trendyPlaces.size(),
+                "selected", optimizedPlaces.size()
+            )
+        );
+    };
+}
+```
+
+#### 하이브리드 검색 예시
+```
+[사용자 요청]
+"제주도 3박4일, 카페 투어 좋아하고 SNS 핫플 가고 싶어"
+
+[장소 검색 프로세스]
+1. RDS DB 조회:
+   - 성산일출봉, 한라산, 우도 등 기본 관광지
+   - 검증된 맛집 리스트
+   
+2. Perplexity API 검색:
+   - "제주도 2024 인스타그램 핫플레이스 카페"
+   - "제주도 SNS 인기 스팟 최신"
+   - 결과: 애월 신상 카페 3곳, 성산 오션뷰 카페 2곳
+
+3. LLM 최종 선택:
+   - 기본 관광지 40% + 트렌디 카페 40% + 맛집 20%
+   - 동선 최적화 고려한 배치
+```
+
+### 3. 템플릿 추천 도구
 
 #### recommendTemplates
 ```java
@@ -1907,11 +2559,21 @@ private DailyItinerary createRelaxedItinerary(TravelInfoCollectionState state) {
 
 ### 5. 실시간 정보 검색 도구
 
-#### searchWithPerplexity
+#### searchWithPerplexity ⚠️ 비용 주의
 ```java
 @Bean
+@Description("Perplexity API로 실시간 정보 검색 - 프로덕션 환경에서 일 10회 제한")
 public Function<PerplexitySearchRequest, PerplexitySearchResponse> searchWithPerplexity() {
     return request -> {
+        // API 사용 제한 확인 (프로덕션 환경에서만)
+        if (isProduction() && !apiUsagePolicy.canUsePerplexity(request.userId())) {
+            return new PerplexitySearchResponse(
+                null,
+                "오늘의 Perplexity 검색 한도에 도달했습니다. DB 검색 결과를 사용합니다.",
+                true  // isLimitExceeded
+            );
+        }
+        
         // Perplexity API로 실시간 정보 검색
         String query = buildPerplexityQuery(request);
         
@@ -2219,10 +2881,10 @@ public Function<UserAnalysisRequest, TravelPatternAnalysis> analyzeUserTravelPat
 
 ### 9. OCR 및 예약 정보 처리 도구
 
-#### processReservationOCR (OCR로 예약 정보 추출)
+#### processReservationOCR (OCR로 예약 정보 자동 추출 - 강화)
 ```java
 @Bean
-@Description("항공권, 호텔 예약 확인서 이미지에서 정보 자동 추출")
+@Description("항공권, 호텔 예약서 이미지에서 정보를 자동으로 추출하여 여행 계획에 반영")
 public Function<OCRRequest, ReservationInfo> processReservationOCR() {
     return request -> {
         log.info("OCR 처리 시작: {}", request.imageType());
@@ -2241,9 +2903,43 @@ public Function<OCRRequest, ReservationInfo> processReservationOCR() {
         // 추출된 정보 검증
         validateReservationInfo(info);
         
+        // 여행 계획에 자동 반영
+        updateTravelPlanWithReservation(info);
+        
         return info;
     };
 }
+
+// OCR 자동 입력 사용 예시
+```
+┌─────────────────────────────────────────────┐
+│ 🎫 예약 정보 자동 입력                        │
+├─────────────────────────────────────────────┤
+│                                             │
+│ 사용자: "제주도 여행 계획 짜줘"               │
+│                                             │
+│ AI: "예약하신 항공권이나 호텔이 있으신가요?"   │
+│                                             │
+│ 사용자: [항공권 사진 업로드] 📷               │
+│                                             │
+│ OCR 자동 추출 결과:                          │
+│ ✈️ 김포 09:00 → 제주 10:20                  │
+│ ✈️ 제주 18:30 → 김포 19:50                  │
+│                                             │
+│ 사용자: [호텔 예약서 업로드] 📷               │
+│                                             │
+│ OCR 자동 추출 결과:                          │
+│ 🏨 신라호텔 제주                             │
+│ 📅 체크인: 3/15 15:00                       │
+│ 📅 체크아웃: 3/17 11:00                     │
+│ 🍳 조식 포함                                │
+│                                             │
+│ AI: "예약 정보를 확인했습니다!                │
+│     첫날은 10:20 도착이니 점심부터,           │
+│     마지막날은 18:30 비행기니 오후 일정까지    │
+│     계획을 짜드리겠습니다."                   │
+└─────────────────────────────────────────────┘
+```
 
 // 항공권 정보 추출
 private FlightInfo extractFlightInfo(String text) {
@@ -2635,7 +3331,301 @@ private String getPackingRecommendation(WeatherData weather) {
 }
 ```
 
-### 10. 한국관광공사 Tour API 도구
+### 10. 목적지 미정 사용자를 위한 도구
+
+#### detectUndecidedDestination
+```java
+@Bean
+@Description("사용자가 목적지를 정하지 못했는지 감지합니다")
+public Function<UserInputRequest, DestinationDecisionStatus> detectUndecidedDestination() {
+    return request -> {
+        log.info("목적지 미정 여부 감지: {}", request.message());
+        
+        // 목적지 미정 키워드 감지
+        String[] undecidedKeywords = {
+            "어디로", "어디가", "모르겠", "추천", "고민",
+            "미정", "정하지", "못했", "결정", "어디가 좋"
+        };
+        
+        boolean isUndecided = Arrays.stream(undecidedKeywords)
+            .anyMatch(keyword -> request.message().contains(keyword));
+        
+        // 구체적 목적지 언급 여부 확인
+        boolean hasSpecificDestination = hasSpecificLocation(request.message());
+        
+        return new DestinationDecisionStatus(
+            !hasSpecificDestination && isUndecided,
+            request.message(),
+            isUndecided ? "UNDECIDED" : "DECIDED"
+        );
+    };
+}
+```
+
+#### getReachableAreas
+```java
+@Bean
+@Description("출발지로부터 특정 시간 내에 도달 가능한 지역을 계산합니다")
+public Function<ReachableAreasRequest, ReachableAreasResponse> getReachableAreas() {
+    return request -> {
+        log.info("도달 가능 지역 계산: {} -> {}시간 이내", 
+            request.departure(), request.hours());
+        
+        String departure = request.departure();
+        String transport = request.transportMode();
+        int hours = request.hours();
+        
+        // 교통수단별 평균 속도 (km/h)
+        int avgSpeed = switch(transport) {
+            case "car" -> 80;      // 자동차 (고속도로 기준)
+            case "train" -> 150;   // KTX/SRT
+            case "bus" -> 70;      // 고속버스
+            case "flight" -> 500;  // 국내선
+            default -> 60;
+        };
+        
+        int maxDistance = avgSpeed * hours;
+        
+        // 거리 계산 API 호출 (Google Distance Matrix API 또는 Kakao Mobility API)
+        List<DestinationDistance> destinations = calculateDistances(
+            departure, 
+            getAllMajorCities(), 
+            transport
+        );
+        
+        // 시간 내 도달 가능한 지역 필터링
+        List<ReachableArea> reachableAreas = destinations.stream()
+            .filter(d -> d.travelTime() <= hours * 60) // 분 단위로 변환
+            .map(d -> new ReachableArea(
+                d.destination(),
+                d.distance(),
+                d.travelTime(),
+                getAreaHighlights(d.destination()),
+                getPopularityScore(d.destination())
+            ))
+            .sorted((a, b) -> b.popularityScore().compareTo(a.popularityScore()))
+            .collect(Collectors.toList());
+        
+        return new ReachableAreasResponse(
+            departure,
+            transport,
+            hours,
+            reachableAreas,
+            generateRecommendationText(reachableAreas)
+        );
+    };
+}
+
+// 거리 계산 (외부 API 활용)
+private List<DestinationDistance> calculateDistances(
+    String origin, 
+    List<String> destinations, 
+    String mode) {
+    
+    // Google Distance Matrix API 호출 예시
+    String apiUrl = String.format(
+        "https://maps.googleapis.com/maps/api/distancematrix/json" +
+        "?origins=%s&destinations=%s&mode=%s&language=ko&key=%s",
+        URLEncoder.encode(origin, StandardCharsets.UTF_8),
+        String.join("|", destinations),
+        mapTransportMode(mode),
+        distanceApiKey
+    );
+    
+    // API 응답 파싱 및 변환
+    DistanceMatrixResponse response = restTemplate.getForObject(
+        apiUrl, 
+        DistanceMatrixResponse.class
+    );
+    
+    return parseDistanceResponse(response);
+}
+```
+
+#### searchDestinationsByTimeRange
+```java
+@Bean
+@Description("시간 범위 내 도달 가능한 지역에서 여행지를 검색하고 추천합니다")
+public Function<TimeRangeSearchRequest, DestinationRecommendations> searchDestinationsByTimeRange() {
+    return request -> {
+        log.info("시간 범위 기반 목적지 검색: {} 지역", request.reachableAreas().size());
+        
+        List<String> areas = request.reachableAreas();
+        String travelStyle = request.travelStyle();
+        String season = getCurrentSeason();
+        
+        // 병렬로 각 지역 정보 수집
+        CompletableFuture<Map<String, List<Place>>> dbPlacesFuture = 
+            CompletableFuture.supplyAsync(() -> 
+                areas.stream().collect(Collectors.toMap(
+                    area -> area,
+                    area -> placeRepository.findTopPlacesByRegion(area, 5)
+                ))
+            );
+        
+        CompletableFuture<Map<String, TrendyPlaces>> trendyPlacesFuture = 
+            CompletableFuture.supplyAsync(() -> 
+                areas.stream().collect(Collectors.toMap(
+                    area -> area,
+                    area -> searchTrendyPlacesViaPerplexity(area, season)
+                ))
+            );
+        
+        CompletableFuture<Map<String, WeatherInfo>> weatherFuture = 
+            CompletableFuture.supplyAsync(() -> 
+                areas.stream().collect(Collectors.toMap(
+                    area -> area,
+                    area -> getWeatherForecast(area)
+                ))
+            );
+        
+        // 결과 수집
+        Map<String, List<Place>> dbPlaces = dbPlacesFuture.join();
+        Map<String, TrendyPlaces> trendyPlaces = trendyPlacesFuture.join();
+        Map<String, WeatherInfo> weatherInfo = weatherFuture.join();
+        
+        // LLM으로 각 지역별 추천 생성
+        List<DestinationRecommendation> recommendations = areas.stream()
+            .map(area -> createRecommendation(
+                area,
+                dbPlaces.get(area),
+                trendyPlaces.get(area),
+                weatherInfo.get(area),
+                travelStyle
+            ))
+            .sorted((a, b) -> b.getMatchScore().compareTo(a.getMatchScore()))
+            .limit(4) // 상위 4개 지역만 추천
+            .collect(Collectors.toList());
+        
+        return new DestinationRecommendations(
+            recommendations,
+            generateRecommendationSummary(recommendations),
+            Map.of(
+                "totalAreas", areas.size(),
+                "recommendedCount", recommendations.size()
+            )
+        );
+    };
+}
+
+// Perplexity를 통한 트렌디 장소 검색
+private TrendyPlaces searchTrendyPlacesViaPerplexity(String area, String season) {
+    String query = String.format(
+        "%s %s 인기 여행지 핫플레이스 SNS 2024",
+        area, season
+    );
+    
+    PerplexityResponse response = perplexityClient.search(
+        PerplexityRequest.builder()
+            .query(query)
+            .maxResults(5)
+            .build()
+    );
+    
+    return parseTrendyPlaces(response);
+}
+
+// 지역별 추천 생성
+private DestinationRecommendation createRecommendation(
+    String area,
+    List<Place> dbPlaces,
+    TrendyPlaces trendyPlaces,
+    WeatherInfo weather,
+    String travelStyle) {
+    
+    // LLM을 사용한 매칭 점수 계산
+    double matchScore = calculateMatchScore(area, travelStyle, dbPlaces, weather);
+    
+    // 주요 매력 포인트 생성
+    List<String> highlights = generateHighlights(area, dbPlaces, trendyPlaces);
+    
+    // 추천 이유 생성
+    String reason = generateRecommendationReason(area, travelStyle, highlights, weather);
+    
+    return new DestinationRecommendation(
+        area,
+        matchScore,
+        highlights,
+        reason,
+        dbPlaces.subList(0, Math.min(3, dbPlaces.size())),
+        trendyPlaces.getTopPlaces(),
+        weather,
+        estimateBudget(area, travelStyle)
+    );
+}
+```
+
+#### calculateDistance
+```java
+@Bean
+@Description("두 지점 간의 거리와 예상 이동 시간을 계산합니다")
+public Function<DistanceCalculationRequest, DistanceCalculationResponse> calculateDistance() {
+    return request -> {
+        String origin = request.origin();
+        String destination = request.destination();
+        String transportMode = request.transportMode();
+        
+        // Kakao Mobility API 호출 예시
+        String apiUrl = "https://apis-navi.kakaomobility.com/v1/directions";
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "KakaoAK " + kakaoApiKey);
+        
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(apiUrl)
+            .queryParam("origin", encodeCoordinates(origin))
+            .queryParam("destination", encodeCoordinates(destination))
+            .queryParam("waypoints", "")
+            .queryParam("priority", "RECOMMEND")
+            .queryParam("car_type", mapToKakaoCarType(transportMode));
+        
+        ResponseEntity<KakaoDirectionsResponse> response = restTemplate.exchange(
+            builder.toUriString(),
+            HttpMethod.GET,
+            new HttpEntity<>(headers),
+            KakaoDirectionsResponse.class
+        );
+        
+        KakaoDirectionsResponse directions = response.getBody();
+        
+        return new DistanceCalculationResponse(
+            origin,
+            destination,
+            directions.getRoutes().get(0).getSummary().getDistance() / 1000.0, // km
+            directions.getRoutes().get(0).getSummary().getDuration() / 60, // 분
+            transportMode,
+            generateRouteDescription(directions)
+        );
+    };
+}
+
+// 좌표 변환 (주소 → 좌표)
+private String encodeCoordinates(String address) {
+    // Kakao Local API를 사용한 주소 → 좌표 변환
+    String searchUrl = "https://dapi.kakao.com/v2/local/search/address.json";
+    
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("Authorization", "KakaoAK " + kakaoApiKey);
+    
+    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(searchUrl)
+        .queryParam("query", address);
+    
+    ResponseEntity<KakaoLocalResponse> response = restTemplate.exchange(
+        builder.toUriString(),
+        HttpMethod.GET,
+        new HttpEntity<>(headers),
+        KakaoLocalResponse.class
+    );
+    
+    if (response.getBody().getDocuments().isEmpty()) {
+        throw new IllegalArgumentException("주소를 찾을 수 없습니다: " + address);
+    }
+    
+    Document doc = response.getBody().getDocuments().get(0);
+    return doc.getX() + "," + doc.getY(); // 경도,위도
+}
+```
+
+### 11. 한국관광공사 Tour API 도구
 
 #### searchTourAPI
 ```java
@@ -2862,8 +3852,8 @@ public class MainLLMOrchestrator {
         
         // 모든 Function 자동 등록
         this.availableFunctions = Arrays.asList(
-            createFunctionCallback(context, "startFollowUpSession"),
-            createFunctionCallback(context, "continueFollowUp"),
+            createFunctionCallback(context, "checkMissingInfo"),
+            createFunctionCallback(context, "fillMissingInfo"),
             createFunctionCallback(context, "recommendTemplates"),
             createFunctionCallback(context, "searchRegions"),
             createFunctionCallback(context, "searchAttractions"),
@@ -2900,8 +3890,8 @@ public class MainLLMOrchestrator {
             사용자와 자연스러운 대화를 나누면서 여행 계획을 도와줍니다.
             
             사용 가능한 도구:
-            1. startFollowUpSession: 여행 정보 수집 시작
-            2. continueFollowUp: 추가 정보 수집 계속
+            1. checkMissingInfo: 부족한 필수 정보 확인
+            2. fillMissingInfo: 부족한 정보 채우기
             3. recommendTemplates: 여행 템플릿 추천
             4. searchRegions: 지역 검색
             5. searchAttractions: 관광지 검색
@@ -2912,11 +3902,11 @@ public class MainLLMOrchestrator {
             
             의사결정 가이드:
             - 일반적인 인사나 대화: 직접 응답
-            - 여행 계획 요청: startFollowUpSession 호출
+            - 필수 정보 부족: checkMissingInfo 호출
             - 템플릿/테마 질문: recommendTemplates 호출
             - 특정 지역 질문: searchRegions 또는 searchAttractions 호출
             - 실시간 정보 필요: searchWithPerplexity 호출
-            - 진행 중인 세션 있음: continueFollowUp 호출
+            - 정보 제공 시: fillMissingInfo 호출
             
             응답 원칙:
             1. 친근하고 자연스러운 대화체 사용
@@ -2935,8 +3925,8 @@ public class MainLLMOrchestrator {
     
     private String getFunctionDescription(String functionName) {
         return switch(functionName) {
-            case "startFollowUpSession" -> "여행 정보 수집을 시작합니다";
-            case "continueFollowUp" -> "여행 정보 수집을 계속합니다";
+            case "checkMissingInfo" -> "부족한 정보를 확인합니다";
+            case "fillMissingInfo" -> "정보를 채웁니다";
             case "recommendTemplates" -> "사용자에게 맞는 여행 템플릿을 추천합니다";
             case "searchRegions" -> "테마와 요구사항에 맞는 지역을 검색합니다";
             case "searchAttractions" -> "특정 지역의 관광지를 검색합니다";
@@ -2977,12 +3967,12 @@ public class FunctionCallingConfig {
     
     // 모든 Function Bean 등록
     @Bean
-    public Function<StartFollowUpRequest, FollowUpResponse> startFollowUpSession() {
+    public Function<CheckMissingInfoRequest, MissingInfoResponse> checkMissingInfo() {
         return request -> followUpService.startSession(request);
     }
     
     @Bean
-    public Function<ContinueFollowUpRequest, FollowUpResponse> continueFollowUp() {
+    public Function<FillMissingInfoRequest, TravelInfoStatus> fillMissingInfo() {
         return request -> followUpService.continueSession(request);
     }
     
@@ -3063,9 +4053,9 @@ public class UnifiedChatController {
 
 ### 5.1 기본 대화 플로우
 
-### 5.2 Adaptive Follow-up 플로우
+### 5.2 간단한 Follow-up 플로우
 
-**핵심 원칙**: MainLLMOrchestrator가 모든 대화를 제어하며, Follow-up 도구는 보조 역할만 수행
+**핵심 원칙**: 빠른 입력 후 부족한 필수 정보만 채우기
 
 #### 예시 1: 필수 정보 자동 추출 및 차감
 ```
@@ -3906,6 +4896,195 @@ Function 호출: getWeatherInfo({
       따뜻한 옷 꼭 챙기세요!"
 ```
 
+### 예시 12: 목적지 미정 사용자 - 출발지 기반 추천
+```
+사용자: "여행 가고 싶은데 어디가 좋을지 모르겠어요"
+
+[MainLLMOrchestrator 내부 처리]
+- 목적지 언급: 없음
+- 미정 키워드: "어디가 좋을지 모르겠어"
+
+→ detectUndecidedDestination() 호출
+Function 호출: detectUndecidedDestination({
+    "message": "여행 가고 싶은데 어디가 좋을지 모르겠어요"
+})
+
+결과: {
+    "isUndecided": true,
+    "status": "UNDECIDED"
+}
+
+응답: "여행 계획을 도와드릴게요! 😊
+      먼저 어디에서 출발하시나요?"
+
+사용자: "서울에서 출발해요"
+
+[MainLLMOrchestrator]
+→ askTransportMode() 호출
+
+응답: "어떤 교통수단을 이용하실 예정인가요?
+      🚗 자동차 (편한 이동, 짐 걱정 없음)
+      🚆 기차 (빠르고 편안함)
+      🚌 버스 (경제적)
+      ✈️ 비행기 (제주/해외)"
+
+사용자: "자동차로 가려고요"
+
+[MainLLMOrchestrator]
+→ askTimeRange() 호출
+
+응답: "운전으로 얼마나 이동하실 수 있나요?
+      
+      🚗 1시간 이내 (~50km)
+         가평, 양평, 파주, 용인
+      
+      🚗 2시간 이내 (~150km)  
+         춘천, 강릉, 대전, 속초
+      
+      🚗 3시간 이내 (~250km)
+         부산, 전주, 경주, 여수
+      
+      🚗 4시간 이내 (~400km)
+         목포, 포항, 거제"
+
+사용자: "2시간 정도까지는 괜찮아요"
+
+[MainLLMOrchestrator]
+→ getReachableAreas() 호출
+Function 호출: getReachableAreas({
+    "departure": "서울",
+    "transportMode": "car",
+    "hours": 2
+})
+
+거리 계산 API 결과:
+- 춘천: 1시간 20분 (100km)
+- 가평: 1시간 (60km)
+- 속초: 2시간 (160km)
+- 강릉: 2시간 (180km)
+- 대전: 1시간 40분 (140km)
+- 천안: 1시간 10분 (85km)
+
+→ searchDestinationsByTimeRange() 호출
+Function 호출: searchDestinationsByTimeRange({
+    "reachableAreas": ["춘천", "가평", "속초", "강릉", "대전", "천안"],
+    "travelStyle": null,
+    "season": "winter"
+})
+
+병렬 처리:
+1. DB 조회: 각 지역 인기 장소 TOP 5
+2. Perplexity: "춘천 겨울 여행", "강릉 카페 투어" 등
+3. 날씨 정보: 각 지역 날씨 확인
+
+LLM 추천 생성:
+1. 강릉 (매칭 점수: 92%)
+   - 겨울 바다 감성
+   - 커피거리 & 카페 투어
+   - 주문진 해산물
+   
+2. 춘천 (매칭 점수: 88%)
+   - 남이섬 겨울 풍경
+   - 닭갈비 & 막국수
+   - 소양강 스카이워크
+   
+3. 속초 (매칭 점수: 85%)
+   - 설악산 설경
+   - 아바이마을
+   - 대포항 회센터
+
+응답: "서울에서 차로 2시간 이내 추천 여행지예요! 🚗
+
+      1️⃣ 강릉 (2시간)
+      ☕ 안목해변 카페거리에서 바다 보며 커피
+      🦀 주문진에서 신선한 대게와 해산물
+      🏖️ 경포대 해변 산책
+      
+      2️⃣ 춘천 (1시간 20분)
+      🏝️ 남이섬 겨울 데이트
+      🍗 명동 닭갈비 & 막국수
+      🌉 소양강 스카이워크
+      
+      3️⃣ 속초 (2시간)
+      🏔️ 설악산 케이블카
+      🐟 대포항 활어회
+      🏘️ 아바이마을 갯배 체험
+      
+      어느 곳이 가장 마음에 드시나요?"
+
+사용자: "강릉이 좋을 것 같아요! 1박 2일로 갈 거예요"
+
+[MainLLMOrchestrator]
+→ 목적지 확정: 강릉
+→ 일반 Follow-up 플로우로 전환
+
+응답: "강릉 1박 2일 좋은 선택이에요! ☕🌊
+      언제 출발하실 예정이신가요?"
+
+[이후 날짜, 인원, 예산 등 일반 정보 수집 진행]
+```
+
+### 예시 13: 목적지 미정 + 여행 스타일 고려
+```
+사용자: "아이들이랑 당일치기로 놀러가고 싶은데 추천해주세요"
+
+[MainLLMOrchestrator 내부 처리]
+- 목적지: 미정
+- 동행: 아이들 (가족 여행)
+- 기간: 당일치기
+- 스타일: 아이 친화적 장소 필요
+
+→ detectUndecidedDestination() 호출
+→ 목적지 미정 확인
+
+응답: "아이들과 당일치기 여행 좋네요! 🎈
+      어디에서 출발하시나요?"
+
+사용자: "수원에서요"
+
+→ getReachableAreas() 호출 (당일치기는 1-2시간 권장)
+Function 호출: getReachableAreas({
+    "departure": "수원",
+    "transportMode": "car",
+    "hours": 1.5,
+    "travelStyle": "family_with_kids"
+})
+
+도달 가능 지역:
+- 서울: 40분
+- 용인: 30분
+- 과천: 30분
+- 안성: 40분
+- 평택: 30분
+- 여주: 1시간
+
+→ searchDestinationsByTimeRange() 호출 (아이 친화적 장소 중심)
+
+응답: "수원에서 1시간 이내 아이들이 좋아할 장소들이에요! 🎠
+
+      1️⃣ 용인 에버랜드 (30분)
+      🎢 놀이기구와 동물원
+      🎆 퍼레이드와 공연
+      
+      2️⃣ 과천 서울대공원 (30분)
+      🦁 동물원 & 테마가든
+      🚡 리프트 & 코끼리열차
+      
+      3️⃣ 서울 롯데월드 (40분)
+      🎠 실내 놀이공원
+      🏰 매직아일랜드
+      
+      4️⃣ 안성팜랜드 (40분)
+      🐄 목장 체험
+      🚜 트랙터 마차
+      
+      어디가 좋으실까요?"
+
+사용자: "에버랜드로 정했어요!"
+
+[목적지 확정 → 상세 계획 생성]
+```
+
 ---
 
 ## 💰 토큰 최적화 전략
@@ -3984,17 +5163,407 @@ Function 호출: getWeatherInfo({
 
 # Part 4: 프로젝트 관리
 
-## 6. 구현 계획
+## 6. 실제 개발 체크리스트 (3일 집중 개발)
 
-### 6.1 팀 구성 및 역할
+### 6.0 MVP 요구사항 명세서 (필수 기능만)
 
-**📅 개발 일정**: 1주일 (4인 팀, 5개 도메인)
+#### 🔴 CHAT2 도메인 요구사항
+- **REQ-CHAT2-001**: LLM 오케스트레이터 구현 (Gemini 2.0 Flash 기반)
+- **REQ-CHAT2-002**: Function Calling 기본 구조 구현
+- **REQ-CHAT2-003**: 사용자 입력 분석 Function (`analyzeUserInput`)
+- **REQ-CHAT2-004**: 부족 정보 확인 Function (`checkMissingInfo`)
+- **REQ-CHAT2-005**: 부족 정보 채우기 Function (`fillMissingInfo`)
+- **REQ-CHAT2-006**: 여행 정보 수집 상태 관리 (TravelInfoCollectionState)
+- **REQ-CHAT2-007**: 시스템 프롬프트 최적화 (50토큰 이내)
+- **REQ-CHAT2-008**: 목적지 미정 감지 Function (`detectUndecidedDestination`)
+- **REQ-CHAT2-009**: 출발지 기반 질문 Function (`askDepartureLocation`)
 
-### 6.2 개발 일정
+#### 🟡 TRIP 도메인 요구사항
+- **REQ-TRIP-001**: 여행 계획 생성 Function (`generateTravelPlan`)
+- **REQ-TRIP-002**: DB 장소 조회 기능 (places 테이블)
+- **REQ-TRIP-003**: Perplexity API 연동 (`searchWithPerplexity`)
+- **REQ-TRIP-004**: 하이브리드 장소 선택 로직 (`selectOptimalPlaces`)
+- **REQ-TRIP-005**: 날씨 정보 조회 Function (`getWeatherInfo`)
+- **REQ-TRIP-006**: 시간 제약 반영 일정 생성
+- **REQ-TRIP-007**: Tour API 데이터 크롤링 및 DB 저장
+- **REQ-TRIP-008**: 거리 계산 API 연동 Function (`calculateDistance`)
+- **REQ-TRIP-009**: 시간별 범위 목적지 검색 Function (`searchDestinationsByTimeRange`)
+- **REQ-TRIP-010**: 이동수단별 도달 가능 지역 계산 Function (`getReachableAreas`)
 
-#### **도메인 1: 메인 오케스트레이터 (CHAT2 팀 담당)**
-**담당자**: CHAT2 Developer 1 (주말 완료 예정)
-**책임**: LLM 중앙 통제 시스템
+#### 🟢 MEDIA 도메인 요구사항
+- **REQ-MEDIA-001**: OCR 처리 Function (`processOCR`)
+- **REQ-MEDIA-002**: 항공권 정보 추출 로직
+- **REQ-MEDIA-003**: 호텔 예약서 정보 추출 로직
+
+#### 🔵 USER 도메인 요구사항
+- **REQ-USER-001**: 사용자 인증 및 세션 관리
+- **REQ-USER-002**: chat_threads 테이블 관리
+- **REQ-USER-003**: chat_messages 테이블 관리
+
+#### ⚪ CHAT1 도메인 요구사항
+- **REQ-CHAT1-001**: 빠른 입력 폼 백엔드 API
+- **REQ-CHAT1-002**: 기본 채팅 인터페이스
+- **REQ-CHAT1-003**: 메시지 저장 및 조회
+
+### 6.1 도메인별 역할 분배 (요구사항 매칭)
+
+#### **CHAT2 도메인 (LLM 통합 담당)**
+**담당 DB 테이블**:
+- chat_threads (Thread 관리)
+- chat_messages (메시지 저장)
+- travel_info_collection_states (정보 수집 상태)
+
+**담당 Function & 요구사항**:
+```java
+// [예시] MainLLMOrchestrator.java
+@Configuration
+public class MainLLMOrchestrator {
+    // REQ-CHAT2-001: LLM 오케스트레이터
+    // REQ-CHAT2-002: Function Calling 구조
+    
+    @Bean("analyzeUserInput")  // REQ-CHAT2-003
+    public Function<UserInputRequest, TravelInfoResponse> analyzeUserInput() {
+        // 사용자 입력에서 여행 정보 추출
+    }
+    
+    @Bean("checkMissingInfo")     // REQ-CHAT2-004
+    public Function<CheckMissingInfoRequest, MissingInfoResponse> checkMissingInfo() {
+        // 부족한 필수 정보 확인
+    }
+    
+    @Bean("fillMissingInfo")  // REQ-CHAT2-005
+    public Function<FillMissingInfoRequest, TravelInfoStatus> fillMissingInfo() {
+        // 부족한 정보 채우기
+    }
+}
+
+// TravelInfoCollectionService.java (REQ-CHAT2-006)
+@Service
+public class TravelInfoCollectionService {
+    // 여행 정보 수집 상태 관리
+    // PostgreSQL: travel_info_collection_states 테이블
+}
+```
+
+#### **TRIP 도메인 (여행 계획 담당)**
+**담당 DB 테이블**:
+- travel_plans (여행 계획)
+- tour_places (관광지 정보)
+- place_categories (장소 카테고리)
+- user_preferences (사용자 선호)
+
+**담당 Function & 요구사항**:
+```java
+// [예시] TravelPlanGenerator.java
+@Configuration
+public class TravelPlanGenerator {
+    
+    @Bean("generateTravelPlan")  // REQ-TRIP-001
+    public Function<PlanRequest, PlanResponse> generateTravelPlan() {
+        // 여행 계획 생성 (DB + Perplexity + 날씨)
+    }
+    
+    @Bean("searchWithPerplexity")  // REQ-TRIP-003
+    public Function<SearchRequest, List<Place>> searchWithPerplexity() {
+        // Perplexity API로 트렌디 장소 검색
+    }
+    
+    @Bean("selectOptimalPlaces")  // REQ-TRIP-004
+    public Function<PlaceSelectionRequest, PlaceSelectionResponse> selectOptimalPlaces() {
+        // 하이브리드 장소 선택 (DB + Perplexity 조합)
+    }
+    
+    @Bean("getWeatherInfo")  // REQ-TRIP-005
+    public Function<WeatherRequest, WeatherResponse> getWeatherInfo() {
+        // OpenWeatherMap API 호출
+    }
+}
+
+// PlaceRepository.java (REQ-TRIP-002, REQ-TRIP-007)
+@Repository
+public interface PlaceRepository {
+    // places 테이블 CRUD
+    // Tour API 크롤링 데이터 저장
+}
+```
+
+#### **MEDIA 도메인 (OCR 처리 담당)**
+**담당 DB 테이블**:
+- ocr_results (OCR 결과 저장)
+- image_metadata (이미지 메타데이터)
+
+**담당 Function & 요구사항**:
+```java
+// [예시] OCRProcessor.java
+@Configuration
+public class OCRProcessor {
+    
+    @Bean("processOCR")  // REQ-MEDIA-001
+    @Description("이미지에서 예약 정보 추출 - 프로덕션 환경에서 일 10회 제한")
+    public Function<OCRRequest, ReservationInfo> processOCR() {
+        return request -> {
+            // API 사용 제한 확인 (프로덕션 환경에서만)
+            if (isProduction() && !apiUsagePolicy.canUseOCR(request.userId())) {
+                return new ReservationInfo(
+                    null,
+                    "오늘의 OCR 사용 한도에 도달했습니다. 수동으로 정보를 입력해주세요.",
+                    true  // isLimitExceeded
+                );
+            }
+            
+            // OCR API 호출
+            String text = ocrService.extractText(request.imageData());
+            apiUsagePolicy.recordUsage(request.userId(), "OCR");
+            
+            // REQ-MEDIA-002: 항공권 정보 추출
+            // REQ-MEDIA-003: 호텔 정보 추출
+            return switch(request.imageType()) {
+                case "FLIGHT" -> extractFlightInfo(text);
+                case "HOTEL" -> extractHotelInfo(text);
+                default -> extractGeneralInfo(text);
+            };
+        };
+    }
+}
+```
+
+#### **USER 도메인 (인증/세션 담당)**
+**담당 요구사항**:
+```java
+// UserService.java
+@Service
+public class UserService {
+    // REQ-USER-001: JWT 인증 및 세션 관리
+}
+
+// ChatThreadRepository.java (REQ-USER-002)
+@Repository
+public interface ChatThreadRepository {
+    // chat_threads 테이블 관리
+}
+
+// ChatMessageRepository.java (REQ-USER-003)
+@Repository
+public interface ChatMessageRepository {
+    // chat_messages 테이블 관리
+}
+```
+
+#### **CHAT1 도메인 (기본 채팅 담당)**
+**담당 요구사항**:
+```java
+// ChatController.java
+@RestController
+@RequestMapping("/api/chat")
+public class ChatController {
+    
+    @PostMapping("/quick-form")  // REQ-CHAT1-001
+    public ResponseEntity submitQuickForm(@RequestBody QuickFormRequest request) {
+        // 빠른 입력 폼 처리
+    }
+    
+    @PostMapping("/message")  // REQ-CHAT1-002, REQ-CHAT1-003
+    public ResponseEntity sendMessage(@RequestBody MessageRequest request) {
+        // 기본 채팅 인터페이스
+        // 메시지 저장 및 조회
+    }
+}
+```
+
+### 6.2 개발 우선순위 및 제외 항목
+
+#### ✅ 포함 항목 (MVP 필수)
+- **Function Calling 기본 구현**: 7개 핵심 Function만
+- **하이브리드 장소 검색**: RDS + Perplexity API 조합
+- **OCR 예약 정보 추출**: 항공권, 호텔 예약서 처리
+- **기본 Follow-up 시스템**: 2가지 전략만 (QUICK, DETAILED)
+- **날씨 API 연동**: 1주일 이내 자동 확인
+- **빠른 입력 폼**: 기본 UI 구현
+
+#### ❌ 제외 항목 (시간 부족)
+- **Redis 캐싱**: 세션 관리는 DB로 대체
+- **복잡한 최적화**: 병렬 처리 최소화
+- **8가지 적응형 전략**: 2개로 축소
+- **대화형 수정 기능**: Phase 2로 연기
+- **상세 모니터링**: 로깅만 구현
+- **피로도 관리 시스템**: 간단한 카운터만
+
+### 6.3 3일 개발 일정 (요구사항 기반)
+
+#### 🔴 Day 1: MVP 핵심 기능 구현
+
+**CHAT2 팀 담당**:
+```java
+// MainLLMOrchestrator.java 구현
+@Configuration
+public class FunctionCallingConfig {
+    // REQ-CHAT2-001, REQ-CHAT2-002: LLM 오케스트레이터 및 Function Calling 구조
+    
+    @Bean("analyzeUserInput")  // REQ-CHAT2-003
+    @Bean("startFollowUp")      // REQ-CHAT2-004
+    @Bean("continueFollowUp")   // REQ-CHAT2-005
+}
+
+// REQ-CHAT2-007: 시스템 프롬프트 (50토큰)
+String SYSTEM_PROMPT = "당신은 여행 플래너입니다. Function Calling으로 작업을 수행하세요.";
+
+// REQ-CHAT2-006: 여행 정보 수집 상태 관리
+@Entity TravelInfoCollectionState {
+    String origin, destination, dates, budget;
+    int collectionProgress;
+}
+```
+
+**Day 1 CHAT2 체크리스트**:
+- [ ] REQ-CHAT2-001: Spring AI 설정 및 Gemini 2.0 Flash 연동
+- [ ] REQ-CHAT2-002: Function Calling 기본 구조 구현
+- [ ] REQ-CHAT2-003: analyzeUserInput Function 구현
+- [ ] REQ-CHAT2-004: startFollowUp Function 구현
+- [ ] REQ-CHAT2-005: continueFollowUp Function 구현
+- [ ] REQ-CHAT2-006: TravelInfoCollectionState 엔티티 생성
+- [ ] REQ-CHAT2-007: 시스템 프롬프트 최적화
+
+**TRIP 팀 담당**:
+```java
+// REQ-TRIP-001: 여행 계획 생성 Function
+@Bean
+@Description("여행 계획을 생성합니다")
+public Function<PlanRequest, PlanResponse> generateTravelPlan() {
+    return request -> createBasicPlan(request);
+}
+
+// REQ-TRIP-002, REQ-TRIP-007: Place 엔티티 & Tour API 데이터
+@Entity Place {
+    String name, category, destination;
+}
+```
+
+**Day 1 TRIP 체크리스트**:
+- [ ] REQ-TRIP-002: Place 엔티티 및 Repository 생성
+- [ ] REQ-TRIP-007: Tour API 데이터 100개 크롤링 및 DB 삽입
+- [ ] REQ-TRIP-001: generateTravelPlan Function 기본 구현
+- [ ] REQ-TRIP-006: 시간 제약 반영 로직 설계
+
+**USER 팀 담당**:
+- [ ] REQ-USER-001: JWT 인증 기본 구조
+- [ ] REQ-USER-002: chat_threads 테이블 생성
+- [ ] REQ-USER-003: chat_messages 테이블 생성
+
+#### 🟡 Day 2: 실용 기능 추가
+
+**CHAT2 팀 담당**:
+```java
+// REQ-CHAT2-004, REQ-CHAT2-005 고도화
+public class FollowUpQuestionGenerator {
+    QUICK_STRATEGY: "빠른 질문 1-2개"
+    DETAILED_STRATEGY: "상세 질문 3-4개"
+}
+```
+
+**Day 2 CHAT2 체크리스트**:
+- [ ] REQ-CHAT2-004: Follow-up 질문 생성 로직 고도화
+- [ ] REQ-CHAT2-005: Follow-up 상태 관리 개선
+- [ ] REQ-CHAT2-006: 정보 수집 진행률 계산 로직
+
+**MEDIA 팀 담당**:
+```java
+// REQ-MEDIA-001: OCR 처리 Function
+@Bean
+@Description("예약서 이미지에서 정보 추출")
+public Function<OCRRequest, ReservationInfo> processOCR() {
+    // REQ-MEDIA-002: 항공권 정보 추출
+    // REQ-MEDIA-003: 호텔 정보 추출
+}
+```
+
+**Day 2 MEDIA 체크리스트**:
+- [ ] REQ-MEDIA-001: OCR Service API 연동
+- [ ] REQ-MEDIA-002: 항공권 정보 추출 로직 구현
+- [ ] REQ-MEDIA-003: 호텔 예약서 정보 추출 로직 구현
+
+**TRIP 팀 담당**:
+```java
+// REQ-TRIP-003: Perplexity 연동
+@Bean
+@Description("트렌디한 장소를 검색합니다")
+public Function<SearchRequest, List<Place>> searchWithPerplexity() {
+    // Perplexity API 호출
+}
+
+// REQ-TRIP-004: 하이브리드 장소 선택
+@Bean
+@Description("DB + Perplexity 결과를 조합합니다")
+public Function<PlaceSelectionRequest, PlaceSelectionResponse> selectOptimalPlaces() {
+    // DB 조회 + Perplexity 검색 + LLM 최적 조합
+}
+
+// REQ-TRIP-005: 날씨 정보
+@Bean
+@Description("날씨 정보를 가져옵니다")
+public Function<WeatherRequest, WeatherResponse> getWeatherInfo() {
+    // OpenWeatherMap API
+}
+```
+
+**Day 2 TRIP 체크리스트**:
+- [ ] REQ-TRIP-003: Perplexity API 연동 및 테스트
+- [ ] REQ-TRIP-004: 하이브리드 장소 선택 로직 구현
+- [ ] REQ-TRIP-005: OpenWeatherMap API 연동
+- [ ] REQ-TRIP-006: 시간 제약 반영 일정 생성 구현
+
+**CHAT1 팀 담당**:
+- [ ] REQ-CHAT1-001: 빠른 입력 폼 백엔드 API 구현
+- [ ] REQ-CHAT1-002: 기본 채팅 인터페이스 구현
+- [ ] REQ-CHAT1-003: 메시지 저장 및 조회 구현
+
+#### 🟢 Day 3: 통합 테스트 & 버그 수정
+
+**전체 팀 협업: 요구사항 검증**
+
+```java
+// 통합 테스트 시나리오
+@Test
+void testFullFlow() {
+    // REQ-CHAT2-003: 사용자 입력 분석
+    chatService.processMessage("제주도 3박4일 여행 계획 짜줘");
+    
+    // REQ-CHAT2-004, REQ-CHAT2-005: Follow-up 플로우
+    // REQ-TRIP-001: 계획 생성
+    // REQ-TRIP-003, REQ-TRIP-004: 하이브리드 장소 검색
+    // REQ-TRIP-005: 날씨 반영
+}
+
+// 에러 처리 및 Fallback
+@ControllerAdvice
+public class GlobalExceptionHandler {
+    // REQ-TRIP-003 실패: Perplexity API 실패 → DB 장소만 사용
+    // REQ-TRIP-005 실패: Weather API 실패 → 날씨 정보 없이 진행
+    // REQ-MEDIA-001 실패: OCR 실패 → 수동 입력 유도
+}
+```
+
+**Day 3 통합 테스트 체크리스트**:
+
+**필수 요구사항 검증**:
+- [ ] REQ-CHAT2-001~007: LLM 오케스트레이터 전체 플로우 테스트
+- [ ] REQ-TRIP-001~007: 여행 계획 생성 전체 플로우 테스트
+- [ ] REQ-MEDIA-001~003: OCR 처리 플로우 테스트
+- [ ] REQ-USER-001~003: 인증 및 세션 관리 테스트
+- [ ] REQ-CHAT1-001~003: 채팅 인터페이스 테스트
+
+**시나리오별 E2E 테스트**:
+- [ ] 시나리오 1: 기본 정보만으로 계획 생성
+- [ ] 시나리오 2: OCR로 예약 정보 입력 후 계획 생성
+- [ ] 시나리오 3: Follow-up 질문 완료 후 계획 생성
+- [ ] 시나리오 4: 하이브리드 장소 검색 동작 확인
+- [ ] 시나리오 5: 날씨 정보 반영 확인
+
+**성능 및 안정성**:
+- [ ] 응답 시간 < 3초 확인
+- [ ] API 실패 시 Fallback 동작 확인
+- [ ] 동시 사용자 10명 처리 가능 확인
+- [ ] 메모리 누수 체크
+- [ ] 로깅 및 모니터링 확인
 - [ ] MainLLMOrchestrator 구현
 - [ ] FunctionCallingConfig 설정  
 - [ ] UnifiedChatController 구현
@@ -4058,7 +5627,21 @@ Function 호출: getWeatherInfo({
   - [ ] Redis 캐싱 구현
 
 
-### 6.3 성공 지표
+### 6.4 MVP Function Calling 도구 목록 (요구사항 매핑)
+
+#### 핵심 Function 구현 우선순위
+| Function 이름 | 담당 도메인 | 요구사항 번호 | 설명 |
+|--------------|------------|-------------|------|
+| `analyzeUserInput` | CHAT2 | REQ-CHAT2-003 | 사용자 입력에서 여행 정보 추출 |
+| `startFollowUp` | CHAT2 | REQ-CHAT2-004 | Follow-up 질문 세션 시작 |
+| `continueFollowUp` | CHAT2 | REQ-CHAT2-005 | Follow-up 질문 계속 |
+| `generateTravelPlan` | TRIP | REQ-TRIP-001 | 여행 계획 생성 (통합) |
+| `searchWithPerplexity` | TRIP | REQ-TRIP-003 | Perplexity로 트렌디 장소 검색 |
+| `selectOptimalPlaces` | TRIP | REQ-TRIP-004 | 하이브리드 장소 선택 |
+| `getWeatherInfo` | TRIP | REQ-TRIP-005 | 날씨 정보 조회 |
+| `processOCR` | MEDIA | REQ-MEDIA-001 | 예약서 정보 OCR 추출 |
+
+### 6.4 성공 지표
 
 #### 통합 테스트 체크리스트
 - [ ] 전체 Function Calling 플로우 테스트
@@ -4075,9 +5658,43 @@ Function 호출: getWeatherInfo({
 
 ---
 
-## 7. 부록
+## 7. 핵심 특징 요약
 
-### 7.1 장점 및 특징
+### 7.1 V2 문서의 주요 개선사항
+
+#### 🎯 하이브리드 장소 검색 시스템
+✅ **RDS + Perplexity API 조합**
+- RDS: 검증된 기본 장소 (빠른 조회, 안정적)
+- Perplexity: 트렌디한 최신 장소 (실시간 검색)
+- LLM이 두 소스를 종합하여 최적 조합 선택
+
+#### 📸 OCR 자동 입력 강화
+✅ **예약 정보 자동 추출**
+- 항공권 사진 → 출발/도착 시간 자동 입력
+- 호텔 예약서 → 체크인/아웃 시간 자동 입력
+- 추출된 정보로 실제 관광 가능 시간 계산
+
+#### 📊 구체적인 데이터 흐름
+✅ **상세 Function Calling 플로우**
+```
+사용자 입력 → MainLLMOrchestrator → Function 선택
+    ├─→ DB 조회 (PostgreSQL, Redis)
+    ├─→ 외부 API (Perplexity, Weather, OCR)
+    └─→ 내부 처리 (정보 수집, 계획 생성)
+```
+
+#### ✔️ 실제 개발 체크리스트
+✅ **3일 MVP 개발 계획**
+- Day 1: 핵심 Function 3개 구현
+- Day 2: 하이브리드 검색 + OCR
+- Day 3: 통합 테스트
+
+✅ **제외 항목 명시**
+- ❌ Redis 캐싱 (DB로 대체)
+- ❌ 8가지 전략 (2개로 축소)
+- ❌ 복잡한 최적화 (간소화)
+
+### 7.2 장점 및 특징
 
 #### 시스템 장점
 1. **단순한 아키텍처**: 모든 요청이 하나의 진입점 통과
@@ -4094,6 +5711,60 @@ Function 호출: getWeatherInfo({
 3. **타임아웃**: Function 실행 시간 제한 설정
 4. **로깅**: 모든 Function 호출 로깅
 5. **테스트**: 각 Function 단위 테스트 필수
+
+#### 💰 API 사용 제한 정책 (중요)
+
+**비용 발생 주요 서비스**:
+- **Gemini 2.0 Flash**: 기본 대화 처리 (저비용, 제한 없음)
+- **Perplexity API**: 실시간 트렌드 검색 (고비용)
+- **Google Vision OCR**: 예약서 텍스트 추출 (중간 비용)
+
+**환경별 사용 제한**:
+```java
+@Component
+public class ApiUsagePolicy {
+    
+    @Value("${spring.profiles.active}")
+    private String activeProfile;
+    
+    // 개발 환경: 제한 없음 (자유롭게 테스트)
+    private static final int DEV_DAILY_LIMIT = Integer.MAX_VALUE;
+    
+    // 프로덕션 환경: 사용자당 일일 제한
+    private static final int PROD_PERPLEXITY_DAILY_LIMIT = 10;
+    private static final int PROD_OCR_DAILY_LIMIT = 10;
+    
+    public boolean canUsePerplexity(String userId) {
+        if (!"production".equals(activeProfile)) {
+            return true;  // 개발 환경에서는 항상 허용
+        }
+        
+        int todayUsage = usageRepository.getTodayUsage(userId, "PERPLEXITY");
+        return todayUsage < PROD_PERPLEXITY_DAILY_LIMIT;
+    }
+    
+    public boolean canUseOCR(String userId) {
+        if (!"production".equals(activeProfile)) {
+            return true;
+        }
+        
+        int todayUsage = usageRepository.getTodayUsage(userId, "OCR");
+        return todayUsage < PROD_OCR_DAILY_LIMIT;
+    }
+    
+    public void recordUsage(String userId, String service) {
+        if ("production".equals(activeProfile)) {
+            usageRepository.incrementDailyUsage(userId, service);
+        }
+    }
+}
+```
+
+**비용 절감 전략**:
+1. **DB 우선 검색**: Perplexity 사용 전 RDS에서 먼저 검색
+2. **캐싱 활용**: 동일한 검색은 캐시에서 제공
+3. **빠른 입력 권장**: 대화 턴 최소화로 토큰 절약
+4. **선택적 OCR**: 꼭 필요한 경우만 활성화
 
 ### 7.3 참고자료
 
