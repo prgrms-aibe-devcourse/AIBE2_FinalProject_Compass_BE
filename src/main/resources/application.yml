@@ -23,7 +23,7 @@ spring:
     show-sql: false
   sql:
     init:
-      mode: never
+      mode: always
     
   redis:
     host: ${REDIS_HOST:localhost}
