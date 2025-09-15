@@ -671,3 +671,13 @@ k6 run tests/performance/load-test.js
 ---
 
 **문의사항이나 버그 리포트는 Issues 탭을 이용해주세요.**
+
+---
+
+## 🔄 최근 업데이트 (2025-09-15)
+
+### ✅ 병합 충돌 해결 완료
+- **REQ-SEARCH-001** RDS 검색 시스템과 **REQ-CRAWL-002** 크롤링 시스템 통합
+- SecurityConfig, TourPlace, TourPlaceRepository 파일들의 병합 충돌 해결
+- PostgreSQL 전문검색 + 기본 CRUD 기능 통합
+- 근거리 검색, 복합 필터링, 통계 조회 기능 포함

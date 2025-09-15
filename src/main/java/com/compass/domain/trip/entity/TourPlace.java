@@ -1,29 +1,16 @@
 package com.compass.domain.trip.entity;
 
-import java.time.LocalDateTime;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import java.time.LocalDateTime;
 
 /**
  * 관광지 정보 엔티티
+ * REQ-SEARCH-001: RDS 검색 시스템을 위한 관광지 데이터 저장
  * REQ-CRAWL-002: Phase별 크롤링에서 수집된 데이터를 저장
  */
 @Entity
@@ -86,7 +73,6 @@ public class TourPlace {
     @Column
     private Double longitude;
 
-
     /**
      * 지역 코드 (1: 서울, 6: 부산, 39: 제주)
      */
@@ -128,7 +114,7 @@ public class TourPlace {
      * 크롤링 일시
      */
     @Column(name = "crawled_at")
-    private java.time.LocalDateTime crawledAt;
+    private LocalDateTime crawledAt;
 
     /**
      * 생성 일시
@@ -153,4 +139,3 @@ public class TourPlace {
         updatedAt = LocalDateTime.now();
     }
 }
-

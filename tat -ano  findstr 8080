@@ -1,0 +1,42 @@
+  REQ-SEARCH-003-Kakao-Map-API-검색[m
+  REQ-SEARCH-004-통합-검색-서비스[m
+  develop[m
+  feat/REQ-CRAWL-001-Tour-API-클라이언트-[m
+  feat/REQ-CRAWL-002-Phase별-크롤링[m
+* [32mfeat/REQ-SEARCH-001-RDS-검색[m
+  feat/REQ-SEARCH-002-(Tour-API-검색)[m
+  feature/trip1[m
+  main[m
+  [31mremotes/origin/CHAT1/REQ-INTENT-001_키워드-분류기[m
+  [31mremotes/origin/CHAT1/REQ-INTENT-003_키워드-사전-관리[m
+  [31mremotes/origin/HEAD[m -> origin/main
+  [31mremotes/origin/Lotusrious-patch-1[m
+  [31mremotes/origin/Lotusrious-patch-2[m
+  [31mremotes/origin/MEDIA-/-REQ-MEDIA-007-썸네일-생성[m
+  [31mremotes/origin/REQ-SEARCH-003-Kakao-Map-API-검색[m
+  [31mremotes/origin/REQ-SEARCH-004-통합-검색-서비스[m
+  [31mremotes/origin/USER/REQ-USER-002_프로필조회[m
+  [31mremotes/origin/USER/REQ-USER-003_프로필수정[m
+  [31mremotes/origin/USER/REQ-USER-004_006_선호도[m
+  [31mremotes/origin/USER/REQ-USER-004_여행선호도저장[m
+  [31mremotes/origin/USER/REQ-USER-005_예산설정[m
+  [31mremotes/origin/USER/REQ-USER-006_선호도분석[m
+  [31mremotes/origin/USER/REQ-USER-007_피드백수집[m
+  [31mremotes/origin/develop[m
+  [31mremotes/origin/feat/CHAT2/REQ-FOLLOW-001-질문-플로우-엔진[m
+  [31mremotes/origin/feat/CHAT2/REQ-FOLLOW-003-답변-파싱[m
+  [31mremotes/origin/feat/CHAT2/REQ-FOLLOW-004-Redis[m
+  [31mremotes/origin/feat/CHAT2/REQ-FOLLOW-005-완성도-검증[m
+  [31mremotes/origin/feat/CHAT2/REQ-FOLLOW-006-재질문-로직-구현[m
+  [31mremotes/origin/feat/CHAT2/REQ-FOLLOW-통합[m
+  [31mremotes/origin/feat/REQ-CRAWL-001-Tour-API-클라이언트-[m
+  [31mremotes/origin/feat/REQ-CRAWL-002-Phase별-크롤링[m
+  [31mremotes/origin/feat/REQ-SEARCH-001-RDS-검색[m
+  [31mremotes/origin/feat/REQ-SEARCH-002-(Tour-API-검색)[m
+  [31mremotes/origin/feat/chat[m
+  [31mremotes/origin/feat/chat1[m
+  [31mremotes/origin/featCHAT2/REQ-FOLLOW-002[m
+  [31mremotes/origin/feature/trip1[m
+  [31mremotes/origin/feature/user-2[m
+  [31mremotes/origin/fix/media[m
+  [31mremotes/origin/main[m
