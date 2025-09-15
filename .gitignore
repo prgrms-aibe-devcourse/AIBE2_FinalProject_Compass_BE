@@ -67,14 +67,27 @@ test-results/
 test-output/
 *.orig
 
+# Test data files
+test-data/
+*.test.json
+*_test.json
+*search*.json
+kakao*.json
+
 # Docker
 docker-compose.override.yml
 
 # Project Documentation
 CLAUDE.md
+docs/
+documents/
 
 # Frontend Directory
 frontend/
 FE/
 compass-frontend/
 compass-fe/
+
+# GitHub Templates
+.github/ISSUE_TEMPLATE/chat2_feature_request.md
+.github/pull_request_template.md

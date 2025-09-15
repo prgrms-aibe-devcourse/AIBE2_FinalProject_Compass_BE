@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * Spring AI Integration Tests
  * Tests for Gemini and OpenAI model integration
  */
-@Disabled("실제 API를 호출하므로 평소에는 비활성화")
+@Disabled("Integration test issues - temporarily disabled to fix CI")
 class ChatModelServiceTest extends BaseIntegrationTest {
 
     @Autowired(required = false)
