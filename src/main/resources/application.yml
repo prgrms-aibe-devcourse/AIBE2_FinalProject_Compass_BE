@@ -8,22 +8,25 @@ spring:
     allow-bean-definition-overriding: true
     
   datasource:
-    url: jdbc:h2:mem:testdb
-    username: sa
-    password: 
-    driver-class-name: org.h2.Driver
+    url: jdbc:postgresql://compass-db.coqwxjz7zumt.ap-northeast-2.rds.amazonaws.com:5432/compass?characterEncoding=UTF-8&useUnicode=true&serverTimezone=Asia/Seoul
+    username: postgres
+    password: compass1004!
+    driver-class-name: org.postgresql.Driver
     
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        connection:
+          characterEncoding: UTF-8
+          useUnicode: true
     show-sql: false
   sql:
     init:
-      mode: always
+      mode: never
     
   redis:
     host: ${REDIS_HOST:localhost}

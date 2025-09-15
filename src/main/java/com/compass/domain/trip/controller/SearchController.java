@@ -13,6 +13,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,6 +29,63 @@ import java.util.Optional;
 public class SearchController {
 
     private final SearchService searchService;
+    
+    /**
+     * 한글 인코딩 변환 유틸리티 - 다중 변환 시도
+     */
+    private String fixKoreanEncoding(String text) {
+        if (text == null || text.isEmpty()) return text;
+        
+        // 이미 한글이 정상적으로 표시되는 경우
+        if (text.matches(".*[가-힣].*")) {
+            return text;
+        }
+        
+        try {
+            // 방법 1: ISO-8859-1 → UTF-8 변환
+            byte[] bytes1 = text.getBytes(StandardCharsets.ISO_8859_1);
+            String result1 = new String(bytes1, StandardCharsets.UTF_8);
+            if (result1.matches(".*[가-힣].*")) {
+                return result1;
+            }
+            
+            // 방법 2: Windows-1252 → UTF-8 변환
+            try {
+                byte[] bytes2 = text.getBytes("Windows-1252");
+                String result2 = new String(bytes2, StandardCharsets.UTF_8);
+                if (result2.matches(".*[가-힣].*")) {
+                    return result2;
+                }
+            } catch (Exception ignored) {}
+            
+            // 방법 3: CP949 → UTF-8 변환
+            try {
+                byte[] bytes3 = text.getBytes("CP949");
+                String result3 = new String(bytes3, StandardCharsets.UTF_8);
+                if (result3.matches(".*[가-힣].*")) {
+                    return result3;
+                }
+            } catch (Exception ignored) {}
+            
+            // 방법 4: 직접 바이트 변환 시도
+            try {
+                byte[] bytes4 = new byte[text.length()];
+                for (int i = 0; i < text.length(); i++) {
+                    bytes4[i] = (byte) text.charAt(i);
+                }
+                String result4 = new String(bytes4, StandardCharsets.UTF_8);
+                if (result4.matches(".*[가-힣].*")) {
+                    return result4;
+                }
+            } catch (Exception ignored) {}
+            
+            return text; // 모든 변환 실패 시 원본 반환
+            
+        } catch (Exception e) {
+            log.warn("한글 인코딩 변환 실패: {}", text, e);
+            return text;
+        }
+    }
 
     /**
      * PostgreSQL 전문검색 - 기본 검색
@@ -144,6 +202,22 @@ public class SearchController {
         
         List<TourPlace> results = searchService.searchByName(name);
         
+        // 한글 인코딩 변환 적용
+        results.forEach(place -> {
+            if (place.getName() != null) {
+                place.setName(fixKoreanEncoding(place.getName()));
+            }
+            if (place.getCategory() != null) {
+                place.setCategory(fixKoreanEncoding(place.getCategory()));
+            }
+            if (place.getAddress() != null) {
+                place.setAddress(fixKoreanEncoding(place.getAddress()));
+            }
+            if (place.getArea() != null) {
+                place.setArea(fixKoreanEncoding(place.getArea()));
+            }
+        });
+        
         return ResponseEntity.ok(results);
     }
 
@@ -160,8 +234,25 @@ public class SearchController {
         
         Optional<TourPlace> result = searchService.getByContentId(contentId);
         
-        return result.map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
+        if (result.isPresent()) {
+            TourPlace place = result.get();
+            // 한글 인코딩 변환 적용
+            if (place.getName() != null) {
+                place.setName(fixKoreanEncoding(place.getName()));
+            }
+            if (place.getCategory() != null) {
+                place.setCategory(fixKoreanEncoding(place.getCategory()));
+            }
+            if (place.getAddress() != null) {
+                place.setAddress(fixKoreanEncoding(place.getAddress()));
+            }
+            if (place.getArea() != null) {
+                place.setArea(fixKoreanEncoding(place.getArea()));
+            }
+            return ResponseEntity.ok(place);
+        }
+        
+        return ResponseEntity.notFound().build();
     }
 
     /**
@@ -176,6 +267,22 @@ public class SearchController {
         log.info("카테고리별 조회 API 호출: category={}", category);
         
         List<TourPlace> results = searchService.getByCategory(category);
+        
+        // 한글 인코딩 변환 적용
+        results.forEach(place -> {
+            if (place.getName() != null) {
+                place.setName(fixKoreanEncoding(place.getName()));
+            }
+            if (place.getCategory() != null) {
+                place.setCategory(fixKoreanEncoding(place.getCategory()));
+            }
+            if (place.getAddress() != null) {
+                place.setAddress(fixKoreanEncoding(place.getAddress()));
+            }
+            if (place.getArea() != null) {
+                place.setArea(fixKoreanEncoding(place.getArea()));
+            }
+        });
         
         return ResponseEntity.ok(results);
     }
@@ -192,6 +299,22 @@ public class SearchController {
         log.info("지역별 조회 API 호출: areaCode={}", areaCode);
         
         List<TourPlace> results = searchService.getByAreaCode(areaCode);
+        
+        // 한글 인코딩 변환 적용
+        results.forEach(place -> {
+            if (place.getName() != null) {
+                place.setName(fixKoreanEncoding(place.getName()));
+            }
+            if (place.getCategory() != null) {
+                place.setCategory(fixKoreanEncoding(place.getCategory()));
+            }
+            if (place.getAddress() != null) {
+                place.setAddress(fixKoreanEncoding(place.getAddress()));
+            }
+            if (place.getArea() != null) {
+                place.setArea(fixKoreanEncoding(place.getArea()));
+            }
+        });
         
         return ResponseEntity.ok(results);
     }
