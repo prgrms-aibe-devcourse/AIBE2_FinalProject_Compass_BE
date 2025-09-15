@@ -65,7 +65,8 @@ public class TripController {
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) 
             Pageable pageable) {
         
-        String userEmail = authentication.getName(); // JWT에서 사용자 이메일 추출
+        // 임시: 인증이 없는 경우 기본 사용자로 처리
+        String userEmail = authentication != null ? authentication.getName() : "test@example.com";
         Page<TripList.Response> response = tripService.getTripsByUserEmail(userEmail, pageable);
         return ResponseEntity.ok(response);
     }

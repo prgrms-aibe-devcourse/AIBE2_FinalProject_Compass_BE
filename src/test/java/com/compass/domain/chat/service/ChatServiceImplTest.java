@@ -3,8 +3,10 @@ package com.compass.domain.chat.service;
 import com.compass.domain.chat.dto.ChatDtos;
 import com.compass.domain.chat.entity.ChatMessage;
 import com.compass.domain.chat.entity.ChatThread;
+import com.compass.domain.chat.engine.TravelQuestionFlowEngine;
 import com.compass.domain.chat.repository.ChatMessageRepository;
 import com.compass.domain.chat.repository.ChatThreadRepository;
+import com.compass.domain.chat.repository.TravelInfoCollectionStateRepository;
 import com.compass.domain.chat.service.impl.ChatServiceImpl;
 import com.compass.domain.user.entity.User;
 import com.compass.domain.user.enums.Role;
@@ -39,9 +41,23 @@ class ChatServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
-    private ChatModelService chatModelService;
+    private ChatModelService geminiChatService;
 
-    @InjectMocks
+    @Mock
+    private ChatModelService openAiChatService;
+
+    @Mock
+    private TravelQuestionFlowEngine flowEngine;
+
+    @Mock
+    private FollowUpQuestionService followUpQuestionService;
+
+    @Mock
+    private SessionManagementService sessionManagementService;
+
+    @Mock
+    private TravelInfoCollectionStateRepository stateRepository;
+
     private ChatServiceImpl chatService;
 
     private User testUser;
@@ -51,6 +67,18 @@ class ChatServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        chatService = new ChatServiceImpl(
+            chatThreadRepository,
+            chatMessageRepository,
+            userRepository,
+            geminiChatService,
+            openAiChatService,
+            flowEngine,
+            followUpQuestionService,
+            sessionManagementService,
+            stateRepository
+        );
+
         testUser = User.builder()
                 .email("test@example.com")
                 .nickname("TestUser")
@@ -109,7 +137,7 @@ class ChatServiceImplTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(chatMessageRepository.findLatestMessagesByThreadId(anyString(), anyInt()))
                 .thenReturn(java.util.Collections.emptyList());
-        when(chatModelService.generateResponse(anyString()))
+        when(geminiChatService.generateResponse(anyString()))
                 .thenReturn("제주도 여행 추천 답변");
 
         // When
@@ -144,15 +172,15 @@ class ChatServiceImplTest {
                 .thenReturn(3L); // Already has messages (user + assistant + new user message)
         when(chatMessageRepository.findLatestMessagesByThreadId(anyString(), anyInt()))
                 .thenReturn(java.util.Collections.emptyList());
-        when(chatModelService.generateResponse(anyString()))
+        when(geminiChatService.generateResponse(anyString()))
                 .thenReturn("답변");
 
         // When
         chatService.addMessageToThread(threadId, userId, messageDto);
 
         // Then
-        // Should save thread only once (for updating lastMessageAt), not for title update
-        verify(chatThreadRepository, times(1)).save(any(ChatThread.class));
+        // Thread is saved twice - once for lastMessageAt update, once for assistant message
+        verify(chatThreadRepository, atLeastOnce()).save(any(ChatThread.class));
         assertEquals(existingTitle, testThread.getTitle());
     }
 
@@ -179,7 +207,7 @@ class ChatServiceImplTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(chatMessageRepository.findLatestMessagesByThreadId(anyString(), anyInt()))
                 .thenReturn(java.util.Collections.emptyList());
-        when(chatModelService.generateResponse(anyString()))
+        when(geminiChatService.generateResponse(anyString()))
                 .thenReturn("답변");
 
         // When

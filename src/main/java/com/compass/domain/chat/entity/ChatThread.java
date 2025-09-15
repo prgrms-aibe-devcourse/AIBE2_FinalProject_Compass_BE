@@ -47,6 +47,13 @@ public class ChatThread {
     @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt;
     
+    @Column(name = "travel_plan_data", columnDefinition = "TEXT")
+    private String travelPlanData;
+    
+    @Column(name = "is_visible")
+    @Builder.Default
+    private Boolean isVisible = true;
+    
     @OneToMany(mappedBy = "thread", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("timestamp DESC")
     @Builder.Default
@@ -62,6 +69,9 @@ public class ChatThread {
         }
         if (title == null || title.isBlank()) {
             title = "새 대화";
+        }
+        if (isVisible == null) {
+            isVisible = true;
         }
     }
     
@@ -86,7 +96,7 @@ public class ChatThread {
     public String getLatestMessagePreview() {
         // Don't access the messages collection directly to avoid lazy loading issues
         // This should be populated by the service layer if needed
-        if (title != null && !title.equals("새 대화") && !title.isBlank()) {
+        if (title != null && !title.isBlank()) {
             return title;
         }
         return "새 대화";

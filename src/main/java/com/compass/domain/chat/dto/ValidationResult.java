@@ -53,6 +53,11 @@ public class ValidationResult {
     private ValidationLevel validationLevel;
     
     /**
+     * 사용자 친화적 메시지
+     */
+    private String userFriendlyMessage;
+    
+    /**
      * 검증 수준 열거형
      */
     public enum ValidationLevel {

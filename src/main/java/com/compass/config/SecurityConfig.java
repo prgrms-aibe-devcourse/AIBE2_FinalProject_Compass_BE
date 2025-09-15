@@ -71,6 +71,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/test/**").permitAll()
                 .requestMatchers("/api/debug/**").permitAll()  // Debug endpoints for testing
                 .requestMatchers("/api/chat/**").permitAll()  // Chat endpoints for testing
+
+                .requestMatchers("/api/trips/**").permitAll()  // Trips endpoints for testing
+
                 .requestMatchers("/api/tour/**").permitAll()  // Tour API endpoints for testing
                 .requestMatchers("/api/search/**").permitAll()  // Search API endpoints
                 .requestMatchers("/api/crawl/**").permitAll()  // Crawl API endpoints for testing

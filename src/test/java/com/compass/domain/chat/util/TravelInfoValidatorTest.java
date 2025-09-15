@@ -49,6 +49,7 @@ class TravelInfoValidatorTest {
                 .budgetLevel("moderate")
                 .budgetCurrency("KRW")
                 .budgetCollected(true)
+                .travelStyle("relaxed") // 100% 완성을 위해 travelStyle 추가
                 .build();
     }
     
@@ -151,15 +152,15 @@ class TravelInfoValidatorTest {
     @DisplayName("동행자 인원 범위 검증")
     void validateTravelerCount() {
         // given - 너무 많은 인원
-        validState.setNumberOfTravelers(25);
-        
+        validState.setNumberOfTravelers(51);
+
         // when
         ValidationResult result = validator.validate(validState);
-        
+
         // then
         assertThat(result.isValid()).isFalse();
         assertThat(result.hasFieldError("companions")).isTrue();
-        assertThat(result.getFieldErrors().get("companions")).contains("최대 20명까지");
+        assertThat(result.getFieldErrors().get("companions")).contains("최대 50명까지");
     }
     
     @Test

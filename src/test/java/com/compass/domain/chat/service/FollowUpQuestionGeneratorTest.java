@@ -60,7 +60,7 @@ class FollowUpQuestionGeneratorTest {
         assertThat(question).isNotNull();
         assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.ORIGIN);
         assertThat(question.getPrimaryQuestion()).contains("어디에서 출발");
-        assertThat(question.getQuickOptions()).isNotEmpty();
+        assertThat(question.getQuickOptions()).isEmpty(); // 출발지는 텍스트 입력만
         assertThat(question.isRequired()).isTrue();
         assertThat(question.isCanSkip()).isFalse();
     }
@@ -120,9 +120,8 @@ class FollowUpQuestionGeneratorTest {
         
         // Then
         assertThat(question).isNotNull();
-        assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.DURATION);
-        assertThat(question.getPrimaryQuestion()).contains("2박 3일");
-        assertThat(question.getQuickOptions()).hasSize(5); // 당일치기 ~ 4박 이상
+        assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.COMPANIONS);
+        assertThat(question.getPrimaryQuestion()).contains("누구와"); // 날짜가 있으면 기간 자동 계산되고 동행자로 넘어감
     }
     
     @Test
@@ -192,7 +191,8 @@ class FollowUpQuestionGeneratorTest {
         testState.setCompanionsCollected(true);
         testState.setBudgetLevel("moderate");
         testState.setBudgetCollected(true);
-        
+        testState.setTravelStyle("relaxed"); // travelStyle 추가로 100% 달성
+
         // When
         FollowUpQuestionDto question = generator.generateNextQuestion(testState);
         
@@ -225,9 +225,8 @@ class FollowUpQuestionGeneratorTest {
         
         // Then
         assertThat(question).isNotNull();
-        assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.DURATION);
-        assertThat(question.getPrimaryQuestion()).contains("2박 3일");
-        assertThat(question.isCanSkip()).isTrue();
+        assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.COMPANIONS);
+        assertThat(question.getPrimaryQuestion()).contains("누구와"); // 날짜가 있으면 기간 자동 계산되고 동행자로 넘어감
     }
     
     @Test
@@ -259,32 +258,32 @@ class FollowUpQuestionGeneratorTest {
         FollowUpQuestionDto q1 = generator.generateNextQuestion(testState);
         assertThat(q1.getProgressPercentage()).isEqualTo(0);
         
-        // 16% 완료 (1/6)
+        // 14% 완료 (1/7)
         testState.setOriginCollected(true);
         FollowUpQuestionDto q2 = generator.generateNextQuestion(testState);
-        assertThat(q2.getProgressPercentage()).isEqualTo(16);
+        assertThat(q2.getProgressPercentage()).isEqualTo(14); // 1/7 = 14.29 -> 14
         
-        // 33% 완료 (2/6)
+        // 28% 완료 (2/7)
         testState.setDestinationCollected(true);
         FollowUpQuestionDto q3 = generator.generateNextQuestion(testState);
-        assertThat(q3.getProgressPercentage()).isEqualTo(33);
-        
-        // 50% 완료 (3/6)
+        assertThat(q3.getProgressPercentage()).isEqualTo(28); // 2/7 = 28.57 -> 28
+
+        // 57% 완료 (4/7 - 날짜는 2로 계산)
         testState.setDatesCollected(true);
         FollowUpQuestionDto q4 = generator.generateNextQuestion(testState);
-        assertThat(q4.getProgressPercentage()).isEqualTo(50);
-        
-        // 66% 완료 (4/6)
-        testState.setDurationCollected(true);
-        FollowUpQuestionDto q5 = generator.generateNextQuestion(testState);
-        assertThat(q5.getProgressPercentage()).isEqualTo(66);
-        
-        // 83% 완료 (5/6)
+        assertThat(q4.getProgressPercentage()).isEqualTo(57); // 4/7 = 57.14 -> 57
+
+        // 71% 완료 (5/7)
         testState.setCompanionsCollected(true);
-        FollowUpQuestionDto q6 = generator.generateNextQuestion(testState);
-        assertThat(q6.getProgressPercentage()).isEqualTo(83);
+        FollowUpQuestionDto q5 = generator.generateNextQuestion(testState);
+        assertThat(q5.getProgressPercentage()).isEqualTo(71); // 5/7 = 71.43 -> 71
         
-        // 100% 완료 (6/6) - 확인 질문에 필요한 실제 데이터 설정
+        // 85% 완료 (6/7)
+        testState.setBudgetCollected(true);
+        FollowUpQuestionDto q6 = generator.generateNextQuestion(testState);
+        assertThat(q6.getProgressPercentage()).isEqualTo(85); // 6/7 = 85.71 -> 85
+
+        // 100% 완료를 위한 실제 데이터 설정
         testState.setOrigin("서울");
         testState.setDestination("제주도");
         testState.setStartDate(LocalDate.now().plusDays(7));
@@ -294,6 +293,7 @@ class FollowUpQuestionGeneratorTest {
         testState.setCompanionType("couple");
         testState.setBudgetLevel("moderate");
         testState.setBudgetCollected(true);
+        testState.setTravelStyle("relaxed"); // 100% 완성을 위해 travelStyle 추가
         FollowUpQuestionDto q7 = generator.generateNextQuestion(testState);
         assertThat(q7.getProgressPercentage()).isEqualTo(100);
     }

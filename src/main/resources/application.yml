@@ -4,39 +4,48 @@ spring:
 
   application:
     name: compass-backend
-  main:
-    allow-bean-definition-overriding: true
     
   datasource:
-    url: jdbc:postgresql://compass-db.coqwxjz7zumt.ap-northeast-2.rds.amazonaws.com:5432/compass?characterEncoding=UTF-8&useUnicode=true&serverTimezone=Asia/Seoul
-    username: postgres
-    password: compass1004!
+
+    # AWS RDS PostgreSQL 연결
+    url: jdbc:postgresql://${DB_HOST:compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com}:${DB_PORT:5432}/${DB_NAME:postgres}
+    username: ${DB_USERNAME:compass}
+    password: ${DB_PASSWORD:compass1004!}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: false  # 트랜잭션 문제 해결
+
     
   jpa:
     hibernate:
       ddl-auto: update
+
+    generate-ddl: true
+
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-        connection:
-          characterEncoding: UTF-8
-          useUnicode: true
+        jdbc:
+          batch_size: 20
+          batch_versioned_data: true
     show-sql: false
-  sql:
-    init:
-      mode: always
+
     
   redis:
     host: ${REDIS_HOST:localhost}
     port: ${REDIS_PORT:6379}
     password: ${REDIS_PASSWORD:}
-
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
 
   security:
     user:
@@ -76,7 +85,7 @@ spring:
       
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY:dummy-openai-key}
+      api-key: ${OPENAI_API_KEY}
       chat:
         options:
           model: gpt-4o-mini
@@ -85,7 +94,7 @@ spring:
     vertex:
       ai:
         gemini:
-          project-id: ${GOOGLE_CLOUD_PROJECT_ID:dummy-project}
+          project-id: ${GOOGLE_CLOUD_PROJECT_ID}
           location: ${GOOGLE_CLOUD_LOCATION:us-central1}
           chat:
             options:
@@ -99,7 +108,7 @@ spring:
 
 server:
   port: 8080
-
+  
 management:
   endpoints:
     web:
@@ -118,6 +127,8 @@ logging:
     com.compass: DEBUG
     org.springframework.web: INFO
     org.springframework.security: DEBUG
+
+
 
 # Tour API Configuration
 tour:
@@ -147,6 +158,7 @@ kakao:
         page: 1
         sort: accuracy # accuracy, distance
 
+
 # AWS S3 Configuration
 aws:
   access-key-id: ${AWS_ACCESS_KEY_ID:dummy-access-key}
@@ -158,7 +170,7 @@ aws:
 
 # JWT Configuration for JwtTokenProvider
 jwt:
-  secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-key-for-jwt-access-token-minimum-32-chars}
-  refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-key-for-jwt-refresh-token-minimum-32-chars}
+  secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-key-for-access-token}
+  refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-key-for-refresh-token}
   access-expiration: 3600000  # 1 hour
   refresh-expiration: 604800000  # 7 days

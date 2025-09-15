@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,7 +41,11 @@ public class TravelQuestionFlowEngine implements QuestionFlowEngine {
         TravelInfoCollectionState.CollectionStep currentStep = state.getCurrentStep();
         if (currentStep == null) {
             currentStep = state.getNextRequiredStep();
+            state.setCurrentStep(currentStep);
         }
+        
+        log.debug("Before processing - Origin collected: {}, Destination collected: {}", 
+                 state.isOriginCollected(), state.isDestinationCollected());
         
         switch (currentStep) {
             case ORIGIN -> processOriginResponse(state, userResponse);
@@ -51,25 +54,39 @@ public class TravelQuestionFlowEngine implements QuestionFlowEngine {
             case DURATION -> processDurationResponse(state, userResponse);
             case COMPANIONS -> processCompanionResponse(state, userResponse);
             case BUDGET -> processBudgetResponse(state, userResponse);
+            case TRAVEL_STYLE -> processTravelStyleResponse(state, userResponse);
             default -> log.warn("Unknown step: {}", currentStep);
         }
         
+        log.debug("After processing - Origin collected: {}, Destination collected: {}", 
+                 state.isOriginCollected(), state.isDestinationCollected());
+        
         // 다음 단계로 이동
-        state.setCurrentStep(state.getNextRequiredStep());
+        TravelInfoCollectionState.CollectionStep nextStep = state.getNextRequiredStep();
+        state.setCurrentStep(nextStep);
+        log.info("Moving to next step: {}", nextStep);
         
         return state;
     }
     
     @Override
     public boolean isFlowComplete(TravelInfoCollectionState state) {
-        // 출발지는 선택사항으로 처리 가능
+        // 7개 필드 모두 체크 (출발지는 선택사항)
         boolean coreInfoCollected = state.isDestinationCollected() &&
-                                    state.isDatesCollected() &&
-                                    state.isDurationCollected() &&
+                                    (state.isDatesCollected() || state.isDurationCollected()) && // 날짜나 기간 중 하나
                                     state.isCompanionsCollected() &&
-                                    state.isBudgetCollected();
+                                    state.isBudgetCollected() &&
+                                    (state.getTravelStyle() != null && !state.getTravelStyle().trim().isEmpty());
         
-        log.info("Flow completion check - Core info collected: {}", coreInfoCollected);
+        log.info("Flow completion check - Destination: {}, Dates: {}, Duration: {}, Companions: {}, Budget: {}, TravelStyle: {}", 
+                state.isDestinationCollected(),
+                state.isDatesCollected(),
+                state.isDurationCollected(),
+                state.isCompanionsCollected(),
+                state.isBudgetCollected(),
+                state.getTravelStyle() != null && !state.getTravelStyle().trim().isEmpty());
+        
+        log.info("Flow completion result: {}", coreInfoCollected);
         return coreInfoCollected;
     }
     
@@ -136,21 +153,29 @@ public class TravelQuestionFlowEngine implements QuestionFlowEngine {
     // === Private Helper Methods ===
     
     private void processOriginResponse(TravelInfoCollectionState state, String response) {
-        state.setOrigin(response.trim());
+        // 원문 그대로 저장
+        state.setOriginRaw(response.trim());
+        state.setOrigin(response.trim()); // 호환성을 위해 기존 필드도 유지
         state.setOriginCollected(true);
-        log.info("Origin collected: {}", response);
+        log.info("Origin collected (raw): {}", response.trim());
     }
     
     private void processDestinationResponse(TravelInfoCollectionState state, String response) {
-        state.setDestination(response.trim());
+        // 원문 그대로 저장
+        state.setDestinationRaw(response.trim());
+        state.setDestination(response.trim()); // 호환성을 위해 기존 필드도 유지
         state.setDestinationCollected(true);
-        log.info("Destination collected: {}", response);
+        log.info("Destination collected (raw): {}", response.trim());
     }
     
     private void processDateResponse(TravelInfoCollectionState state, String response) {
-        // 날짜 파싱 로직
+        // 원문 그대로 저장
+        state.setDatesRaw(response.trim());
+        state.setDatesCollected(true);
+        log.info("Dates collected (raw): {}", response.trim());
+        
+        // 간단한 날짜 파싱 시도 (선택적)
         try {
-            // "2024-03-15 ~ 2024-03-17" 형식 파싱
             Pattern pattern = Pattern.compile("(\\d{4}-\\d{2}-\\d{2})\\s*~\\s*(\\d{4}-\\d{2}-\\d{2})");
             Matcher matcher = pattern.matcher(response);
             
@@ -160,109 +185,138 @@ public class TravelQuestionFlowEngine implements QuestionFlowEngine {
                 
                 state.setStartDate(startDate);
                 state.setEndDate(endDate);
-                state.setDatesCollected(true);
                 
-                // 기간 자동 계산
+                // 기간 자동 계산 - 날짜가 파싱되면 기간도 자동으로 수집된 것으로 처리
                 int nights = (int) (endDate.toEpochDay() - startDate.toEpochDay());
                 state.setDurationNights(nights);
-                state.setDurationCollected(true);
-                
-                log.info("Dates collected: {} ~ {}, Duration: {} nights", startDate, endDate, nights);
+                state.setDurationCollected(true); // 기간도 자동으로 수집됨
+                state.setDurationRaw(nights + "박 " + (nights + 1) + "일");
+                log.info("Duration automatically calculated from dates: {} nights", nights);
             }
-        } catch (DateTimeParseException e) {
-            log.error("Failed to parse date response: {}", response, e);
+        } catch (Exception e) {
+            // 파싱 실패해도 계속 진행 (원문은 저장됨)
+            log.debug("Date parsing failed, but raw data saved: {}", e.getMessage());
         }
     }
     
     private void processDurationResponse(TravelInfoCollectionState state, String response) {
-        // "2박 3일", "3 nights", "당일치기" 등 파싱
+        // 원문 그대로 저장
+        state.setDurationRaw(response.trim());
+        state.setDurationCollected(true);
+        log.info("Duration collected (raw): {}", response.trim());
+        
+        // 간단한 기간 파싱 시도 (선택적)
         try {
             if (response.contains("당일") || response.toLowerCase().contains("day trip")) {
                 state.setDurationNights(0);
             } else {
-                // 숫자 추출
                 Pattern pattern = Pattern.compile("(\\d+)");
                 Matcher matcher = pattern.matcher(response);
                 if (matcher.find()) {
                     state.setDurationNights(Integer.parseInt(matcher.group(1)));
                 }
             }
-            state.setDurationCollected(true);
-            log.info("Duration collected: {} nights", state.getDurationNights());
-        } catch (NumberFormatException e) {
-            log.error("Failed to parse duration response: {}", response, e);
+        } catch (Exception e) {
+            // 파싱 실패해도 계속 진행 (원문은 저장됨)
+            log.debug("Duration parsing failed, but raw data saved: {}", e.getMessage());
         }
     }
     
     private void processCompanionResponse(TravelInfoCollectionState state, String response) {
-        String lowerResponse = response.toLowerCase();
-        
-        // 동행자 타입 파싱
-        if (lowerResponse.contains("혼자") || lowerResponse.contains("alone") || lowerResponse.contains("solo")) {
-            state.setCompanionType("solo");
-            state.setNumberOfTravelers(1);
-        } else if (lowerResponse.contains("연인") || lowerResponse.contains("couple")) {
-            state.setCompanionType("couple");
-            state.setNumberOfTravelers(2);
-        } else if (lowerResponse.contains("가족") || lowerResponse.contains("family")) {
-            state.setCompanionType("family");
-            // 숫자가 있으면 파싱, 없으면 기본 4명
-            Pattern pattern = Pattern.compile("(\\d+)");
-            Matcher matcher = pattern.matcher(response);
-            if (matcher.find()) {
-                state.setNumberOfTravelers(Integer.parseInt(matcher.group(1)));
-            } else {
-                state.setNumberOfTravelers(4);
-            }
-        } else if (lowerResponse.contains("친구") || lowerResponse.contains("friend")) {
-            state.setCompanionType("friends");
-            // 숫자 파싱
-            Pattern pattern = Pattern.compile("(\\d+)");
-            Matcher matcher = pattern.matcher(response);
-            if (matcher.find()) {
-                state.setNumberOfTravelers(Integer.parseInt(matcher.group(1)));
-            } else {
-                state.setNumberOfTravelers(2);
-            }
-        } else if (lowerResponse.contains("비즈니스") || lowerResponse.contains("business")) {
-            state.setCompanionType("business");
-            state.setNumberOfTravelers(1);
-        }
-        
+        // 원문 그대로 저장
+        state.setCompanionsRaw(response.trim());
         state.setCompanionsCollected(true);
-        log.info("Companions collected: type={}, count={}", state.getCompanionType(), state.getNumberOfTravelers());
+        log.info("Companions collected (raw): {}", response.trim());
+        
+        // 간단한 동행자 파싱 시도 (선택적)
+        try {
+            String lowerResponse = response.toLowerCase();
+            
+            if (lowerResponse.contains("혼자") || lowerResponse.contains("alone") || lowerResponse.contains("solo")) {
+                state.setCompanionType("solo");
+                state.setNumberOfTravelers(1);
+            } else if (lowerResponse.contains("연인") || lowerResponse.contains("couple")) {
+                state.setCompanionType("couple");
+                state.setNumberOfTravelers(2);
+            } else if (lowerResponse.contains("가족") || lowerResponse.contains("family")) {
+                state.setCompanionType("family");
+                Pattern pattern = Pattern.compile("(\\d+)");
+                Matcher matcher = pattern.matcher(response);
+                if (matcher.find()) {
+                    state.setNumberOfTravelers(Integer.parseInt(matcher.group(1)));
+                } else {
+                    state.setNumberOfTravelers(4);
+                }
+            } else if (lowerResponse.contains("친구") || lowerResponse.contains("friend")) {
+                state.setCompanionType("friends");
+                Pattern pattern = Pattern.compile("(\\d+)");
+                Matcher matcher = pattern.matcher(response);
+                if (matcher.find()) {
+                    state.setNumberOfTravelers(Integer.parseInt(matcher.group(1)));
+                } else {
+                    state.setNumberOfTravelers(2);
+                }
+            }
+        } catch (Exception e) {
+            // 파싱 실패해도 계속 진행 (원문은 저장됨)
+            log.debug("Companion parsing failed, but raw data saved: {}", e.getMessage());
+        }
     }
     
     private void processBudgetResponse(TravelInfoCollectionState state, String response) {
-        String lowerResponse = response.toLowerCase();
+        // 원문 그대로 저장
+        state.setBudgetRaw(response.trim());
+        state.setBudgetCollected(true);
+        log.info("Budget collected (raw): {}", response.trim());
         
-        // 예산 레벨 파싱
-        if (lowerResponse.contains("저렴") || lowerResponse.contains("budget") || lowerResponse.contains("cheap")) {
-            state.setBudgetLevel("budget");
-        } else if (lowerResponse.contains("보통") || lowerResponse.contains("moderate") || lowerResponse.contains("medium")) {
-            state.setBudgetLevel("moderate");
-        } else if (lowerResponse.contains("럭셔리") || lowerResponse.contains("luxury") || lowerResponse.contains("premium")) {
-            state.setBudgetLevel("luxury");
-        }
-        
-        // 구체적인 금액이 있으면 파싱
-        Pattern pattern = Pattern.compile("(\\d+)(만원|천원|원|,000|000)");
-        Matcher matcher = pattern.matcher(response);
-        if (matcher.find()) {
-            int amount = Integer.parseInt(matcher.group(1));
-            String unit = matcher.group(2);
+        // 간단한 예산 파싱 시도 (선택적)
+        try {
+            String lowerResponse = response.toLowerCase();
             
-            if (unit.contains("만원")) {
-                amount *= 10000;
-            } else if (unit.contains("천원") || unit.contains(",000")) {
-                amount *= 1000;
+            if (lowerResponse.contains("저렴") || lowerResponse.contains("budget") || lowerResponse.contains("cheap")) {
+                state.setBudgetLevel("budget");
+            } else if (lowerResponse.contains("보통") || lowerResponse.contains("moderate") || lowerResponse.contains("medium")) {
+                state.setBudgetLevel("moderate");
+            } else if (lowerResponse.contains("럭셔리") || lowerResponse.contains("luxury") || lowerResponse.contains("premium")) {
+                state.setBudgetLevel("luxury");
             }
             
-            state.setBudgetPerPerson(amount);
-            state.setBudgetCurrency("KRW");
+            Pattern pattern = Pattern.compile("(\\d+)(만원|천원|원|,000|000)");
+            Matcher matcher = pattern.matcher(response);
+            if (matcher.find()) {
+                int amount = Integer.parseInt(matcher.group(1));
+                String unit = matcher.group(2);
+                
+                if (unit.contains("만원")) {
+                    amount *= 10000;
+                } else if (unit.contains("천원") || unit.contains(",000")) {
+                    amount *= 1000;
+                }
+                
+                state.setBudgetPerPerson(amount);
+                state.setBudgetCurrency("KRW");
+            }
+        } catch (Exception e) {
+            // 파싱 실패해도 계속 진행 (원문은 저장됨)
+            log.debug("Budget parsing failed, but raw data saved: {}", e.getMessage());
         }
+    }
+    
+    private void processTravelStyleResponse(TravelInfoCollectionState state, String response) {
+        // 원문 그대로 저장
+        state.setTravelStyle(response.trim());
+        log.info("Travel style collected: {}", response.trim());
         
-        state.setBudgetCollected(true);
-        log.info("Budget collected: level={}, amount={}", state.getBudgetLevel(), state.getBudgetPerPerson());
+        // multi-select 형태로 들어온 경우 처리
+        // 프론트엔드에서 배열이나 쉼표로 구분된 문자열로 전달될 수 있음
+        if (response.contains(",") || response.contains("&") || response.contains("and") || 
+            response.contains("[") || response.contains("|")) {
+            // 여러 스타일이 선택된 경우 그대로 저장
+            state.setMainInterests(response.trim());
+            log.info("Multiple travel styles selected: {}", response.trim());
+        } else {
+            // 단일 스타일도 mainInterests에 저장
+            state.setMainInterests(response.trim());
+        }
     }
 }

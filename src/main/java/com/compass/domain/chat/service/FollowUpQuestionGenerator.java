@@ -33,9 +33,10 @@ public class FollowUpQuestionGenerator {
             case ORIGIN -> generateOriginQuestion(state.getSessionId(), progress, collectedInfo);
             case DESTINATION -> generateDestinationQuestion(state.getSessionId(), progress, collectedInfo);
             case DATES -> generateDateQuestion(state.getSessionId(), progress, collectedInfo);
-            case DURATION -> generateDurationQuestion(state.getSessionId(), progress, collectedInfo);
+            case DURATION -> generateCompanionQuestion(state.getSessionId(), progress, collectedInfo); // DURATION은 건너뛰고 COMPANIONS로
             case COMPANIONS -> generateCompanionQuestion(state.getSessionId(), progress, collectedInfo);
             case BUDGET -> generateBudgetQuestion(state.getSessionId(), progress, collectedInfo);
+            case TRAVEL_STYLE -> generateTravelStyleQuestion(state.getSessionId(), progress, collectedInfo);
             case CONFIRMATION -> generateConfirmationQuestion(state.getSessionId(), collectedInfo);
             default -> generateDefaultQuestion(state.getSessionId());
         };
@@ -56,43 +57,13 @@ public class FollowUpQuestionGenerator {
                         "부산",
                         "김포공항"
                 ))
-                .quickOptions(List.of(
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("서울")
-                                .label("서울")
-                                .description("수도권")
-                                .icon("🏙️")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("부산")
-                                .label("부산")
-                                .description("부산/경남")
-                                .icon("🌊")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("대구")
-                                .label("대구")
-                                .description("대구/경북")
-                                .icon("🏛️")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("광주")
-                                .label("광주")
-                                .description("광주/전남")
-                                .icon("🌻")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("대전")
-                                .label("대전")
-                                .description("대전/충청")
-                                .icon("🏢")
-                                .build()
-                ))
+                // 출발지는 텍스트 입력만 받도록 변경 - quickOptions 제거
+                .quickOptions(new ArrayList<>())
                 .inputType("text")
                 .isRequired(true)
                 .canSkip(false)
                 .progressPercentage(progress)
-                .remainingQuestions(6 - (progress * 6 / 100))
+                .remainingQuestions(5 - (progress * 5 / 100))  // 총 5개 질문 (DURATION 제외)
                 .collectedInfo(collected)
                 .build();
     }
@@ -119,7 +90,7 @@ public class FollowUpQuestionGenerator {
                 .isRequired(true)
                 .canSkip(false)
                 .progressPercentage(progress)
-                .remainingQuestions(6 - (progress * 6 / 100))
+                .remainingQuestions(5 - (progress * 5 / 100))  // 총 5개 질문 (DURATION 제외)
                 .collectedInfo(collected)
                 .build();
     }
@@ -133,46 +104,64 @@ public class FollowUpQuestionGenerator {
                 String.format("%s 여행은 언제 가실 예정인가요? 📅", destination) :
                 "언제 여행을 떠나실 예정인가요? 📅";
         
-        // 다음 주말, 다음 달 등 빠른 선택 옵션 생성
-        List<FollowUpQuestionDto.QuickOption> dateOptions = generateQuickDateOptions();
+        // 캘린더로만 날짜 선택 가능하도록 설정
         
         return FollowUpQuestionDto.builder()
                 .sessionId(sessionId)
                 .currentStep(TravelInfoCollectionState.CollectionStep.DATES)
                 .primaryQuestion(contextualQuestion)
-                .helpText("출발일과 도착일을 알려주세요. 대략적인 시기만 알려주셔도 됩니다.")
-                .exampleAnswers(List.of(
-                        "12월 24일부터 26일까지",
-                        "다음 주 금요일부터 일요일",
-                        "1월 첫째 주",
-                        "크리스마스 연휴"
-                ))
-                .quickOptions(dateOptions)
+                .helpText("캘린더에서 출발일과 도착일을 선택해주세요. 여행 기간이 자동으로 계산됩니다.")
+                .exampleAnswers(new ArrayList<>())  // 예시 답변 제거
+                .quickOptions(new ArrayList<>())     // 빠른 선택 옵션 제거
                 .inputType("date-range")
                 .isRequired(true)
                 .canSkip(false)
                 .progressPercentage(progress)
-                .remainingQuestions(5 - (progress * 6 / 100))
+                .remainingQuestions(4 - (progress * 5 / 100))  // 5개 질문으로 조정 (DURATION 제외)
                 .collectedInfo(collected)
                 .build();
     }
     
     /**
      * 기간 질문 생성 (날짜 정보가 있으면 자동 계산)
+     * 날짜가 없을 때는 캘린더를 표시
      */
     private FollowUpQuestionDto generateDurationQuestion(String sessionId, int progress, Map<String, Object> collected) {
         // 날짜가 이미 수집되었으면 기간 자동 계산 가능
         LocalDate startDate = (LocalDate) collected.get("startDate");
         LocalDate endDate = (LocalDate) collected.get("endDate");
         
-        String question = "여행 기간은 어느 정도로 계획하고 계신가요? ⏱️";
-        String helpText = "당일치기부터 장기 여행까지 모두 가능합니다.";
-        
-        if (startDate != null && endDate != null) {
-            long nights = endDate.toEpochDay() - startDate.toEpochDay();
-            question = String.format("선택하신 날짜 기준 %d박 %d일 여행이 맞나요?", nights, nights + 1);
-            helpText = "날짜를 기준으로 계산했습니다. 수정이 필요하시면 알려주세요.";
+        // 날짜가 없으면 캘린더를 표시하여 날짜와 기간을 함께 선택
+        if (startDate == null || endDate == null) {
+            String destination = (String) collected.get("destination");
+            String contextualQuestion = destination != null ?
+                    String.format("%s 여행은 언제 가실 예정인가요? 📅", destination) :
+                    "언제 여행을 떠나실 예정인가요? 📅";
+            
+            return FollowUpQuestionDto.builder()
+                    .sessionId(sessionId)
+                    .currentStep(TravelInfoCollectionState.CollectionStep.DURATION)
+                    .primaryQuestion(contextualQuestion)
+                    .helpText("출발일과 도착일을 선택해주세요. 여행 기간이 자동으로 계산됩니다.")
+                    .exampleAnswers(List.of(
+                            "12월 24일부터 26일까지",
+                            "다음 주 금요일부터 일요일",
+                            "1월 첫째 주"
+                    ))
+                    .quickOptions(new ArrayList<>())
+                    .inputType("date-range")  // 캘린더 표시
+                    .isRequired(true)
+                    .canSkip(false)
+                    .progressPercentage(progress)
+                    .remainingQuestions(4 - (progress * 6 / 100))
+                    .collectedInfo(collected)
+                    .build();
         }
+        
+        // 날짜가 있으면 기간 확인만
+        long nights = endDate.toEpochDay() - startDate.toEpochDay();
+        String question = String.format("선택하신 날짜 기준 %d박 %d일 여행이 맞나요?", nights, nights + 1);
+        String helpText = "날짜를 기준으로 계산했습니다. 수정이 필요하시면 알려주세요.";
         
         return FollowUpQuestionDto.builder()
                 .sessionId(sessionId)
@@ -181,34 +170,19 @@ public class FollowUpQuestionGenerator {
                 .helpText(helpText)
                 .quickOptions(List.of(
                         FollowUpQuestionDto.QuickOption.builder()
-                                .value("0")
-                                .label("당일치기")
-                                .description("하루 알차게")
+                                .value("confirm")
+                                .label("네, 맞아요")
+                                .description("확인")
                                 .build(),
                         FollowUpQuestionDto.QuickOption.builder()
-                                .value("1")
-                                .label("1박 2일")
-                                .description("짧고 굵게")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("2")
-                                .label("2박 3일")
-                                .description("적당한 여행")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("3")
-                                .label("3박 4일")
-                                .description("여유로운 여행")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("4+")
-                                .label("4박 이상")
-                                .description("장기 여행")
+                                .value("modify")
+                                .label("수정할게요")
+                                .description("날짜 다시 선택")
                                 .build()
                 ))
                 .inputType("select")
                 .isRequired(true)
-                .canSkip(startDate != null && endDate != null) // 날짜로 계산 가능하면 건너뛸 수 있음
+                .canSkip(true)
                 .progressPercentage(progress)
                 .remainingQuestions(4 - (progress * 6 / 100))
                 .collectedInfo(collected)
@@ -306,39 +280,97 @@ public class FollowUpQuestionGenerator {
                 .sessionId(sessionId)
                 .currentStep(TravelInfoCollectionState.CollectionStep.BUDGET)
                 .primaryQuestion(contextBuilder.toString())
-                .helpText("구체적인 금액이나 대략적인 수준을 알려주세요. 더 정확한 추천이 가능합니다.")
-                .quickOptions(List.of(
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("budget")
-                                .label("알뜰하게")
-                                .description("가성비 중심")
-                                .icon("💰")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("moderate")
-                                .label("적당하게")
-                                .description("편안하고 합리적인")
-                                .icon("💵")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("luxury")
-                                .label("여유있게")
-                                .description("프리미엄 경험")
-                                .icon("💎")
-                                .build(),
-                        FollowUpQuestionDto.QuickOption.builder()
-                                .value("no-limit")
-                                .label("제한 없음")
-                                .description("최고의 경험 추구")
-                                .icon("🏆")
-                                .build()
-                ))
+                .helpText("1인당 예상 예산을 입력해주세요. 항공료 포함/제외 여부도 알려주시면 좋습니다.")
+                .quickOptions(new ArrayList<>()) // 예산은 텍스트 입력만
                 .exampleAnswers(budgetExamples)
-                .inputType("mixed")
+                .inputType("text") // 텍스트 입력으로 변경
                 .isRequired(false)
                 .canSkip(true)
                 .progressPercentage(progress)
                 .remainingQuestions(1)
+                .collectedInfo(collected)
+                .build();
+    }
+    
+    /**
+     * 여행 스타일 질문 생성
+     */
+    private FollowUpQuestionDto generateTravelStyleQuestion(String sessionId, int progress, Map<String, Object> collected) {
+        String destination = (String) collected.get("destination");
+        Integer nights = (Integer) collected.get("durationNights");
+        
+        String contextualQuestion = "어떤 스타일의 여행을 원하시나요? 🎯";
+        if (destination != null && nights != null) {
+            contextualQuestion = String.format("%s %d박 %d일 여행, 어떤 스타일로 즐기고 싶으신가요? 🎯", 
+                    destination, nights, nights + 1);
+        }
+        
+        return FollowUpQuestionDto.builder()
+                .sessionId(sessionId)
+                .currentStep(TravelInfoCollectionState.CollectionStep.TRAVEL_STYLE)
+                .primaryQuestion(contextualQuestion)
+                .helpText("원하시는 여행 스타일을 모두 선택해주세요. 중복 선택 가능합니다!")
+                .inputType("multi-select")  // 중복 선택 가능한 UI 타입
+                .quickOptions(List.of(
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("relaxed")
+                                .label("휴식/힐링")
+                                .description("편안한 휴식 중심")
+                                .icon("🧘")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("active")
+                                .label("액티비티")
+                                .description("활동적인 체험")
+                                .icon("🏃")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("cultural")
+                                .label("문화/역사")
+                                .description("박물관, 유적지 탐방")
+                                .icon("🏛️")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("shopping")
+                                .label("쇼핑")
+                                .description("쇼핑 중심")
+                                .icon("🛍️")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("food")
+                                .label("맛집 탐방")
+                                .description("현지 음식 체험")
+                                .icon("🍜")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("nature")
+                                .label("자연/경치")
+                                .description("자연 경관 감상")
+                                .icon("🏔️")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("photography")
+                                .label("사진 명소")
+                                .description("인스타그램 명소")
+                                .icon("📸")
+                                .build(),
+                        FollowUpQuestionDto.QuickOption.builder()
+                                .value("nightlife")
+                                .label("나이트라이프")
+                                .description("밤 문화 체험")
+                                .icon("🌃")
+                                .build()
+                ))
+                .exampleAnswers(List.of(
+                        "휴식과 맛집 탐방 위주로",
+                        "액티비티랑 자연 경치 보기",
+                        "쇼핑이랑 나이트라이프",
+                        "문화 체험과 사진 명소 위주로"
+                ))
+                .isRequired(true)
+                .canSkip(false)
+                .progressPercentage(progress)
+                .remainingQuestions(1) // 확인만 남음
                 .collectedInfo(collected)
                 .build();
     }
@@ -378,6 +410,9 @@ public class FollowUpQuestionGenerator {
                 summary.append(" (1인당 ").append(collected.get("budgetPerPerson")).append("원)");
             }
             summary.append("\n");
+        }
+        if (collected.containsKey("travelStyle")) {
+            summary.append("🎯 여행 스타일: ").append(collected.get("travelStyle")).append("\n");
         }
         
         return FollowUpQuestionDto.builder()
@@ -458,35 +493,6 @@ public class FollowUpQuestionGenerator {
                         .label("서울")
                         .description("대한민국의 수도")
                         .icon("🏙️")
-                        .build()
-        );
-    }
-    
-    /**
-     * 빠른 날짜 선택 옵션 생성
-     */
-    private List<FollowUpQuestionDto.QuickOption> generateQuickDateOptions() {
-        LocalDate today = LocalDate.now();
-        LocalDate nextWeekend = today.plusDays((6 - today.getDayOfWeek().getValue()) % 7);
-        if (nextWeekend.isBefore(today.plusDays(3))) {
-            nextWeekend = nextWeekend.plusWeeks(1);
-        }
-        
-        return List.of(
-                FollowUpQuestionDto.QuickOption.builder()
-                        .value("next-weekend")
-                        .label("다음 주말")
-                        .description(nextWeekend.format(DATE_FORMATTER) + " 주말")
-                        .build(),
-                FollowUpQuestionDto.QuickOption.builder()
-                        .value("next-month")
-                        .label("다음 달")
-                        .description(today.plusMonths(1).getMonth().toString())
-                        .build(),
-                FollowUpQuestionDto.QuickOption.builder()
-                        .value("holiday")
-                        .label("다음 연휴")
-                        .description("가까운 공휴일")
                         .build()
         );
     }

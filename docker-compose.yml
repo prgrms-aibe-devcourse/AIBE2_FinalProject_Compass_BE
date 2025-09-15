@@ -1,25 +1,7 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: compass-postgres
-    environment:
-      POSTGRES_DB: compass
-      POSTGRES_USER: compass_user
-      POSTGRES_PASSWORD: compass_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - compass-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U compass_user -d compass"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+  # Redis only - PostgreSQL is handled by AWS RDS
   redis:
     image: redis:7-alpine
     container_name: compass-redis
@@ -45,9 +27,15 @@ services:
     env_file:
       - .env
     environment:
-      SPRING_PROFILES_ACTIVE: docker
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      # No profile needed - using single application.yml
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      # Database Configuration (AWS RDS)
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       # JWT Configuration
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-jwt-access-secret-key-for-local-development-only-256bits}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-jwt-refresh-secret-key-for-local-development-only-256bits}
@@ -60,10 +48,10 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
       GEMINI_TEMPERATURE: ${GEMINI_TEMPERATURE:-0.7}
       GOOGLE_CREDENTIALS_BASE64: ${GOOGLE_CREDENTIALS_BASE64:-}
-      GOOGLE_APPLICATION_CREDENTIALS: /app/google-credentials.json
+      GOOGLE_APPLICATION_CREDENTIALS: /app/travelagent-468611-1ae0c9d4e187.json
     volumes:
       - ./logs:/app/logs
-      - ./google-credentials.json:/app/google-credentials.json:ro
+      - ./travelagent-468611-1ae0c9d4e187.json:/app/travelagent-468611-1ae0c9d4e187.json:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -72,7 +60,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   redis_data:
 
 networks:
