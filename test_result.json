@@ -1,0 +1,80 @@
+﻿{
+    "value":  [
+                  {
+                      "id":  64,
+                      "contentId":  "126508",
+                      "name":  "ê²½ë³µê¶",
+                      "category":  "ê´ê´ì§",
+                      "district":  "23",
+                      "area":  "ìì¸í¹ë³ì ì¢\u0085ë¡êµ¬ ì¬ì§ë¡ 161 (ì¸ì¢\u0085ë¡)",
+                      "latitude":  37.5760836609,
+                      "longitude":  126.9767375783,
+                      "areaCode":  "1",
+                      "contentTypeId":  "12",
+                      "address":  "ìì¸í¹ë³ì ì¢\u0085ë¡êµ¬ ì¬ì§ë¡ 161 (ì¸ì¢\u0085ë¡)",
+                      "imageUrl":  "http://tong.visitkorea.or.kr/cms/resource/94/3487594_image2_1.jpg",
+                      "details":  {
+                                      "tel":  "",
+                                      "areacode":  "1",
+                                      "firstImage":  "http://tong.visitkorea.or.kr/cms/resource/94/3487594_image2_1.jpg",
+                                      "firstImage2":  "http://tong.visitkorea.or.kr/cms/resource/94/3487594_image3_1.jpg",
+                                      "sigunguCode":  "23"
+                                  },
+                      "dataSource":  "tour_api",
+                      "crawledAt":  "2025-09-11T15:31:45.103622",
+                      "createdAt":  "2025-09-11T15:31:46.161814",
+                      "updatedAt":  "2025-09-11T15:31:46.161814"
+                  },
+                  {
+                      "id":  1353,
+                      "contentId":  "2685277",
+                      "name":  "ê²½ë³µê¶ ì°½ë",
+                      "category":  "ììì ",
+                      "district":  "10",
+                      "area":  "ìì¸í¹ë³ì ëë´êµ¬ ëë´ë¡ 610",
+                      "latitude":  37.6589779599,
+                      "longitude":  127.0412487847,
+                      "areaCode":  "1",
+                      "contentTypeId":  "39",
+                      "address":  "ìì¸í¹ë³ì ëë´êµ¬ ëë´ë¡ 610",
+                      "imageUrl":  "http://tong.visitkorea.or.kr/cms/resource/07/2684807_image2_1.jpg",
+                      "details":  {
+                                      "tel":  "02-992-6777",
+                                      "areacode":  "1",
+                                      "firstImage":  "http://tong.visitkorea.or.kr/cms/resource/07/2684807_image2_1.jpg",
+                                      "firstImage2":  "http://tong.visitkorea.or.kr/cms/resource/07/2684807_image2_1.jpg",
+                                      "sigunguCode":  "10"
+                                  },
+                      "dataSource":  "tour_api",
+                      "crawledAt":  "2025-09-11T15:32:02.726794",
+                      "createdAt":  "2025-09-11T15:32:04.734626",
+                      "updatedAt":  "2025-09-11T15:32:04.734626"
+                  },
+                  {
+                      "id":  1357,
+                      "contentId":  "2820889",
+                      "name":  "ê²½ë³µê¶ì ë§ìë ë¶ì",
+                      "category":  "ììì ",
+                      "district":  "23",
+                      "area":  "ìì¸í¹ë³ì ì¢\u0085ë¡êµ¬ ì¬ì§ë¡ 103",
+                      "latitude":  37.5763001859,
+                      "longitude":  126.9702631619,
+                      "areaCode":  "1",
+                      "contentTypeId":  "39",
+                      "address":  "ìì¸í¹ë³ì ì¢\u0085ë¡êµ¬ ì¬ì§ë¡ 103",
+                      "imageUrl":  "",
+                      "details":  {
+                                      "tel":  "",
+                                      "areacode":  "1",
+                                      "firstImage":  "",
+                                      "firstImage2":  "",
+                                      "sigunguCode":  "23"
+                                  },
+                      "dataSource":  "tour_api",
+                      "crawledAt":  "2025-09-11T15:32:02.726794",
+                      "createdAt":  "2025-09-11T15:32:04.762865",
+                      "updatedAt":  "2025-09-11T15:32:04.762865"
+                  }
+              ],
+    "Count":  3
+}
