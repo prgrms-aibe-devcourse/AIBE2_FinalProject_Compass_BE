@@ -34,7 +34,6 @@ public class KakaoMapApiResponse {
         private String categoryName;
         private String categoryGroupCode;
         private String categoryGroupName;
-        private String phone;
         private String addressName;
         private String roadAddressName;
         private String x; // 경도
@@ -56,7 +55,7 @@ public class KakaoMapApiResponse {
         private String categoryGroupNameKeyword;
         
         @JsonProperty("phone")
-        private String phoneKeyword;
+        private String phone;
         
         @JsonProperty("address_name")
         private String addressNameKeyword;
