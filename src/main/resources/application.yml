@@ -6,6 +6,7 @@ spring:
     name: compass-backend
     
   datasource:
+
     # AWS RDS PostgreSQL 연결
     url: jdbc:postgresql://${DB_HOST:compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com}:${DB_PORT:5432}/${DB_NAME:postgres}
     username: ${DB_USERNAME:compass}
@@ -18,11 +19,14 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
       auto-commit: false  # 트랜잭션 문제 해결
+
     
   jpa:
     hibernate:
       ddl-auto: update
+
     generate-ddl: true
+
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -31,6 +35,7 @@ spring:
           batch_size: 20
           batch_versioned_data: true
     show-sql: false
+
     
   redis:
     host: ${REDIS_HOST:localhost}
@@ -122,6 +127,37 @@ logging:
     com.compass: DEBUG
     org.springframework.web: INFO
     org.springframework.security: DEBUG
+
+
+
+# Tour API Configuration
+tour:
+  api:
+    base-url: https://apis.data.go.kr/B551011/KorService2
+    service-key: ${TOUR_API_SERVICE_KEY:a1276cb5e93f8b11431d3d2fbfe5e843c3da51d2cd537c50170ea15e87f343ff}
+    response-type: json
+    num-of-rows: 100
+    page-no: 1
+    arrange: A # A=제목순, B=조회순, C=수정일순, D=생성일순, E=거리순
+    default-area-code: "1" # 서울
+
+# Kakao Map API Configuration
+kakao:
+  map:
+    api:
+      base-url: https://dapi.kakao.com/v2/local
+      rest-api-key: ${KAKAO_MAP_REST_API_KEY:dummy-kakao-map-key}
+      search:
+        keyword: /search/keyword.json
+        category: /search/category.json
+        address: /search/address.json
+        coord2address: /geo/coord2address.json
+        address2coord: /geo/address2coord.json
+      default:
+        size: 15
+        page: 1
+        sort: accuracy # accuracy, distance
+
 
 # AWS S3 Configuration
 aws:

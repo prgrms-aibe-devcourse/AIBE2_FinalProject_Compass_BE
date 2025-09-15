@@ -1,3 +1,4 @@
+
 -- Test users with BCrypt encrypted passwords
 -- Password for all users: Test1234!
 INSERT INTO users (email, password, nickname, role, created_at, updated_at) 
@@ -8,3 +9,4 @@ ON CONFLICT (email) DO NOTHING;
 
 -- Reset sequence to avoid ID conflicts
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users) + 1, false);
+
