@@ -14,6 +14,12 @@ import java.util.function.Function;
 /**
  * Configuration for Spring AI Function Calling
  * This class registers functions that can be called by the LLM during conversation
+ *
+ * NOTE: 이 설정의 모든 Function들은 MainLLMOrchestrator (CHAT2 도메인)에 의해
+ * 자동으로 수집되어 통합 관리됩니다.
+ *
+ * @see com.compass.domain.chat2.orchestrator.MainLLMOrchestrator
+ * @see com.compass.domain.chat2.config.OrchestratorConfiguration
  */
 @Slf4j
 @Configuration
