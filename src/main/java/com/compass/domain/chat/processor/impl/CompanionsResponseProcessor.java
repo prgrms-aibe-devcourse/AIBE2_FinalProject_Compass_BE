@@ -15,14 +15,23 @@ public class CompanionsResponseProcessor implements ResponseProcessor {
     
     @Override
     public void process(TravelInfoCollectionState state, String response) {
-        String companionType = TravelParsingUtils.parseCompanionType(response);
-        int travelerCount = TravelParsingUtils.parseTravelerCount(response, companionType);
-        
-        state.setCompanionType(companionType);
-        state.setNumberOfTravelers(travelerCount);
+        // 원문 그대로 저장
+        state.setCompanionsRaw(response.trim());
         state.setCompanionsCollected(true);
+        log.info("Companions collected (raw): {}", response.trim());
         
-        log.info("Companions collected: type={}, count={}", companionType, travelerCount);
+        // 선택적으로 동행자 파싱 시도 (실패해도 계속 진행)
+        try {
+            String companionType = TravelParsingUtils.parseCompanionType(response);
+            int travelerCount = TravelParsingUtils.parseTravelerCount(response, companionType);
+            
+            state.setCompanionType(companionType);
+            state.setNumberOfTravelers(travelerCount);
+            
+            log.debug("Companions parsed: type={}, count={}", companionType, travelerCount);
+        } catch (Exception e) {
+            log.debug("Companion parsing failed, using raw companions: {}", e.getMessage());
+        }
     }
     
     @Override

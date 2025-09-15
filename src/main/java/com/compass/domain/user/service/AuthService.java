@@ -120,8 +120,8 @@ public class AuthService {
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
 
         // Generate new tokens
-        String newAccessToken = jwtTokenProvider.createAccessToken(user.getEmail(), Collections.singletonList(user.getRole().name()));
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
+        String newAccessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getId(), Collections.singletonList(user.getRole().name()));
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getEmail(), user.getId());
 
         log.info("Token refreshed for user: {}", user.getEmail());
 

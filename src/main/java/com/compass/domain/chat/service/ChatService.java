@@ -13,6 +13,7 @@ public interface ChatService {
      * REQ-CHAT-001: 채팅방 생성 로직
      */
     ThreadDto createThread(String userId);
+    ThreadDto createThread(String userId, String title);
 
     /**
      * REQ-CHAT-002: 채팅 목록 조회 로직
@@ -32,4 +33,8 @@ public interface ChatService {
     Map<String, Object> chatWithGemini(String message);
 
     Map<String, Object> chatWithOpenAI(String message);
+    
+    void hideThread(String threadId, Long userId);
+    
+    void showThread(String threadId, Long userId);
 }

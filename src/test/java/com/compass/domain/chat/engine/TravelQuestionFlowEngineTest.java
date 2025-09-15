@@ -151,6 +151,7 @@ class TravelQuestionFlowEngineTest {
         testState.setDurationCollected(true);
         testState.setCompanionsCollected(true);
         testState.setBudgetCollected(true);
+        testState.setTravelStyle("relaxed");  // 여행 스타일 추가
         
         // When
         boolean isComplete = flowEngine.isFlowComplete(testState);

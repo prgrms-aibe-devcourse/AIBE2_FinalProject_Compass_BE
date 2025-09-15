@@ -20,7 +20,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -75,8 +77,8 @@ public class UserService {
             throw new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다.");
         }
 
-        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail());
-        String refreshToken = jwtTokenProvider.createRefreshToken(); // Refresh Token 생성
+        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getId(), Collections.singletonList(user.getRole().name()));
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail(), user.getId()); // Refresh Token 생성
 
         // Redis에 Refresh Token 저장 (Key: "RT:{userId}", Value: refreshToken)
         // 토큰의 유효기간만큼 Redis에도 유효기간을 설정합니다.

@@ -219,6 +219,62 @@ public class TravelInfoCollectionController {
         return ResponseEntity.ok(validationResult);
     }
     
+    /**
+     * 여행 계획 데이터를 JSON으로 저장
+     */
+    @PostMapping("/save-travel-plan/{threadId}")
+    @Operation(summary = "여행 계획 데이터 저장", description = "수집된 여행 정보를 JSON으로 변환하여 채팅 스레드에 저장합니다")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "저장 성공",
+                content = @Content(schema = @Schema(implementation = Map.class))),
+        @ApiResponse(responseCode = "400", description = "활성화된 수집 세션이 없음"),
+        @ApiResponse(responseCode = "404", description = "채팅 스레드를 찾을 수 없음")
+    })
+    public ResponseEntity<Map<String, Object>> saveTravelPlanAsJson(
+            @PathVariable String threadId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        
+        log.info("Saving travel plan as JSON for thread: {}", threadId);
+        
+        Long userId = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalStateException("사용자를 찾을 수 없습니다"))
+                .getId();
+        
+        String jsonData = collectionService.saveTravelPlanDataAsJson(threadId, userId);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "여행 계획 데이터가 성공적으로 저장되었습니다.");
+        response.put("threadId", threadId);
+        response.put("dataSize", jsonData.length());
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * 저장된 여행 계획 데이터 조회
+     */
+    @GetMapping("/travel-plan/{threadId}")
+    @Operation(summary = "여행 계획 데이터 조회", description = "채팅 스레드에 저장된 여행 계획 JSON 데이터를 조회합니다")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "조회 성공",
+                content = @Content(schema = @Schema(implementation = String.class))),
+        @ApiResponse(responseCode = "204", description = "저장된 데이터가 없음"),
+        @ApiResponse(responseCode = "404", description = "채팅 스레드를 찾을 수 없음")
+    })
+    public ResponseEntity<String> getTravelPlanData(@PathVariable String threadId) {
+        
+        log.info("Getting travel plan data for thread: {}", threadId);
+        
+        String jsonData = collectionService.getTravelPlanDataJson(threadId);
+        
+        if (jsonData == null || jsonData.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        
+        return ResponseEntity.ok(jsonData);
+    }
+    
     // === Request/Response DTOs ===
     
     /**

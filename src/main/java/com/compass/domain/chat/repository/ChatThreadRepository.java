@@ -27,6 +27,14 @@ public interface ChatThreadRepository extends JpaRepository<ChatThread, String> 
     List<ChatThread> findByUserIdOrderByLastMessageAtDesc(@Param("userId") Long userId);
     
     /**
+     * Find visible threads for a specific user, ordered by last message time
+     * @param userId User ID
+     * @return List of visible chat threads
+     */
+    @Query("SELECT ct FROM ChatThread ct WHERE ct.user.id = :userId AND (ct.isVisible = true OR ct.isVisible IS NULL) ORDER BY ct.lastMessageAt DESC NULLS LAST, ct.createdAt DESC")
+    List<ChatThread> findVisibleThreadsByUserId(@Param("userId") Long userId);
+    
+    /**
      * Find threads for a user with pagination
      * @param userId User ID
      * @param pageable Pagination information

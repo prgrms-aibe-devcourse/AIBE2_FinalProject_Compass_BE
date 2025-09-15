@@ -15,7 +15,8 @@ import java.util.Map;
 @Entity
 @Table(name = "chat_messages", indexes = {
     @Index(name = "idx_chat_message_thread_id", columnList = "thread_id"),
-    @Index(name = "idx_chat_message_timestamp", columnList = "timestamp DESC")
+    @Index(name = "idx_chat_message_timestamp", columnList = "timestamp DESC"),
+    @Index(name = "idx_chat_message_thread_timestamp", columnList = "thread_id, timestamp DESC")
 })
 @Getter
 @Setter

@@ -76,6 +76,22 @@ public class FollowUpQuestionDto {
      */
     private Map<String, Object> collectedInfo;
     
+    // REQ-FOLLOW-006: 재질문 관련 필드
+    /**
+     * 재질문 여부
+     */
+    private boolean isClarification;
+    
+    /**
+     * 재시도 횟수
+     */
+    private int retryCount;
+    
+    /**
+     * 원본 응답 (파싱 실패한 경우)
+     */
+    private String originalResponse;
+    
     /**
      * 빠른 선택 옵션
      */

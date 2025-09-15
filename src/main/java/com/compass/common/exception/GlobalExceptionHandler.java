@@ -42,9 +42,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
         // 실제 운영 환경에서는 로그를 남기는 것이 중요합니다.
-        // log.error("Unhandled exception occurred", ex);
+        ex.printStackTrace(); // 디버깅용 로그 추가
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("예상치 못한 오류가 발생했습니다."));
+                .body(new ErrorResponse("예상치 못한 오류가 발생했습니다: " + ex.getMessage()));
     }
     
     // ================== 선호도 관련 예외 ==================

@@ -261,7 +261,7 @@ class TravelInfoCollectionServiceTest {
         // Then
         assertThat(result).isNotNull();
         assertThat(result.getSessionId()).isEqualTo("TIC_TEST1234");
-        assertThat(result.getCompletionPercentage()).isEqualTo(16); // 1/6 = 16%
+        assertThat(result.getCompletionPercentage()).isEqualTo(14); // 1/7 = 14.29 -> 14%
         assertThat(result.getFieldStatus().isDestinationCollected()).isTrue();
     }
     
