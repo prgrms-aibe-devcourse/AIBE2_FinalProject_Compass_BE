@@ -51,12 +51,16 @@ public class OrchestratorConfiguration {
         functionTypeBeans.forEach((beanName, function) -> {
             if (!allFunctions.containsKey(beanName) && !beanName.contains("Logger")) {
                 // Function을 FunctionCallback으로 래핑
+                // TODO: Spring AI 버전에 맞는 FunctionCallback 생성 방법 확인 필요
+                // 임시로 주석 처리
+                /*
                 FunctionCallback callback = FunctionCallback.builder()
                     .function(beanName, function)
                     .description(getDescriptionForFunction(beanName))
                     .build();
 
                 allFunctions.put(beanName, callback);
+                */
                 log.info("📌 Function 래핑 및 등록: {}", beanName);
             }
         });

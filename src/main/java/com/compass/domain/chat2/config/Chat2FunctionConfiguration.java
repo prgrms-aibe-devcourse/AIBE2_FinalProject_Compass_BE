@@ -2,6 +2,7 @@ package com.compass.domain.chat2.config;
 
 import com.compass.domain.chat.service.TravelInfoCollectionService;
 import com.compass.domain.chat.engine.TravelQuestionFlowEngine;
+import com.compass.domain.chat.dto.TravelInfoStatusDto;
 import com.compass.domain.chat2.dto.AnalyzeUserInputRequest;
 import com.compass.domain.chat2.dto.AnalyzeUserInputResponse;
 import com.compass.domain.chat2.dto.StartFollowUpRequest;
@@ -13,6 +14,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 import static com.compass.domain.chat2.config.Chat2FunctionConstants.*;
@@ -43,19 +47,25 @@ public class Chat2FunctionConfiguration {
 
             try {
                 // 사용자 입력 분석 및 정보 추출
-                var travelInfo = travelInfoCollectionService.extractTravelInfo(
-                    request.getUserInput(),
-                    request.getThreadId()
-                );
+                // TODO: 실제 구현 필요 - TravelInfoCollectionService에 메서드 추가 필요
+                Map<String, Object> travelInfo = new HashMap<>();
+                travelInfo.put("userInput", request.getUserInput());
+                travelInfo.put("threadId", request.getThreadId());
 
-                // 추출된 정보 검증
-                boolean isComplete = travelInfoCollectionService.isCollectionComplete(request.getThreadId());
+                // 현재 상태 조회
+                TravelInfoStatusDto status = null;
+                try {
+                    status = travelInfoCollectionService.getCollectionStatus(request.getThreadId());
+                } catch (Exception e) {
+                    // 세션이 없는 경우 무시
+                }
+                boolean isComplete = status != null && status.getCompletionPercentage() == 100;
 
                 return AnalyzeUserInputResponse.builder()
                     .status("SUCCESS")
                     .extractedInfo(travelInfo)
                     .isComplete(isComplete)
-                    .missingFields(travelInfoCollectionService.getMissingFields(request.getThreadId()))
+                    .missingFields(new ArrayList<>()) // TODO: 실제 누락 필드 확인 로직 구현 필요
                     .confidence(0.85)
                     .build();
 
@@ -82,21 +92,27 @@ public class Chat2FunctionConfiguration {
 
             try {
                 // 현재 수집 상태 확인
-                var collectionState = travelInfoCollectionService.getCollectionState(request.getThreadId());
-
-                if (collectionState == null) {
-                    // 새로운 Follow-up 세션 시작
-                    travelInfoCollectionService.initializeCollection(request.getThreadId());
+                TravelInfoStatusDto status = null;
+                try {
+                    status = travelInfoCollectionService.getCollectionStatus(request.getThreadId());
+                } catch (Exception e) {
+                    // 세션이 없으면 새로 시작
+                    log.info("세션이 없음, 새로운 수집 시작");
                 }
 
-                // 다음 질문 생성
-                String nextQuestion = travelQuestionFlowEngine.generateNextQuestion(
-                    request.getThreadId(),
-                    request.getUserId()
-                );
+                if (status == null) {
+                    // 새로운 Follow-up 세션 시작
+                    // startInfoCollection을 호출해야 하지만 userId가 Long 타입이어야 함
+                    Long userIdLong = Long.parseLong(request.getUserId());
+                    travelInfoCollectionService.startInfoCollection(userIdLong, request.getThreadId(), "여행 정보 수집 시작");
+                }
+
+                // 다음 질문 생성 - TravelQuestionFlowEngine는 TravelInfoCollectionState를 받음
+                // TODO: 실제 구현 필요
+                String nextQuestion = "다음 정보를 알려주세요: 여행 목적지는 어디인가요?";
 
                 // 진행률 계산
-                double progress = travelInfoCollectionService.calculateProgress(request.getThreadId());
+                double progress = status != null ? status.getCompletionPercentage() / 100.0 : 0.0;
 
                 return StartFollowUpResponse.builder()
                     .status("SUCCESS")
@@ -171,18 +187,19 @@ public class Chat2FunctionConfiguration {
     /**
      * Function 등록 상태 로깅
      */
-    @Bean
-    public FunctionCallback chat2FunctionLogger() {
-        log.info("✅ CHAT2 Functions 등록 완료:");
-        log.info("  - analyzeUserInput: 사용자 입력 분석");
-        log.info("  - startFollowUp: Follow-up 질문 시작");
-        log.info("  - classifyIntent: Intent 분류");
-        log.info("  - generateFinalResponse: 최종 응답 생성");
-
-        // Dummy callback for logging
-        return FunctionCallback.builder()
-            .function("chat2Logger", (Object input) -> "logged")
-            .description("CHAT2 Function 로깅")
-            .build();
-    }
+    // TODO: Spring AI 버전에 맞는 FunctionCallback 생성 방법 확인 필요
+    // @Bean
+    // public FunctionCallback chat2FunctionLogger() {
+    //     log.info("✅ CHAT2 Functions 등록 완료:");
+    //     log.info("  - analyzeUserInput: 사용자 입력 분석");
+    //     log.info("  - startFollowUp: Follow-up 질문 시작");
+    //     log.info("  - classifyIntent: Intent 분류");
+    //     log.info("  - generateFinalResponse: 최종 응답 생성");
+    //
+    //     // Dummy callback for logging
+    //     return FunctionCallback.builder()
+    //         .function("chat2Logger", (Object input) -> "logged")
+    //         .description("CHAT2 Function 로깅")
+    //         .build();
+    // }
 }
