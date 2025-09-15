@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -124,8 +124,8 @@ class UserServiceTest {
 
         when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())).thenReturn(true);
-        when(jwtTokenProvider.createAccessToken(user.getEmail())).thenReturn("test.access.token");
-        when(jwtTokenProvider.createRefreshToken()).thenReturn("test.refresh.token");
+        when(jwtTokenProvider.createAccessToken(eq(user.getEmail()), eq(1L), anyList())).thenReturn("test.access.token");
+        when(jwtTokenProvider.createRefreshToken(user.getEmail(), 1L)).thenReturn("test.refresh.token");
         when(jwtTokenProvider.getRefreshTokenExpiration()).thenReturn(604800000L);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 

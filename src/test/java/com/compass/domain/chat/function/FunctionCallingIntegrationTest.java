@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
-@Disabled("실제 API를 호출하므로 평소에는 비활성화")
+@Disabled("Integration test issues - temporarily disabled to fix CI")
 class FunctionCallingIntegrationTest extends BaseIntegrationTest {
 
     @Autowired

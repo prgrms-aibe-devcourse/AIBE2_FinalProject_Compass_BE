@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  * 이 테스트는 실제 Google Cloud 인증이 필요합니다.
  * 환경 변수가 설정된 경우에만 실행됩니다.
  */
-@Disabled("실제 API를 호출하므로 평소에는 비활성화")
+@Disabled("Integration test issues - temporarily disabled to fix CI")
 class RealApiIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
