@@ -152,19 +152,15 @@ public class IntegratedSearchService {
             // RDS 검색 실행
             if (request.getCategory() != null && request.getAreaCode() != null) {
                 rdsResults = searchService.fullTextSearchWithFilters(
-                        request.getKeyword(), request.getCategory(), request.getAreaCode(), 
-                        (int) pageable.getOffset(), pageable.getPageSize());
+                        request.getKeyword(), request.getCategory(), request.getAreaCode(), pageable);
             } else if (request.getCategory() != null) {
                 rdsResults = searchService.fullTextSearchWithCategory(
-                        request.getKeyword(), request.getCategory(), 
-                        (int) pageable.getOffset(), pageable.getPageSize());
+                        request.getKeyword(), request.getCategory(), pageable);
             } else if (request.getAreaCode() != null) {
                 rdsResults = searchService.fullTextSearchWithArea(
-                        request.getKeyword(), request.getAreaCode(), 
-                        (int) pageable.getOffset(), pageable.getPageSize());
+                        request.getKeyword(), request.getAreaCode(), pageable);
             } else {
-                rdsResults = searchService.fullTextSearch(
-                        request.getKeyword(), (int) pageable.getOffset(), pageable.getPageSize());
+                rdsResults = searchService.fullTextSearch(request.getKeyword(), pageable);
             }
 
             long searchTime = System.currentTimeMillis() - startTime;
@@ -205,21 +201,34 @@ public class IntegratedSearchService {
             log.info("Tour API 검색 실행: keyword={}", request.getKeyword());
             
             // Tour API 검색 실행
-            var tourResults = tourApiSearchService.searchKeyword(
-                    request.getKeyword(), request.getPage(), request.getSize());
+            var tourResults = tourApiSearchService.searchByKeyword(
+                    request.getKeyword(), request.getAreaCode(), null);
 
             long searchTime = System.currentTimeMillis() - startTime;
-            systemStats.put("TOUR_API", IntegratedSearchResponse.SearchSystemStats.builder()
-                    .systemName("TOUR_API")
-                    .resultCount(tourResults.size())
-                    .searchTimeMs(searchTime)
-                    .success(true)
-                    .build());
+            
+            if (tourResults.isPresent()) {
+                int resultCount = tourResults.get().getResponse().getBody().getTotalCount();
+                systemStats.put("TOUR_API", IntegratedSearchResponse.SearchSystemStats.builder()
+                        .systemName("TOUR_API")
+                        .resultCount(resultCount)
+                        .searchTimeMs(searchTime)
+                        .success(true)
+                        .build());
 
-            // Tour API 결과를 SearchResult로 변환
-            return tourResults.stream()
-                    .map(this::convertTourApiToSearchResult)
-                    .collect(Collectors.toList());
+                // Tour API 결과를 SearchResult로 변환
+                return tourResults.get().getResponse().getBody().getItems().getItem().stream()
+                        .map(this::convertTourApiToSearchResult)
+                        .collect(Collectors.toList());
+            } else {
+                systemStats.put("TOUR_API", IntegratedSearchResponse.SearchSystemStats.builder()
+                        .systemName("TOUR_API")
+                        .resultCount(0)
+                        .searchTimeMs(searchTime)
+                        .success(false)
+                        .errorMessage("Tour API 검색 실패")
+                        .build());
+                return new ArrayList<>();
+            }
 
         } catch (Exception e) {
             long searchTime = System.currentTimeMillis() - startTime;
