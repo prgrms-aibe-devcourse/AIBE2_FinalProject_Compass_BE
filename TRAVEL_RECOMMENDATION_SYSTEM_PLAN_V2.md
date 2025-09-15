@@ -5721,7 +5721,193 @@ public class GlobalExceptionHandler {
 4. **투명한 동작**: Function 호출 로그로 추적 가능
 5. **유지보수 용이**: 각 기능이 독립적으로 구현됨
 
-### 7.2 주의사항
+### 7.2 예약 정보 기반 일정 조정 로직
+
+#### generateTravelPlanWithReservations (예약 정보 고려 일정 생성)
+```java
+@Bean
+@Description("기존 예약 정보를 고려하여 여행 계획을 생성합니다")
+public Function<GeneratePlanWithReservationsRequest, TravelPlanResponse> generateTravelPlanWithReservations() {
+    return request -> {
+        log.info("예약 정보 기반 일정 생성: {}", request.threadId());
+
+        // 기존 예약 정보 조회
+        List<ReservationInfo> reservations = reservationRepository.findByUserId(request.userId());
+
+        // 항공 시간 제약사항
+        FlightConstraints flightConstraints = extractFlightConstraints(reservations);
+
+        // 호텔 체크인/아웃 제약사항
+        HotelConstraints hotelConstraints = extractHotelConstraints(reservations);
+
+        // 행사 필수 일정
+        List<MandatoryEvent> mandatoryEvents = extractMandatoryEvents(reservations);
+
+        // 일정 생성 시 제약사항 적용
+        TravelPlan plan = createPlanWithConstraints(
+            request,
+            flightConstraints,
+            hotelConstraints,
+            mandatoryEvents
+        );
+
+        return new TravelPlanResponse(
+            plan,
+            "예약 정보를 반영한 일정이 생성되었습니다"
+        );
+    };
+}
+
+private TravelPlan createPlanWithConstraints(
+    GeneratePlanRequest request,
+    FlightConstraints flight,
+    HotelConstraints hotel,
+    List<MandatoryEvent> events) {
+
+    TravelPlan plan = new TravelPlan();
+
+    // 첫날 일정 조정 (항공 도착 시간 고려)
+    if (flight != null && flight.arrivalTime != null) {
+        LocalTime arrivalTime = flight.arrivalTime.toLocalTime();
+
+        // 오전 도착인 경우
+        if (arrivalTime.isBefore(LocalTime.NOON)) {
+            plan.getDay(0).setStartTime(arrivalTime.plusHours(1)); // 공항→시내 이동 시간
+            plan.getDay(0).addActivities(generateFullDayActivities());
+        }
+        // 오후 도착인 경우
+        else if (arrivalTime.isAfter(LocalTime.of(15, 0))) {
+            plan.getDay(0).setStartTime(arrivalTime.plusHours(1));
+            plan.getDay(0).addActivities(generateEveningActivities());
+        }
+        // 저녁 도착인 경우
+        else if (arrivalTime.isAfter(LocalTime.of(18, 0))) {
+            plan.getDay(0).setStartTime(arrivalTime.plusHours(1));
+            plan.getDay(0).addActivity("호텔 체크인 및 휴식");
+            plan.getDay(0).addActivity("저녁 식사");
+        }
+    }
+
+    // 마지막 날 일정 조정 (항공 출발 시간 고려)
+    if (flight != null && flight.departureTime != null) {
+        LocalTime departureTime = flight.departureTime.toLocalTime();
+        int lastDay = plan.getDays().size() - 1;
+
+        // 오전 출발인 경우
+        if (departureTime.isBefore(LocalTime.NOON)) {
+            plan.getDay(lastDay).setEndTime(departureTime.minusHours(2)); // 공항 도착 2시간 전
+            plan.getDay(lastDay).clearAfternoonActivities();
+        }
+        // 오후 출발인 경우
+        else if (departureTime.isBefore(LocalTime.of(18, 0))) {
+            plan.getDay(lastDay).setEndTime(departureTime.minusHours(2));
+            plan.getDay(lastDay).addActivities(generateMorningActivities());
+        }
+        // 저녁 출발인 경우
+        else {
+            plan.getDay(lastDay).addActivities(generateFullDayActivities());
+            plan.getDay(lastDay).setEndTime(departureTime.minusHours(2));
+        }
+    }
+
+    // 호텔 체크인/아웃 시간 고려
+    if (hotel != null) {
+        // 체크인 시간 (14:00 이후)
+        if (hotel.checkInTime != null) {
+            plan.addNote("호텔 체크인: " + hotel.checkInTime);
+            plan.getDay(0).addConstraint("HOTEL_CHECKIN", hotel.checkInTime);
+        }
+
+        // 체크아웃 시간 (11:00 이전)
+        if (hotel.checkOutTime != null) {
+            int lastDay = plan.getDays().size() - 1;
+            plan.addNote("호텔 체크아웃: " + hotel.checkOutTime);
+            plan.getDay(lastDay).addConstraint("HOTEL_CHECKOUT", hotel.checkOutTime);
+        }
+    }
+
+    // 필수 행사 일정 추가
+    for (MandatoryEvent event : events) {
+        LocalDate eventDate = event.dateTime.toLocalDate();
+        int dayIndex = calculateDayIndex(plan.getStartDate(), eventDate);
+
+        if (dayIndex >= 0 && dayIndex < plan.getDays().size()) {
+            plan.getDay(dayIndex).addMandatoryActivity(
+                event.dateTime.toLocalTime(),
+                event.duration,
+                event.eventName,
+                event.location
+            );
+
+            // 행사 전후 시간 확보
+            plan.getDay(dayIndex).adjustScheduleAroundEvent(event);
+        }
+    }
+
+    return plan;
+}
+```
+
+#### adjustScheduleForReservations (예약 시간에 맞춰 일정 조정)
+```java
+private void adjustScheduleForReservations(TravelPlan plan, List<ReservationInfo> reservations) {
+    for (ReservationInfo reservation : reservations) {
+        switch (reservation.getType()) {
+            case "FLIGHT" -> {
+                FlightInfo flight = (FlightInfo) reservation.getDetails();
+                adjustForFlightTimes(plan, flight);
+            }
+            case "HOTEL" -> {
+                HotelInfo hotel = (HotelInfo) reservation.getDetails();
+                adjustForHotelTimes(plan, hotel);
+            }
+            case "EVENT" -> {
+                EventInfo event = (EventInfo) reservation.getDetails();
+                insertMandatoryEvent(plan, event);
+            }
+        }
+    }
+}
+
+private void adjustForFlightTimes(TravelPlan plan, FlightInfo flight) {
+    // 첫날 시작 시간 조정
+    LocalDateTime arrivalTime = flight.arrivalTime();
+    LocalTime startTime = arrivalTime.toLocalTime().plusHours(1); // 공항→시내 1시간
+
+    DayPlan firstDay = plan.getDay(0);
+    firstDay.setStartTime(startTime);
+
+    // 도착 시간에 따른 활동 조정
+    if (startTime.isAfter(LocalTime.of(16, 0))) {
+        // 늦은 도착: 가벼운 활동만
+        firstDay.clearAllActivities();
+        firstDay.addActivity("호텔 체크인");
+        firstDay.addActivity("저녁 식사");
+        firstDay.addActivity("휴식");
+    } else if (startTime.isAfter(LocalTime.NOON)) {
+        // 오후 도착: 오후 활동만
+        firstDay.removeBeforeTime(LocalTime.NOON);
+    }
+
+    // 마지막 날 종료 시간 조정
+    LocalDateTime departureTime = flight.departureTime();
+    LocalTime endTime = departureTime.toLocalTime().minusHours(2); // 공항 2시간 전 도착
+
+    DayPlan lastDay = plan.getDay(plan.getDays().size() - 1);
+    lastDay.setEndTime(endTime);
+
+    // 출발 시간에 따른 활동 조정
+    if (endTime.isBefore(LocalTime.NOON)) {
+        // 오전 출발: 아침 활동만
+        lastDay.removeAfterTime(LocalTime.of(10, 0));
+    } else if (endTime.isBefore(LocalTime.of(15, 0))) {
+        // 이른 오후 출발: 오전 활동만
+        lastDay.removeAfterTime(LocalTime.NOON);
+    }
+}
+```
+
+### 7.3 주의사항
 
 #### 개발 시 주의사항
 1. **Function 이름**: 명확하고 직관적인 이름 사용
