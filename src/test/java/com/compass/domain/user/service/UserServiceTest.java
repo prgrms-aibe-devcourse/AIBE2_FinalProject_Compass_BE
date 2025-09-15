@@ -1,13 +1,22 @@
 package com.compass.domain.user.service;
 
 import com.compass.config.jwt.JwtTokenProvider;
+import com.compass.domain.trip.repository.TravelHistoryRepository;
 import com.compass.domain.user.dto.UserDto;
+import com.compass.domain.user.dto.UserFeedbackDto;
+import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.entity.User;
+import com.compass.domain.user.entity.UserFeedback;
+import com.compass.domain.user.entity.UserPreference;
+import com.compass.domain.user.enums.BudgetLevel;
 import com.compass.domain.user.enums.Role;
+import com.compass.domain.user.repository.UserFeedbackRepository;
+import com.compass.domain.user.repository.UserPreferenceRepository;
 import com.compass.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -16,6 +25,9 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +53,19 @@ class UserServiceTest {
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Mock
+    private UserPreferenceRepository userPreferenceRepository;
+
+    @Mock
+    private TravelHistoryRepository travelHistoryRepository;
+
+    @Mock
+    private PreferenceAnalyzer preferenceAnalyzer;
+
+    @Mock
+    private UserFeedbackRepository userFeedbackRepository;
+
 
     @Test
     @DisplayName("회원가입 성공")
@@ -252,5 +277,214 @@ class UserServiceTest {
         assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
     }
 
+
+    @Test
+    @DisplayName("여행 스타일 선호도 수정 성공")
+    void updateUserTravelStyle_success() {
+        // given
+        String email = "style@example.com";
+        User mockUser = User.builder().email(email).build();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        UserPreferenceDto.UpdateRequest updateRequest = new UserPreferenceDto.UpdateRequest();
+        UserPreferenceDto.PreferenceItem item1 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item1, "key", "RELAXATION");
+        ReflectionTestUtils.setField(item1, "value", new BigDecimal("0.7"));
+
+        UserPreferenceDto.PreferenceItem item2 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item2, "key", "ACTIVITY");
+        ReflectionTestUtils.setField(item2, "value", new BigDecimal("0.3"));
+
+        ReflectionTestUtils.setField(updateRequest, "preferences", List.of(item1, item2));
+
+        // when
+        List<UserPreferenceDto.Response> result = userService.updateUserTravelStyle(email, updateRequest);
+
+        // then
+        verify(userPreferenceRepository).deleteByUserAndPreferenceType(mockUser, "TRAVEL_STYLE");
+
+        ArgumentCaptor<List<UserPreference>> captor = ArgumentCaptor.forClass(List.class);
+        verify(userPreferenceRepository).saveAll(captor.capture());
+        List<UserPreference> savedPreferences = captor.getValue();
+
+        assertThat(savedPreferences).hasSize(2);
+        assertThat(savedPreferences.get(0).getPreferenceKey()).isEqualTo("RELAXATION");
+        assertThat(savedPreferences.get(0).getPreferenceValue()).isEqualByComparingTo("0.7");
+
+        assertThat(result).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("여행 스타일 선호도 수정 실패 - 합계가 1이 아님")
+    void updateUserTravelStyle_fail_invalidSum() {
+        // given
+        String email = "style@example.com";
+        User mockUser = User.builder().email(email).build();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        UserPreferenceDto.UpdateRequest updateRequest = new UserPreferenceDto.UpdateRequest();
+        UserPreferenceDto.PreferenceItem item1 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item1, "key", "RELAXATION");
+        ReflectionTestUtils.setField(item1, "value", new BigDecimal("0.8")); // 합계가 1.1이 되도록 설정
+
+        UserPreferenceDto.PreferenceItem item2 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item2, "key", "ACTIVITY");
+        ReflectionTestUtils.setField(item2, "value", new BigDecimal("0.3"));
+
+        ReflectionTestUtils.setField(updateRequest, "preferences", List.of(item1, item2));
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateUserTravelStyle(email, updateRequest));
+
+        assertThat(exception.getMessage()).isEqualTo("선호도 값의 총합은 1.0이 되어야 합니다.");
+        verify(userPreferenceRepository, never()).deleteByUserAndPreferenceType(any(), any());
+        verify(userPreferenceRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("여행 스타일 선호도 수정 실패 - 사용자를 찾을 수 없음")
+    void updateUserTravelStyle_fail_userNotFound() {
+        // given
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        UserPreferenceDto.UpdateRequest updateRequest = new UserPreferenceDto.UpdateRequest();
+        UserPreferenceDto.PreferenceItem item1 = new UserPreferenceDto.PreferenceItem();
+        ReflectionTestUtils.setField(item1, "key", "RELAXATION");
+        ReflectionTestUtils.setField(item1, "value", new BigDecimal("1.0"));
+        ReflectionTestUtils.setField(updateRequest, "preferences", List.of(item1));
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateUserTravelStyle(email, updateRequest));
+
+        assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+    }
+
+
+    @Test
+    @DisplayName("예산 수준 설정 성공")
+    void updateBudgetLevel_success() {
+        // given
+        String email = "budget@example.com";
+        User mockUser = User.builder().email(email).build();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        UserPreferenceDto.BudgetUpdateRequest request = new UserPreferenceDto.BudgetUpdateRequest();
+        ReflectionTestUtils.setField(request, "level", BudgetLevel.STANDARD);
+
+        // when
+        userService.updateBudgetLevel(email, request);
+
+        // then
+        verify(userPreferenceRepository).deleteByUserAndPreferenceType(mockUser, "BUDGET_LEVEL");
+
+        ArgumentCaptor<UserPreference> captor = ArgumentCaptor.forClass(UserPreference.class);
+        verify(userPreferenceRepository).save(captor.capture());
+        UserPreference savedPreference = captor.getValue();
+
+        assertThat(savedPreference.getUser()).isEqualTo(mockUser);
+        assertThat(savedPreference.getPreferenceType()).isEqualTo("BUDGET_LEVEL");
+        assertThat(savedPreference.getPreferenceKey()).isEqualTo("STANDARD");
+        assertThat(savedPreference.getPreferenceValue()).isEqualByComparingTo("1.0");
+    }
+
+    @Test
+    @DisplayName("예산 수준 설정 실패 - 사용자를 찾을 수 없음")
+    void updateBudgetLevel_fail_userNotFound() {
+        // given
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        UserPreferenceDto.BudgetUpdateRequest request = new UserPreferenceDto.BudgetUpdateRequest();
+        ReflectionTestUtils.setField(request, "level", BudgetLevel.LUXURY);
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateBudgetLevel(email, request));
+
+        assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+        verify(userPreferenceRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("선호도 분석 시 여행 기록이 없으면 빈 Optional 반환")
+    void analyzeAndSavePreferences_returnsEmpty_forNewUser() {
+        // given
+        String email = "new@example.com";
+        User mockUser = User.builder().email(email).build();
+        ReflectionTestUtils.setField(mockUser, "id", 1L); // user.getId()를 사용하므로 ID 설정
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        // 여행 기록이 비어있다고 설정
+        // User 객체가 아닌 Long 타입의 ID로 조회하도록 변경된 메서드를 모킹합니다.
+        when(travelHistoryRepository.findTop10ByUserIdOrderByCreatedAtDesc(mockUser.getId())).thenReturn(Collections.emptyList());
+
+        // 분석기가 "NEW_TRAVELER"를 반환하도록 설정
+        when(preferenceAnalyzer.analyzeTravelStyleWithAi(Collections.emptyList())).thenReturn("NEW_TRAVELER");
+
+        // when
+        Optional<UserPreferenceDto.Response> result = userService.analyzeAndSavePreferences(email);
+
+        // then
+        assertThat(result).isEmpty();
+        // DB에 아무것도 저장하거나 삭제하지 않았는지 확인
+        verify(userPreferenceRepository, never()).deleteByUserAndPreferenceType(any(), any());
+        verify(userPreferenceRepository, never()).save(any());
+    }
+
+
+
+    @Test
+    @DisplayName("피드백 저장 성공")
+    void saveFeedback_success() {
+        // given
+        String email = "feedback@example.com";
+        User mockUser = User.builder().email(email).build();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mockUser));
+
+        UserFeedbackDto.CreateRequest request = new UserFeedbackDto.CreateRequest();
+        ReflectionTestUtils.setField(request, "satisfaction", 5);
+        ReflectionTestUtils.setField(request, "comment", "Great service!");
+        ReflectionTestUtils.setField(request, "revisitIntent", true);
+
+        // Mocking the save operation is crucial to avoid NullPointerException.
+        // By default, a mock method returns null. The service code then tries to call .getId() on this null object.
+        // We configure the mock to return a valid UserFeedback object, simulating the real repository behavior.
+        UserFeedback savedFeedbackMock = UserFeedback.builder().build();
+        when(userFeedbackRepository.save(any(UserFeedback.class))).thenReturn(savedFeedbackMock);
+
+        // when
+        userService.saveFeedback(email, request);
+
+        // then
+        ArgumentCaptor<UserFeedback> captor = ArgumentCaptor.forClass(UserFeedback.class);
+        verify(userFeedbackRepository).save(captor.capture());
+        UserFeedback savedFeedback = captor.getValue();
+
+        assertThat(savedFeedback.getUser()).isEqualTo(mockUser);
+        assertThat(savedFeedback.getSatisfaction()).isEqualTo(5);
+        assertThat(savedFeedback.getComment()).isEqualTo("Great service!");
+        assertThat(savedFeedback.getRevisitIntent()).isTrue();
+    }
+
+    @Test
+    @DisplayName("피드백 저장 실패 - 사용자를 찾을 수 없음")
+    void saveFeedback_fail_userNotFound() {
+        // given
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        UserFeedbackDto.CreateRequest request = new UserFeedbackDto.CreateRequest();
+        ReflectionTestUtils.setField(request, "satisfaction", 5);
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.saveFeedback(email, request));
+
+        assertThat(exception.getMessage()).isEqualTo("User not found with email: " + email);
+        verify(userFeedbackRepository, never()).save(any());
+    }
 
 }

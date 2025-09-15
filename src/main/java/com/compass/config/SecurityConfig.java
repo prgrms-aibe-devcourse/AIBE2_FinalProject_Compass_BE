@@ -1,11 +1,5 @@
 package com.compass.config;
 
-import com.compass.config.jwt.JwtAuthenticationFilter;
-import com.compass.config.jwt.JwtTokenProvider;
-import com.compass.config.oauth.CustomOAuth2UserService;
-import com.compass.config.oauth.OAuth2AuthenticationFailureHandler;
-import com.compass.config.oauth.OAuth2AuthenticationSuccessHandler;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -20,7 +14,13 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
+import com.compass.config.jwt.JwtAuthenticationFilter;
+import com.compass.config.jwt.JwtTokenProvider;
+import com.compass.config.oauth.CustomOAuth2UserService;
+import com.compass.config.oauth.OAuth2AuthenticationFailureHandler;
+import com.compass.config.oauth.OAuth2AuthenticationSuccessHandler;
+
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
@@ -71,7 +71,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/test/**").permitAll()
                 .requestMatchers("/api/debug/**").permitAll()  // Debug endpoints for testing
                 .requestMatchers("/api/chat/**").permitAll()  // Chat endpoints for testing
+
                 .requestMatchers("/api/trips/**").permitAll()  // Trips endpoints for testing
+
+                .requestMatchers("/api/tour/**").permitAll()  // Tour API endpoints for testing
+                .requestMatchers("/api/crawl/**").permitAll()  // Crawl API endpoints for testing
                 .requestMatchers("/health").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()

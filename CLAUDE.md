@@ -10,57 +10,23 @@ Compass is an AI-powered personalized travel planning service built with Spring 
 
 ### Docker 실행 (필수)
 ```bash
+
 # ⚠️ 백엔드는 반드시 Docker로 실행
-docker-compose up -d
-
-# 로그 확인
-docker-compose logs -f app
-
-# 중지
-docker-compose down
-```
-
-### 테스트 실행
-```bash
-# Unit tests (Redis 불필요)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew unitTest
-
-# 전체 테스트
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew test
-
-# 빌드 (테스트 제외)
-JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home ./gradlew clean build -x test
-```
-
-### Frontend 실행
-```bash
-cd /Users/kmj/Documents/GitHub/AIBE2_FinalProject_Compass_BE/FE
-npm install
-npm start  # http://localhost:3000
-```
-
-## Architecture Overview
-
-### Domain Structure
-프로젝트는 5개 도메인으로 구성되어 있으며, 각 팀이 독립적으로 개발합니다:
-
-1. **USER Domain** - 인증/인가, 프로필 관리
-2. **CHAT1 Domain** - 기본 채팅 기능
-3. **CHAT2 Domain** - LLM 통합, Function Calling, Follow-up 질문 ⭐ **(현재 담당)**
-4. **MEDIA Domain** - 이미지 처리, OCR
-5. **TRIP Domain** - 여행 계획, RAG 추천
-
-**⚠️ 중요**: 
-- 현재 개발자는 **CHAT2 팀** 담당입니다
-- 다른 도메인 코드는 가능한 수정하지 않습니다
-- CHAT2 책임 영역: LLM 통합, Function Calling, Follow-up 시스템
 
 ### Technology Stack
+
 - **Framework**: Spring Boot 3.x, Java 17
 - **AI/ML**: Spring AI 1.0.0-M5 (Gemini 2.0 Flash, GPT-4o-mini)
 - **Database**: AWS RDS PostgreSQL, Redis 7
 - **Security**: JWT 인증
 - **Deployment**: Docker, AWS
+
+
+**Media** (`/api/media/*`):
+- POST `/api/media/upload` - File upload to S3
+- GET `/api/media/{id}` - Get media metadata
+- GET `/api/media/{id}/download` - Download file
+- GET `/api/media/{id}/thumbnail` - Get thumbnail image
 
 ## Configuration
 
@@ -152,6 +118,7 @@ npm start  # http://localhost:3000
 
 ## Important Notes
 
+
 1. **Git 작업 금지**: 모든 git 작업은 개발자가 직접 수행
 2. **Docker 필수**: 백엔드는 반드시 Docker로 실행
 3. **CHAT2 팀 역할**:
@@ -160,3 +127,4 @@ npm start  # http://localhost:3000
    - Follow-up 질문 시스템
    - 여행 정보 수집 플로우
 4. **Spring AI 사용**: 직접 API 호출 대신 Spring AI 추상화 사용
+
