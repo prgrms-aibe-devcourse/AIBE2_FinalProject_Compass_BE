@@ -1,6 +1,7 @@
 package com.compass.domain.user.controller;
 
 import com.compass.domain.user.dto.UserDto;
+import com.compass.domain.user.dto.UserFeedbackDto;
 import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -115,6 +116,18 @@ public class UserController {
 
         return optionalResponse.<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @PostMapping("/feedback")
+    @Operation(summary = "피드백 제출", description = "서비스에 대한 만족도 및 의견을 제출합니다.")
+    public ResponseEntity<UserFeedbackDto.Response> submitFeedback(
+            Authentication authentication,
+            @Valid @RequestBody UserFeedbackDto.CreateRequest request) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        UserFeedbackDto.Response response = userService.saveFeedback(authentication.getName(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
 }

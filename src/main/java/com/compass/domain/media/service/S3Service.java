@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.core.ResponseInputStream;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -79,6 +80,52 @@ public class S3Service {
     }
 
     /**
+     * S3에 썸네일을 업로드합니다.
+     * REQ-MEDIA-007: 300x300 WebP 포맷 썸네일 업로드
+     * 
+     * @param thumbnailBytes 썸네일 바이트 배열
+     * @param userId 사용자 ID
+     * @param thumbnailFilename 썸네일 파일명
+     * @return S3에 업로드된 썸네일의 URL
+     */
+    public String uploadThumbnail(byte[] thumbnailBytes, String userId, String thumbnailFilename) {
+        try {
+            String s3Key = generateThumbnailS3Key(userId, thumbnailFilename);
+            
+            log.info("S3 썸네일 업로드 시작 - 버킷: {}, 키: {}", bucketName, s3Key);
+            
+            // 썸네일 메타데이터 설정
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Key)
+                    .contentType("image/webp")
+                    .contentLength((long) thumbnailBytes.length)
+                    .metadata(java.util.Map.of(
+                            "thumbnail-type", "300x300",
+                            "user-id", userId,
+                            "upload-timestamp", LocalDateTime.now().toString(),
+                            "generated-by", "compass-thumbnail-service"
+                    ))
+                    .build();
+            
+            // S3에 썸네일 업로드
+            s3Client.putObject(putObjectRequest, RequestBody.fromBytes(thumbnailBytes));
+            
+            String thumbnailUrl = generateS3Url(s3Key);
+            log.info("S3 썸네일 업로드 완료 - URL: {}", thumbnailUrl);
+            
+            return thumbnailUrl;
+            
+        } catch (S3Exception e) {
+            log.error("S3 썸네일 업로드 중 오류 발생: {}", e.getMessage(), e);
+            throw new S3UploadException("S3 썸네일 업로드 중 오류가 발생했습니다: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("썸네일 업로드 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            throw new S3UploadException("썸네일 업로드 중 예상치 못한 오류가 발생했습니다.", e);
+        }
+    }
+
+    /**
      * S3에서 파일을 삭제합니다.
      * 
      * @param s3Url 삭제할 파일의 S3 URL
@@ -115,6 +162,38 @@ public class S3Service {
         log.info("기본 S3 URL 반환 - presigner 기능 미구현");
         return s3Url;
     }
+    
+    /**
+     * S3에서 파일을 다운로드합니다.
+     * 
+     * @param s3Url 다운로드할 파일의 S3 URL
+     * @return 파일 바이트 배열
+     */
+    public byte[] downloadFile(String s3Url) {
+        try {
+            String s3Key = extractS3KeyFromUrl(s3Url);
+            
+            log.info("S3 파일 다운로드 시작 - 버킷: {}, 키: {}", bucketName, s3Key);
+            
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Key)
+                    .build();
+            
+            try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(getObjectRequest)) {
+                byte[] fileBytes = s3Object.readAllBytes();
+                log.info("S3 파일 다운로드 완료 - 키: {}, 크기: {} bytes", s3Key, fileBytes.length);
+                return fileBytes;
+            }
+            
+        } catch (S3Exception e) {
+            log.error("S3 파일 다운로드 중 오류 발생: {}", e.getMessage(), e);
+            throw new S3UploadException("S3 파일 다운로드 중 오류가 발생했습니다: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("파일 다운로드 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            throw new S3UploadException("파일 다운로드 중 예상치 못한 오류가 발생했습니다.", e);
+        }
+    }
 
     /**
      * S3 키를 생성합니다.
@@ -124,6 +203,16 @@ public class S3Service {
         LocalDateTime now = LocalDateTime.now();
         String datePath = now.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
         return String.format("media/%s/%s/%s", userId, datePath, filename);
+    }
+
+    /**
+     * 썸네일용 S3 키를 생성합니다.
+     * 형식: thumbnails/{userId}/{year}/{month}/{day}/{filename}
+     */
+    private String generateThumbnailS3Key(String userId, String filename) {
+        LocalDateTime now = LocalDateTime.now();
+        String datePath = now.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+        return String.format("thumbnails/%s/%s/%s", userId, datePath, filename);
     }
 
     /**
