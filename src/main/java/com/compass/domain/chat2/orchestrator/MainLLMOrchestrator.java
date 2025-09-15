@@ -1,7 +1,9 @@
 package com.compass.domain.chat2.orchestrator;
 
 import com.compass.domain.chat2.model.Intent;
+import com.compass.domain.chat2.model.TravelPhase;
 import com.compass.domain.chat2.service.IntentClassificationService;
+import com.compass.domain.chat2.service.TravelPhaseManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
@@ -31,6 +33,7 @@ public class MainLLMOrchestrator {
 
     private final ChatModel chatModel;
     private final IntentClassificationService intentClassificationService;
+    private final TravelPhaseManager phaseManager;
     private final Map<String, FunctionCallback> allFunctions;
 
     /**
@@ -55,17 +58,29 @@ public class MainLLMOrchestrator {
     }
 
     /**
-     * 오케스트레이션 컨텍스트 구축
+     * 오케스트레이션 컨텍스트 구축 (Phase 인식)
      */
     private OrchestrationContext buildContext(String userInput, String threadId, String userId) {
+        // 1. Intent 분류
         Intent intent = classifyUserIntent(userInput);
-        List<String> functions = selectFunctionsForIntent(intent);
+
+        // 2. 현재 Phase 결정
+        TravelPhase currentPhase = determinePhase(threadId, intent);
+        log.info("현재 Phase: {} (threadId: {})", currentPhase.getKoreanName(), threadId);
+
+        // 3. Phase에 맞는 Function 선택
+        List<String> functions = selectFunctionsForPhase(currentPhase, intent);
+
+        // 4. Phase 데이터 준비
+        Map<String, Object> phaseData = preparePhaseData(threadId, currentPhase);
 
         return OrchestrationContext.builder()
             .userInput(userInput)
             .threadId(threadId)
             .userId(userId)
             .intent(intent)
+            .currentPhase(currentPhase)
+            .phaseData(phaseData)
             .selectedFunctions(functions)
             .functionOptions(buildFunctionOptions(functions))
             .prompt(buildPrompt(userInput, threadId, userId))
@@ -89,7 +104,7 @@ public class MainLLMOrchestrator {
     }
 
     /**
-     * 응답 처리
+     * 응답 처리 (Phase 전환 포함)
      */
     private String processResponse(ChatResponse response, String threadId) {
         if (!isValidResponse(response)) {
@@ -97,8 +112,46 @@ public class MainLLMOrchestrator {
         }
 
         String content = extractContent(response);
+
+        // Phase 전환 체크
+        checkAndTransitionPhase(threadId, content);
+
+        // 진행률 표시
+        int progress = phaseManager.calculatePhaseProgress(threadId);
+        TravelPhase currentPhase = phaseManager.getCurrentPhase(threadId);
+
+        log.info("[{}] {} - 진행률: {}% (threadId: {})",
+            currentPhase.name(),
+            currentPhase.getKoreanName(),
+            progress,
+            threadId);
+
         log.info(LOG_ORCHESTRATION_COMPLETE, threadId);
         return postProcessResponse(content);
+    }
+
+    /**
+     * Phase 전환 체크 및 실행
+     */
+    private void checkAndTransitionPhase(String threadId, String responseContent) {
+        // 응답 내용에서 Phase 전환 신호 감지
+        if (responseContent.contains("정보 수집 완료") ||
+            responseContent.contains("계획 생성 시작")) {
+            phaseManager.transitionPhase(
+                threadId,
+                TravelPhase.PLAN_GENERATION
+            );
+        } else if (responseContent.contains("계획 생성 완료")) {
+            phaseManager.transitionPhase(
+                threadId,
+                TravelPhase.FEEDBACK_REFINEMENT
+            );
+        } else if (responseContent.contains("최종 확정")) {
+            phaseManager.transitionPhase(
+                threadId,
+                TravelPhase.COMPLETION
+            );
+        }
     }
 
     /**
@@ -116,34 +169,99 @@ public class MainLLMOrchestrator {
     }
 
     /**
-     * Intent에 따라 필요한 Function들을 선택
+     * 현재 Phase 결정
      */
-    private List<String> selectFunctionsForIntent(Intent intent) {
-        return switch (intent) {
-            case TRAVEL_PLANNING -> List.of(
-                "analyzeUserInput",
-                "generateTravelPlan",
-                "searchWithPerplexity"
-            );
-            case INFORMATION_COLLECTION -> List.of(
-                "analyzeUserInput",
-                "startFollowUp"
-            );
-            case IMAGE_UPLOAD -> List.of(
-                "uploadToS3AndOCR",
-                "extractFlightInfo",
-                "extractHotelInfo"
-            );
-            case GENERAL_QUESTION -> List.of(
-                "handleGeneralQuestions",
-                "redirectToTravel"
-            );
-            case QUICK_INPUT -> List.of(
-                "processQuickInput",
-                "generateTravelPlan"
-            );
-            default -> List.of("analyzeUserInput");
+    private TravelPhase determinePhase(String threadId, Intent intent) {
+        // 현재 Phase 조회
+        TravelPhase currentPhase = phaseManager.getCurrentPhase(threadId);
+
+        // 초기 상태면 Intent 기반으로 Phase 설정
+        if (currentPhase == TravelPhase.INITIALIZATION) {
+            TravelPhase newPhase = phaseManager.determineInitialPhase(intent);
+            phaseManager.transitionPhase(threadId, newPhase);
+            return newPhase;
+        }
+
+        // Phase 완료 체크 및 자동 전환
+        if (phaseManager.isPhaseComplete(threadId)) {
+            TravelPhase nextPhase = getNextPhase(currentPhase);
+            if (phaseManager.transitionPhase(threadId, nextPhase)) {
+                return nextPhase;
+            }
+        }
+
+        return currentPhase;
+    }
+
+    /**
+     * 다음 Phase 결정
+     */
+    private TravelPhase getNextPhase(TravelPhase currentPhase) {
+        return switch (currentPhase) {
+            case INITIALIZATION -> TravelPhase.INFORMATION_COLLECTION;
+            case INFORMATION_COLLECTION -> TravelPhase.PLAN_GENERATION;
+            case PLAN_GENERATION -> TravelPhase.FEEDBACK_REFINEMENT;
+            case FEEDBACK_REFINEMENT -> TravelPhase.COMPLETION;
+            case COMPLETION -> TravelPhase.COMPLETION;
         };
+    }
+
+    /**
+     * Phase에 맞는 Function 선택
+     */
+    private List<String> selectFunctionsForPhase(TravelPhase phase, Intent intent) {
+        // Phase별 기본 Function
+        List<String> phaseFunctions = phaseManager.getPhaseAppropriateFunctions(phase);
+
+        // Intent에 따른 추가 조정
+        if (phase == TravelPhase.INFORMATION_COLLECTION) {
+            // 정보 수집 단계에서는 빠른 입력 폼 우선
+            if (intent == Intent.TRAVEL_PLANNING) {
+                return List.of(
+                    "showQuickInputForm",  // 최우선
+                    "analyzeUserInput",
+                    "startFollowUp"
+                );
+            }
+        }
+
+        return phaseFunctions;
+    }
+
+    /**
+     * Phase 데이터 준비
+     */
+    private Map<String, Object> preparePhaseData(String threadId, TravelPhase phase) {
+        Map<String, Object> data = new HashMap<>();
+
+        // Phase별 필요 데이터 로드
+        switch (phase) {
+            case INFORMATION_COLLECTION -> {
+                // 이미 수집된 정보 로드
+                data.put("collectedInfo", loadCollectedInfo(threadId));
+                data.put("progress", phaseManager.calculatePhaseProgress(threadId));
+            }
+            case PLAN_GENERATION -> {
+                // 수집 완료된 정보 로드
+                data.put("travelInfo", loadCompleteTravelInfo(threadId));
+            }
+            case FEEDBACK_REFINEMENT -> {
+                // 생성된 계획 로드
+                data.put("generatedPlan", loadGeneratedPlan(threadId));
+            }
+        }
+
+        return data;
+    }
+
+    /**
+     * Intent에 따라 필요한 Function들을 선택 (레거시 - Phase 도입 전)
+     * @deprecated Phase 기반 선택으로 대체됨
+     */
+    @Deprecated
+    private List<String> selectFunctionsForIntent(Intent intent) {
+        // Phase 기반 선택으로 대체
+        return List.of();
     }
 
     /**
@@ -219,5 +337,29 @@ public class MainLLMOrchestrator {
         allFunctions.forEach((name, callback) -> {
             log.info(LOG_FUNCTION_ITEM, name, callback.getDescription());
         });
+    }
+
+    /**
+     * 수집된 정보 로드 (헬퍼 메소드)
+     */
+    private Map<String, Object> loadCollectedInfo(String threadId) {
+        // TODO: DB에서 수집된 정보 로드
+        return new HashMap<>();
+    }
+
+    /**
+     * 완전한 여행 정보 로드 (헬퍼 메소드)
+     */
+    private Map<String, Object> loadCompleteTravelInfo(String threadId) {
+        // TODO: DB에서 완전한 여행 정보 로드
+        return new HashMap<>();
+    }
+
+    /**
+     * 생성된 계획 로드 (헬퍼 메소드)
+     */
+    private Map<String, Object> loadGeneratedPlan(String threadId) {
+        // TODO: DB에서 생성된 계획 로드
+        return new HashMap<>();
     }
 }

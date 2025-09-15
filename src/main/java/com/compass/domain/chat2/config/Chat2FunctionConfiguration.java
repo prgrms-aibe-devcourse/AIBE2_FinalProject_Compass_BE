@@ -1,7 +1,7 @@
 package com.compass.domain.chat2.config;
 
 import com.compass.domain.chat.service.TravelInfoCollectionService;
-import com.compass.domain.chat.service.TravelQuestionFlowEngine;
+import com.compass.domain.chat.engine.TravelQuestionFlowEngine;
 import com.compass.domain.chat2.dto.AnalyzeUserInputRequest;
 import com.compass.domain.chat2.dto.AnalyzeUserInputResponse;
 import com.compass.domain.chat2.dto.StartFollowUpRequest;

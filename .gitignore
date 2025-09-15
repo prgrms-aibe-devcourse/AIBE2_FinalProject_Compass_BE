@@ -87,3 +87,7 @@ frontend/
 FE/
 compass-frontend/
 compass-fe/
+
+# GitHub Templates
+.github/ISSUE_TEMPLATE/chat2_feature_request.md
+.github/pull_request_template.md
