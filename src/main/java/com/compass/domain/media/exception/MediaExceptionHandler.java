@@ -33,6 +33,13 @@ public class MediaExceptionHandler {
                 .body(new GlobalExceptionHandler.ErrorResponse("파일 업로드 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."));
     }
     
+    @ExceptionHandler(OCRProcessingException.class)
+    public ResponseEntity<GlobalExceptionHandler.ErrorResponse> handleOCRProcessingException(OCRProcessingException e) {
+        log.error("OCR 처리 중 오류 발생: {}", e.getMessage(), e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new GlobalExceptionHandler.ErrorResponse("OCR 처리 중 오류가 발생했습니다: " + e.getMessage()));
+    }
+    
     @ExceptionHandler(Exception.class)
     public ResponseEntity<GlobalExceptionHandler.ErrorResponse> handleGenericException(Exception e) {
         log.error("미디어 처리 중 예상치 못한 오류 발생", e);
