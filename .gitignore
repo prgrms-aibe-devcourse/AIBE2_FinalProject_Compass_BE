@@ -32,6 +32,10 @@ application-local.properties
 application-prod.yml
 application-prod.properties
 
+# Application Configuration (contains sensitive data)
+src/main/resources/application.yml
+src/test/resources/application.yml
+
 # Google Cloud Credentials
 gcp-key.json
 gcp-key*.json
