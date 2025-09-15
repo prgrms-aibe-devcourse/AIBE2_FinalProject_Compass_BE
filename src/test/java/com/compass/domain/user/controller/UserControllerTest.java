@@ -456,5 +456,65 @@ class UserControllerTest extends BaseIntegrationTest {
     }
 
 
+    @Test
+    @DisplayName("피드백 제출 성공")
+    void submitFeedback_success() throws Exception {
+        // given
+        User savedUser = userRepository.save(User.builder()
+                .email("feedback@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("feedbackUser")
+                .role(Role.USER)
+                .build());
+        String accessToken = jwtTokenProvider.createAccessToken(savedUser.getEmail());
+
+        String requestBody = objectMapper.writeValueAsString(
+                Map.of(
+                        "satisfaction", 5,
+                        "comment", "Very good!",
+                        "revisitIntent", true
+                )
+        );
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/users/feedback")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
+
+        // then
+        resultActions.andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.message").value("Feedback submitted successfully."));
+    }
+
+    @Test
+    @DisplayName("피드백 제출 실패 - 유효하지 않은 만족도 점수")
+    void submitFeedback_fail_invalidSatisfaction() throws Exception {
+        // given
+        User savedUser = userRepository.save(User.builder()
+                .email("feedback@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .nickname("feedbackUser")
+                .role(Role.USER)
+                .build());
+        String accessToken = jwtTokenProvider.createAccessToken(savedUser.getEmail());
+
+        // 만족도 점수가 6 (유효하지 않음)
+        String requestBody = objectMapper.writeValueAsString(
+                Map.of("satisfaction", 6)
+        );
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/users/feedback")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
+
+        // then
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+
 
 }

@@ -12,9 +12,12 @@ import java.util.Optional;
 /**
  * 관광지 데이터 저장소
  * REQ-SEARCH-001: RDS 검색 시스템을 위한 관광지 데이터 관리
+ * REQ-CRAWL-002: Phase별 크롤링에서 수집된 데이터 관리
  */
 @Repository
 public interface TourPlaceRepository extends JpaRepository<TourPlace, Long> {
+
+    // ===== 기본 CRUD 메서드들 =====
 
     /**
      * Content ID로 관광지 조회
@@ -54,6 +57,13 @@ public interface TourPlaceRepository extends JpaRepository<TourPlace, Long> {
     List<TourPlace> searchByName(@Param("name") String name);
 
     /**
+     * 키워드로 관광지 검색 (JSONB 검색)
+     */
+    @Query(value = "SELECT * FROM tour_places WHERE keywords @> CAST(:keyword AS jsonb)", 
+           nativeQuery = true)
+    List<TourPlace> findByKeyword(@Param("keyword") String keyword);
+
+    /**
      * 근처 관광지 검색 (거리 기반)
      */
     @Query(value = """
@@ -89,16 +99,15 @@ public interface TourPlaceRepository extends JpaRepository<TourPlace, Long> {
     List<TourPlace> fullTextSearch(@Param("query") String query);
 
     /**
-     * PostgreSQL 전문검색 - 페이징 지원
+     * PostgreSQL 전문검색 - 페이징 지원 (간단한 LIKE 검색으로 대체)
      */
     @Query(value = """
-        SELECT *, 
-               ts_rank(to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category), 
-                       plainto_tsquery('korean', :query)) AS rank
+        SELECT * 
         FROM tour_places 
-        WHERE to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category) 
-              @@ plainto_tsquery('korean', :query)
-        ORDER BY rank DESC, name
+        WHERE name ILIKE CONCAT('%', :query, '%')
+           OR address ILIKE CONCAT('%', :query, '%')
+           OR category ILIKE CONCAT('%', :query, '%')
+        ORDER BY name
         LIMIT :size OFFSET :offset
         """, nativeQuery = true)
     List<TourPlace> fullTextSearchWithPaging(@Param("query") String query, 
@@ -106,28 +115,28 @@ public interface TourPlaceRepository extends JpaRepository<TourPlace, Long> {
                                            @Param("size") int size);
 
     /**
-     * PostgreSQL 전문검색 - 카운트
+     * PostgreSQL 전문검색 - 카운트 (간단한 LIKE 검색으로 대체)
      */
     @Query(value = """
         SELECT COUNT(*)
         FROM tour_places 
-        WHERE to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category) 
-              @@ plainto_tsquery('korean', :query)
+        WHERE name ILIKE CONCAT('%', :query, '%')
+           OR address ILIKE CONCAT('%', :query, '%')
+           OR category ILIKE CONCAT('%', :query, '%')
         """, nativeQuery = true)
     long countFullTextSearch(@Param("query") String query);
 
     /**
-     * 복합 검색 - 전문검색 + 카테고리 필터
+     * 복합 검색 - 전문검색 + 카테고리 필터 (간단한 LIKE 검색으로 대체)
      */
     @Query(value = """
-        SELECT *, 
-               ts_rank(to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category), 
-                       plainto_tsquery('korean', :query)) AS rank
+        SELECT * 
         FROM tour_places 
-        WHERE to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category) 
-              @@ plainto_tsquery('korean', :query)
+        WHERE (name ILIKE CONCAT('%', :query, '%')
+           OR address ILIKE CONCAT('%', :query, '%')
+           OR category ILIKE CONCAT('%', :query, '%'))
         AND (:category IS NULL OR category = :category)
-        ORDER BY rank DESC, name
+        ORDER BY name
         LIMIT :size OFFSET :offset
         """, nativeQuery = true)
     List<TourPlace> fullTextSearchWithCategory(@Param("query") String query,
@@ -136,17 +145,16 @@ public interface TourPlaceRepository extends JpaRepository<TourPlace, Long> {
                                              @Param("size") int size);
 
     /**
-     * 복합 검색 - 전문검색 + 지역 필터
+     * 복합 검색 - 전문검색 + 지역 필터 (간단한 LIKE 검색으로 대체)
      */
     @Query(value = """
-        SELECT *, 
-               ts_rank(to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category), 
-                       plainto_tsquery('korean', :query)) AS rank
+        SELECT * 
         FROM tour_places 
-        WHERE to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category) 
-              @@ plainto_tsquery('korean', :query)
+        WHERE (name ILIKE CONCAT('%', :query, '%')
+           OR address ILIKE CONCAT('%', :query, '%')
+           OR category ILIKE CONCAT('%', :query, '%'))
         AND (:areaCode IS NULL OR area_code = :areaCode)
-        ORDER BY rank DESC, name
+        ORDER BY name
         LIMIT :size OFFSET :offset
         """, nativeQuery = true)
     List<TourPlace> fullTextSearchWithArea(@Param("query") String query,
@@ -155,18 +163,17 @@ public interface TourPlaceRepository extends JpaRepository<TourPlace, Long> {
                                          @Param("size") int size);
 
     /**
-     * 복합 검색 - 전문검색 + 카테고리 + 지역 필터
+     * 복합 검색 - 전문검색 + 카테고리 + 지역 필터 (간단한 LIKE 검색으로 대체)
      */
     @Query(value = """
-        SELECT *, 
-               ts_rank(to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category), 
-                       plainto_tsquery('korean', :query)) AS rank
+        SELECT * 
         FROM tour_places 
-        WHERE to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category) 
-              @@ plainto_tsquery('korean', :query)
+        WHERE (name ILIKE CONCAT('%', :query, '%')
+           OR address ILIKE CONCAT('%', :query, '%')
+           OR category ILIKE CONCAT('%', :query, '%'))
         AND (:category IS NULL OR category = :category)
         AND (:areaCode IS NULL OR area_code = :areaCode)
-        ORDER BY rank DESC, name
+        ORDER BY name
         LIMIT :size OFFSET :offset
         """, nativeQuery = true)
     List<TourPlace> fullTextSearchWithFilters(@Param("query") String query,
@@ -194,52 +201,43 @@ public interface TourPlaceRepository extends JpaRepository<TourPlace, Long> {
                                                @Param("offset") int offset,
                                                @Param("size") int size);
 
-    /**
-     * 검색 통계 - 인기 카테고리
-     */
-    @Query("SELECT t.category, COUNT(t) FROM TourPlace t GROUP BY t.category ORDER BY COUNT(t) DESC")
-    List<Object[]> getPopularCategories();
-
-    /**
-     * 검색 통계 - 지역별 관광지 분포
-     */
-    @Query("SELECT t.areaCode, COUNT(t) FROM TourPlace t GROUP BY t.areaCode ORDER BY COUNT(t) DESC")
-    List<Object[]> getAreaDistribution();
-
     // ===== SearchService에서 사용하는 추가 메서드들 =====
 
     /**
-     * 카테고리 필터링된 전문검색 결과 개수
+     * 카테고리 필터링된 전문검색 결과 개수 (간단한 LIKE 검색으로 대체)
      */
     @Query(value = """
         SELECT COUNT(*)
         FROM tour_places 
-        WHERE to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category) 
-              @@ plainto_tsquery('korean', :query)
+        WHERE (name ILIKE CONCAT('%', :query, '%')
+           OR address ILIKE CONCAT('%', :query, '%')
+           OR category ILIKE CONCAT('%', :query, '%'))
         AND (:category IS NULL OR category = :category)
         """, nativeQuery = true)
     long countFullTextSearchWithCategory(@Param("query") String query, @Param("category") String category);
 
     /**
-     * 지역 필터링된 전문검색 결과 개수
+     * 지역 필터링된 전문검색 결과 개수 (간단한 LIKE 검색으로 대체)
      */
     @Query(value = """
         SELECT COUNT(*)
         FROM tour_places 
-        WHERE to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category) 
-              @@ plainto_tsquery('korean', :query)
+        WHERE (name ILIKE CONCAT('%', :query, '%')
+           OR address ILIKE CONCAT('%', :query, '%')
+           OR category ILIKE CONCAT('%', :query, '%'))
         AND (:areaCode IS NULL OR area_code = :areaCode)
         """, nativeQuery = true)
     long countFullTextSearchWithArea(@Param("query") String query, @Param("areaCode") String areaCode);
 
     /**
-     * 복합 필터링된 전문검색 결과 개수
+     * 복합 필터링된 전문검색 결과 개수 (간단한 LIKE 검색으로 대체)
      */
     @Query(value = """
         SELECT COUNT(*)
         FROM tour_places 
-        WHERE to_tsvector('korean', name || ' ' || COALESCE(address, '') || ' ' || category) 
-              @@ plainto_tsquery('korean', :query)
+        WHERE (name ILIKE CONCAT('%', :query, '%')
+           OR address ILIKE CONCAT('%', :query, '%')
+           OR category ILIKE CONCAT('%', :query, '%'))
         AND (:category IS NULL OR category = :category)
         AND (:areaCode IS NULL OR area_code = :areaCode)
         """, nativeQuery = true)
@@ -259,5 +257,56 @@ public interface TourPlaceRepository extends JpaRepository<TourPlace, Long> {
     long countNearbyPlaces(@Param("lat") Double latitude, 
                          @Param("lng") Double longitude, 
                          @Param("radiusKm") Double radiusKm);
-}
 
+    // ===== REQ-CRAWL-002: 크롤링 관련 메서드들 =====
+
+    /**
+     * 지역별 관광지 개수 조회
+     */
+    @Query("SELECT t.areaCode, COUNT(t) FROM TourPlace t GROUP BY t.areaCode")
+    List<Object[]> countByAreaCode();
+
+    /**
+     * 카테고리별 관광지 개수 조회
+     */
+    @Query("SELECT t.category, COUNT(t) FROM TourPlace t GROUP BY t.category")
+    List<Object[]> countByCategory();
+
+    /**
+     * 컨텐츠 타입별 관광지 개수 조회
+     */
+    @Query("SELECT t.contentTypeId, COUNT(t) FROM TourPlace t GROUP BY t.contentTypeId")
+    List<Object[]> countByContentTypeId();
+
+    /**
+     * 데이터 소스별 관광지 개수 조회
+     */
+    @Query("SELECT t.dataSource, COUNT(t) FROM TourPlace t GROUP BY t.dataSource")
+    List<Object[]> countByDataSource();
+
+    /**
+     * 최근 크롤링된 관광지 조회
+     */
+    @Query("SELECT t FROM TourPlace t WHERE t.crawledAt IS NOT NULL ORDER BY t.crawledAt DESC")
+    List<TourPlace> findRecentlyCrawled();
+
+    /**
+     * 특정 지역의 최근 크롤링된 관광지 조회
+     */
+    @Query("SELECT t FROM TourPlace t WHERE t.areaCode = :areaCode AND t.crawledAt IS NOT NULL ORDER BY t.crawledAt DESC")
+    List<TourPlace> findRecentlyCrawledByAreaCode(@Param("areaCode") String areaCode);
+
+    // ===== 통계 및 분석 메서드들 =====
+
+    /**
+     * 검색 통계 - 인기 카테고리
+     */
+    @Query("SELECT t.category, COUNT(t) FROM TourPlace t GROUP BY t.category ORDER BY COUNT(t) DESC")
+    List<Object[]> getPopularCategories();
+
+    /**
+     * 검색 통계 - 지역별 관광지 분포
+     */
+    @Query("SELECT t.areaCode, COUNT(t) FROM TourPlace t GROUP BY t.areaCode ORDER BY COUNT(t) DESC")
+    List<Object[]> getAreaDistribution();
+}

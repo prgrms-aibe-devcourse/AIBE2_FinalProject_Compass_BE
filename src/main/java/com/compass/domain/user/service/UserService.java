@@ -4,10 +4,13 @@ import com.compass.config.jwt.JwtTokenProvider;
 import com.compass.domain.trip.entity.TravelHistory;
 import com.compass.domain.trip.repository.TravelHistoryRepository;
 import com.compass.domain.user.dto.UserDto;
+import com.compass.domain.user.dto.UserFeedbackDto;
 import com.compass.domain.user.dto.UserPreferenceDto;
 import com.compass.domain.user.entity.User;
+import com.compass.domain.user.entity.UserFeedback;
 import com.compass.domain.user.entity.UserPreference;
 import com.compass.domain.user.enums.Role;
+import com.compass.domain.user.repository.UserFeedbackRepository;
 import com.compass.domain.user.repository.UserPreferenceRepository;
 import com.compass.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +41,8 @@ public class UserService {
     private final UserPreferenceRepository userPreferenceRepository;
     private final TravelHistoryRepository travelHistoryRepository;
     private final PreferenceAnalyzer preferenceAnalyzer;
+    private final UserFeedbackRepository userFeedbackRepository;
+
 
     @Transactional
     public UserDto.SignUpResponse signUp(UserDto.SignUpRequest request) {
@@ -206,6 +211,28 @@ public class UserService {
 
         userPreferenceRepository.save(analyzedPreference);
         return Optional.of(UserPreferenceDto.Response.from(analyzedPreference));
+    }
+
+
+    @Transactional
+    public UserFeedbackDto.Response saveFeedback(String email, UserFeedbackDto.CreateRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+
+        UserFeedback feedback = UserFeedback.builder()
+                .user(user)
+                .satisfaction(request.getSatisfaction())
+                .comment(request.getComment())
+                .revisitIntent(request.getRevisitIntent())
+                .build();
+
+        UserFeedback savedFeedback = userFeedbackRepository.save(feedback);
+        log.info("Saved feedback for user: {}, feedbackId: {}", email, savedFeedback.getId());
+
+        return UserFeedbackDto.Response.builder()
+                .id(savedFeedback.getId())
+                .message("Feedback submitted successfully.")
+                .build();
     }
 
 
