@@ -60,7 +60,7 @@ class FollowUpQuestionGeneratorTest {
         assertThat(question).isNotNull();
         assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.ORIGIN);
         assertThat(question.getPrimaryQuestion()).contains("어디에서 출발");
-        assertThat(question.getQuickOptions()).isNotEmpty();
+        assertThat(question.getQuickOptions()).isEmpty(); // 출발지는 텍스트 입력만
         assertThat(question.isRequired()).isTrue();
         assertThat(question.isCanSkip()).isFalse();
     }
@@ -120,9 +120,8 @@ class FollowUpQuestionGeneratorTest {
         
         // Then
         assertThat(question).isNotNull();
-        assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.DURATION);
-        assertThat(question.getPrimaryQuestion()).contains("2박 3일");
-        assertThat(question.getQuickOptions()).hasSize(5); // 당일치기 ~ 4박 이상
+        assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.COMPANIONS);
+        assertThat(question.getPrimaryQuestion()).contains("누구와"); // 날짜가 있으면 기간 자동 계산되고 동행자로 넘어감
     }
     
     @Test
@@ -225,9 +224,8 @@ class FollowUpQuestionGeneratorTest {
         
         // Then
         assertThat(question).isNotNull();
-        assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.DURATION);
-        assertThat(question.getPrimaryQuestion()).contains("2박 3일");
-        assertThat(question.isCanSkip()).isTrue();
+        assertThat(question.getCurrentStep()).isEqualTo(TravelInfoCollectionState.CollectionStep.COMPANIONS);
+        assertThat(question.getPrimaryQuestion()).contains("누구와"); // 날짜가 있으면 기간 자동 계산되고 동행자로 넘어감
     }
     
     @Test
@@ -259,10 +257,10 @@ class FollowUpQuestionGeneratorTest {
         FollowUpQuestionDto q1 = generator.generateNextQuestion(testState);
         assertThat(q1.getProgressPercentage()).isEqualTo(0);
         
-        // 16% 완료 (1/6)
+        // 17% 완료 (1/6)
         testState.setOriginCollected(true);
         FollowUpQuestionDto q2 = generator.generateNextQuestion(testState);
-        assertThat(q2.getProgressPercentage()).isEqualTo(16);
+        assertThat(q2.getProgressPercentage()).isEqualTo(17); // 1/6 = 16.67 -> 17
         
         // 33% 완료 (2/6)
         testState.setDestinationCollected(true);
@@ -274,10 +272,10 @@ class FollowUpQuestionGeneratorTest {
         FollowUpQuestionDto q4 = generator.generateNextQuestion(testState);
         assertThat(q4.getProgressPercentage()).isEqualTo(50);
         
-        // 66% 완료 (4/6)
+        // 67% 완료 (4/6)
         testState.setDurationCollected(true);
         FollowUpQuestionDto q5 = generator.generateNextQuestion(testState);
-        assertThat(q5.getProgressPercentage()).isEqualTo(66);
+        assertThat(q5.getProgressPercentage()).isEqualTo(67); // 4/6 = 66.67 -> 67
         
         // 83% 완료 (5/6)
         testState.setCompanionsCollected(true);

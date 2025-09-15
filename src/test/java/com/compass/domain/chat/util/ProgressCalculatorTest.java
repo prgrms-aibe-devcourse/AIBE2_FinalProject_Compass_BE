@@ -83,15 +83,17 @@ class ProgressCalculatorTest {
         // given
         TravelInfoCollectionState state = TravelInfoCollectionState.builder()
                 .sessionId("test-session")
+                .originCollected(true) // 출발지도 필수
                 .destinationCollected(true)
                 .datesCollected(true)
+                .durationCollected(true) // 기간도 필수
                 .companionsCollected(true)
-                .budgetCollected(true) // 50% 이상 완성도를 위해 추가
+                .budgetCollected(true)
                 .build();
-        
+
         // when
         boolean canGenerate = ProgressCalculator.canGenerateTravelPlan(state);
-        
+
         // then
         assertThat(canGenerate).isTrue();
     }
@@ -138,15 +140,16 @@ class ProgressCalculatorTest {
         // given
         TravelInfoCollectionState state = TravelInfoCollectionState.builder()
                 .sessionId("test-session")
+                .originCollected(true) // 출발지도 필수
                 .destinationCollected(true)
                 .durationCollected(true) // 날짜 대신 기간만 있음
                 .companionsCollected(true)
                 .budgetCollected(true)
                 .build();
-        
+
         // when
         boolean canGenerate = ProgressCalculator.canGenerateTravelPlan(state);
-        
+
         // then
         assertThat(canGenerate).isTrue();
     }

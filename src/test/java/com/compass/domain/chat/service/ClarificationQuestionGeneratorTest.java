@@ -53,7 +53,7 @@ class ClarificationQuestionGeneratorTest {
         assertThat(question.getRetryCount()).isEqualTo(0);
         assertThat(question.getOriginalResponse()).isEqualTo(originalResponse);
         assertThat(question.getQuickOptions()).isNotNull();
-        assertThat(question.getQuickOptions()).hasSize(5); // 서울, 부산, 제주, 강릉, 경주
+        assertThat(question.getQuickOptions()).hasSize(6); // 서울, 부산, 제주, 강릉, 경주, 직접입력
     }
     
     @Test
@@ -184,7 +184,7 @@ class ClarificationQuestionGeneratorTest {
         assertThat(question).isNotNull();
         assertThat(question.getPrimaryQuestion()).contains("출발지를 알려주세요");
         assertThat(question.getQuickOptions()).isNotNull();
-        assertThat(question.getQuickOptions()).hasSize(5);
+        assertThat(question.getQuickOptions()).hasSize(6); // 5개 도시 + 직접입력
     }
     
     @Test

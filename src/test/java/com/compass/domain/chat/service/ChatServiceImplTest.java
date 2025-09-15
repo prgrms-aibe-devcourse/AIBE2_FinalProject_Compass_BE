@@ -39,9 +39,23 @@ class ChatServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
-    private ChatModelService chatModelService;
+    private ChatModelService geminiChatService;
 
-    @InjectMocks
+    @Mock
+    private ChatModelService openAiChatService;
+
+    @Mock
+    private TravelQuestionFlowEngine flowEngine;
+
+    @Mock
+    private FollowUpQuestionService followUpQuestionService;
+
+    @Mock
+    private SessionManagementService sessionManagementService;
+
+    @Mock
+    private TravelInfoCollectionStateRepository stateRepository;
+
     private ChatServiceImpl chatService;
 
     private User testUser;
@@ -51,6 +65,18 @@ class ChatServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        chatService = new ChatServiceImpl(
+            chatThreadRepository,
+            chatMessageRepository,
+            userRepository,
+            geminiChatService,
+            openAiChatService,
+            flowEngine,
+            followUpQuestionService,
+            sessionManagementService,
+            stateRepository
+        );
+
         testUser = User.builder()
                 .email("test@example.com")
                 .nickname("TestUser")
@@ -109,7 +135,7 @@ class ChatServiceImplTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(chatMessageRepository.findLatestMessagesByThreadId(anyString(), anyInt()))
                 .thenReturn(java.util.Collections.emptyList());
-        when(chatModelService.generateResponse(anyString()))
+        when(geminiChatService.generateResponse(anyString()))
                 .thenReturn("제주도 여행 추천 답변");
 
         // When
@@ -144,7 +170,7 @@ class ChatServiceImplTest {
                 .thenReturn(3L); // Already has messages (user + assistant + new user message)
         when(chatMessageRepository.findLatestMessagesByThreadId(anyString(), anyInt()))
                 .thenReturn(java.util.Collections.emptyList());
-        when(chatModelService.generateResponse(anyString()))
+        when(geminiChatService.generateResponse(anyString()))
                 .thenReturn("답변");
 
         // When
@@ -179,7 +205,7 @@ class ChatServiceImplTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(chatMessageRepository.findLatestMessagesByThreadId(anyString(), anyInt()))
                 .thenReturn(java.util.Collections.emptyList());
-        when(chatModelService.generateResponse(anyString()))
+        when(geminiChatService.generateResponse(anyString()))
                 .thenReturn("답변");
 
         // When

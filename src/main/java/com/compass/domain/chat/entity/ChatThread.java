@@ -96,10 +96,10 @@ public class ChatThread {
     public String getLatestMessagePreview() {
         // Don't access the messages collection directly to avoid lazy loading issues
         // This should be populated by the service layer if needed
-        if (title != null && !title.equals("새 대화") && !title.isBlank()) {
+        if (title != null && !title.isBlank()) {
             return title;
         }
-        return "New conversation";
+        return "새 대화";
     }
     
     /**
