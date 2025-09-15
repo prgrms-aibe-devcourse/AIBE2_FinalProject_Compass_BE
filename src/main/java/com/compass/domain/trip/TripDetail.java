@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Getter
+@Setter
 @Entity
 @Table(name = "trip_details")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -79,5 +80,58 @@ public class TripDetail {
     // Manual setter for Trip relationship
     public void setTrip(Trip trip) {
         this.trip = trip;
+    }
+
+    // 수동 setter 메서드들 (Lombok @Setter가 작동하지 않는 경우를 대비)
+    public void setActivityDate(LocalDate activityDate) {
+        this.activityDate = activityDate;
+    }
+
+    public void setPlaceName(String placeName) {
+        this.placeName = placeName;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setDayNumber(Integer dayNumber) {
+        this.dayNumber = dayNumber;
+    }
+
+    public void setActivityTime(LocalTime activityTime) {
+        this.activityTime = activityTime;
+    }
+
+    public void setEstimatedCost(Integer estimatedCost) {
+        this.estimatedCost = estimatedCost;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public void setTips(String tips) {
+        this.tips = tips;
+    }
+
+    public void setAdditionalInfo(String additionalInfo) {
+        this.additionalInfo = additionalInfo;
+    }
+
+    public void setDisplayOrder(Integer displayOrder) {
+        this.displayOrder = displayOrder;
     }
 }

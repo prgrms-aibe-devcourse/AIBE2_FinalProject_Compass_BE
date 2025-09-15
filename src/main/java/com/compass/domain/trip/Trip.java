@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Getter
+@Setter
 @Entity
 @Table(name = "trips")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -109,5 +110,37 @@ public class Trip extends BaseEntity {
         this.user = user;
     }
 
+    // 수동 setter 메서드들 (Lombok @Setter가 작동하지 않는 경우를 대비)
+    public void setDestination(String destination) {
+        this.destination = destination;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+
+    public void setEndDate(LocalDate endDate) {
+        this.endDate = endDate;
+    }
+
+    public void setTotalBudget(Integer totalBudget) {
+        this.totalBudget = totalBudget;
+    }
+
+    public void setNumberOfPeople(Integer numberOfPeople) {
+        this.numberOfPeople = numberOfPeople;
+    }
+
+    public void setThreadId(Long threadId) {
+        this.threadId = threadId;
+    }
+
+    public void setTripMetadata(String tripMetadata) {
+        this.tripMetadata = tripMetadata;
+    }
 
 }
