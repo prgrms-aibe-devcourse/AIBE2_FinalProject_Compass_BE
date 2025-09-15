@@ -142,7 +142,8 @@ class ProgressCalculatorTest {
                 .sessionId("test-session")
                 .originCollected(true) // 출발지도 필수
                 .destinationCollected(true)
-                .durationCollected(true) // 날짜 대신 기간만 있음
+                .datesCollected(true) // 날짜도 필요 (6개 필드 모두 필요)
+                .durationCollected(true) // 기간도 있음
                 .companionsCollected(true)
                 .budgetCollected(true)
                 .build();

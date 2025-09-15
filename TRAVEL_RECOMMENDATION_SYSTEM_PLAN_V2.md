@@ -5183,87 +5183,134 @@ Function 호출: getReachableAreas({
 
 ## 6. 실제 개발 체크리스트 (3일 집중 개발)
 
-### 6.0 MVP 요구사항 명세서 (필수 기능만)
+### 6.0 MVP 요구사항 명세서 (필수 기능만 - 총 31개)
 
-#### 🔴 CHAT2 도메인 요구사항
-- **REQ-CHAT2-001**: LLM 오케스트레이터 구현 (Gemini 2.0 Flash 기반)
-- **REQ-CHAT2-002**: Function Calling 기본 구조 구현
-- **REQ-CHAT2-003**: 사용자 입력 분석 Function (`analyzeUserInput`)
-- **REQ-CHAT2-004**: 부족 정보 확인 Function (`checkMissingInfo`)
-- **REQ-CHAT2-005**: 부족 정보 채우기 Function (`fillMissingInfo`)
-- **REQ-CHAT2-006**: 여행 정보 수집 상태 관리 (TravelInfoCollectionState)
-- **REQ-CHAT2-007**: 시스템 프롬프트 최적화 (50토큰 이내)
-- **REQ-CHAT2-008**: 목적지 미정 감지 Function (`detectUndecidedDestination`)
-- **REQ-CHAT2-009**: 출발지 기반 질문 Function (`askDepartureLocation`)
+#### ⚪ CHAT1 도메인 요구사항 (5개)
+- **REQ-CHAT1-001**: Thread 관리 서비스 (생성/조회/업데이트)
+- **REQ-CHAT1-002**: 메시지 저장 및 컨텍스트 관리
+- **REQ-CHAT1-003**: 대화 컨텍스트 조회 및 유지
+- **REQ-CHAT1-004**: 일반 질문 처리 (날씨, 환율, 인사말 등)
+- **REQ-CHAT1-005**: 여행으로 대화 자연스럽게 유도
 
-#### 🟡 TRIP 도메인 요구사항
+#### 🔴 CHAT2 도메인 요구사항 (10개) - 팀 리더
+- **REQ-CHAT2-001**: Spring AI 프레임워크 설정 및 통합
+- **REQ-CHAT2-002**: MainLLMOrchestrator 구현 (Gemini 2.0 Flash)
+- **REQ-CHAT2-003**: Function Calling 기본 구조 구현
+- **REQ-CHAT2-004**: Intent 분류 시스템 (여행/일반 구분)
+- **REQ-CHAT2-005**: 부족 정보 확인 Function (`checkMissingInfo`)
+- **REQ-CHAT2-006**: 부족 정보 채우기 Function (`fillMissingInfo`)
+- **REQ-CHAT2-007**: 시스템 프롬프트 최적화 (50토큰 목표)
+- **REQ-CHAT2-008**: 전체 시스템 통합 테스트
+- **REQ-CHAT2-009**: API 사용량 모니터링 및 제한
+- **REQ-CHAT2-010**: 프로젝트 총괄 및 진도 관리
+
+#### 🟡 TRIP 도메인 요구사항 (7개)
 - **REQ-TRIP-001**: 여행 계획 생성 Function (`generateTravelPlan`)
-- **REQ-TRIP-002**: DB 장소 조회 기능 (places 테이블)
-- **REQ-TRIP-003**: Perplexity API 연동 (`searchWithPerplexity`)
-- **REQ-TRIP-004**: 하이브리드 장소 선택 로직 (`selectOptimalPlaces`)
-- **REQ-TRIP-005**: 날씨 정보 조회 Function (`getWeatherInfo`)
-- **REQ-TRIP-006**: 시간 제약 반영 일정 생성
-- **REQ-TRIP-007**: Tour API 데이터 크롤링 및 DB 저장
-- **REQ-TRIP-008**: 거리 계산 API 연동 Function (`calculateDistance`)
-- **REQ-TRIP-009**: 시간별 범위 목적지 검색 Function (`searchDestinationsByTimeRange`)
-- **REQ-TRIP-010**: 이동수단별 도달 가능 지역 계산 Function (`getReachableAreas`)
+- **REQ-TRIP-002**: PostgreSQL 장소 데이터베이스 구축
+- **REQ-TRIP-003**: Perplexity API 통합 (`searchWithPerplexity`)
+- **REQ-TRIP-004**: 하이브리드 장소 선택 Function (`selectOptimalPlaces`)
+- **REQ-TRIP-005**: OpenWeatherMap API 통합 (`getWeatherInfo`)
+- **REQ-TRIP-006**: 출발/도착 시간 기반 일정 조정
+- **REQ-TRIP-007**: 여행 계획 수정 Function (`modifyTravelPlan`)
 
-#### 🟢 MEDIA 도메인 요구사항
-- **REQ-MEDIA-001**: OCR 처리 Function (`processOCR`)
-- **REQ-MEDIA-002**: 항공권 정보 추출 로직
-- **REQ-MEDIA-003**: 호텔 예약서 정보 추출 로직
+#### 🟢 MEDIA 도메인 요구사항 (5개)
+- **REQ-MEDIA-001**: S3 업로드 및 OCR Function 구현 (`processOCR`)
+- **REQ-MEDIA-002**: 이미지 유형 분류 (`classifyImageType`)
+- **REQ-MEDIA-003**: 항공권 정보 추출 및 DB 저장
+- **REQ-MEDIA-004**: 호텔 바우처/예약서 정보 추출 및 DB 저장
+- **REQ-MEDIA-005**: 공연/행사 티켓 정보 추출 및 DB 저장
 
-#### 🔵 USER 도메인 요구사항
-- **REQ-USER-001**: 사용자 인증 및 세션 관리
-- **REQ-USER-002**: chat_threads 테이블 관리
-- **REQ-USER-003**: chat_messages 테이블 관리
-
-#### ⚪ CHAT1 도메인 요구사항
-- **REQ-CHAT1-001**: 빠른 입력 폼 백엔드 API
-- **REQ-CHAT1-002**: 기본 채팅 인터페이스
-- **REQ-CHAT1-003**: 메시지 저장 및 조회
+#### 🔵 USER 도메인 요구사항 (7개)
+- **REQ-USER-001**: JWT 기반 인증/인가 (완료)
+- **REQ-USER-002**: API 사용량 추적 서비스
+- **REQ-USER-003**: 사용자 프로필 및 선호도 관리
+- **REQ-USER-004**: 여행 스타일 템플릿 제공 (20+개)
+- **REQ-USER-005**: 빠른 입력 폼 처리 (`processQuickInput`)
+- **REQ-USER-006**: 사용자 스타일 선택 저장 (3x3 모달 UI)
+- **REQ-USER-007**: 예약 정보 통합 처리 (`integrateReservationInfo`)
 
 ### 6.1 도메인별 역할 분배 (요구사항 매칭)
 
-#### **CHAT2 도메인 (LLM 통합 담당)**
+#### **CHAT1 도메인 (메시지 관리 & 일반 질문 처리)**
 **담당 DB 테이블**:
-- chat_threads (Thread 관리)
-- chat_messages (메시지 저장)
-- travel_info_collection_states (정보 수집 상태)
+- `chat_threads` (Thread 관리)
+- `chat_messages` (메시지 저장)
+- `chat_contexts` (대화 컨텍스트)
+- `general_responses` (일반 질문 응답 템플릿)
+
+**담당 Function & 요구사항**:
+```java
+// [예시] ChatManagementService.java
+@Service
+public class ChatManagementService {
+
+    @Bean("manageThread")  // REQ-CHAT1-001
+    public Function<ThreadRequest, ThreadResponse> manageThread() {
+        // Thread 생성/조회/업데이트
+    }
+
+    @Bean("saveMessage")  // REQ-CHAT1-002
+    public Function<MessageRequest, MessageResponse> saveMessage() {
+        // 메시지 저장 및 컨텍스트 관리
+    }
+
+    @Bean("handleGeneralQuestions")  // REQ-CHAT1-004
+    public Function<GeneralQuestion, GeneralAnswer> handleGeneralQuestions() {
+        // 날씨, 환율, 일반 질문 처리
+    }
+
+    @Bean("redirectToTravel")  // REQ-CHAT1-005
+    public Function<GeneralContext, TravelSuggestion> redirectToTravel() {
+        // 일반 대화를 여행으로 자연스럽게 유도
+    }
+}
+```
+
+#### **CHAT2 도메인 (Spring AI & MainLLMOrchestrator - 팀 리더)**
+**담당 DB 테이블**:
+- `llm_prompts` (프롬프트 템플릿)
+- `function_calls` (Function 호출 로그)
+- `travel_info_states` (정보 수집 상태)
 
 **담당 Function & 요구사항**:
 ```java
 // [예시] MainLLMOrchestrator.java
 @Configuration
 public class MainLLMOrchestrator {
-    // REQ-CHAT2-001: LLM 오케스트레이터
-    // REQ-CHAT2-002: Function Calling 구조
-    
-    @Bean("analyzeUserInput")  // REQ-CHAT2-003
-    public Function<UserInputRequest, TravelInfoResponse> analyzeUserInput() {
-        // 사용자 입력에서 여행 정보 추출
+
+    @Bean("setupSpringAI")  // REQ-CHAT2-001
+    public Function<Config, AISetup> setupSpringAI() {
+        // Spring AI 프레임워크 설정
     }
-    
-    @Bean("checkMissingInfo")     // REQ-CHAT2-004
-    public Function<CheckMissingInfoRequest, MissingInfoResponse> checkMissingInfo() {
-        // 부족한 필수 정보 확인
+
+    @Bean("orchestrateFlow")  // REQ-CHAT2-002
+    public Function<UserInput, OrchestratedResponse> orchestrateFlow() {
+        // 전체 대화 흐름 조율
     }
-    
-    @Bean("fillMissingInfo")  // REQ-CHAT2-005
-    public Function<FillMissingInfoRequest, TravelInfoStatus> fillMissingInfo() {
+
+    @Bean("classifyIntent")  // REQ-CHAT2-004 ★
+    public Function<Message, IntentType> classifyIntent() {
+        // 여행계획/정보수집/수정/일반질문 구분
+    }
+
+    @Bean("checkMissingInfo")  // REQ-CHAT2-005
+    public Function<TravelInfo, List<String>> checkMissingInfo() {
+        // 부족한 정보 확인 (1-2개만)
+    }
+
+    @Bean("fillMissingInfo")  // REQ-CHAT2-006
+    public Function<UserResponse, TravelInfo> fillMissingInfo() {
         // 부족한 정보 채우기
     }
-}
 
-// TravelInfoCollectionService.java (REQ-CHAT2-006)
-@Service
-public class TravelInfoCollectionService {
-    // 여행 정보 수집 상태 관리
-    // PostgreSQL: travel_info_collection_states 테이블
+    @Bean("monitorApiUsage")  // REQ-CHAT2-009
+    public Function<ApiCall, UsageStats> monitorApiUsage() {
+        // API 사용량 모니터링
+    }
 }
 ```
 
-#### **TRIP 도메인 (여행 계획 담당)**
+#### **TRIP 도메인 (여행 계획 생성 전담)**
 **담당 DB 테이블**:
 - travel_plans (여행 계획)
 - tour_places (관광지 정보)
@@ -5305,10 +5352,12 @@ public interface PlaceRepository {
 }
 ```
 
-#### **MEDIA 도메인 (OCR 처리 담당)**
+#### **MEDIA 도메인 (예약 정보 추출 전문)**
 **담당 DB 테이블**:
-- ocr_results (OCR 결과 저장)
-- image_metadata (이미지 메타데이터)
+- `s3_uploads` (S3 업로드 기록)
+- `ocr_results` (OCR 처리 결과)
+- `reservations` (예약 정보 - 항공권, 호텔, 티켓)
+- `image_classifications` (이미지 분류 결과)
 
 **담당 Function & 요구사항**:
 ```java
@@ -5316,77 +5365,77 @@ public interface PlaceRepository {
 @Configuration
 public class OCRProcessor {
     
-    @Bean("processOCR")  // REQ-MEDIA-001
-    @Description("이미지에서 예약 정보 추출 - 프로덕션 환경에서 일 10회 제한")
-    public Function<OCRRequest, ReservationInfo> processOCR() {
-        return request -> {
-            // API 사용 제한 확인 (프로덕션 환경에서만)
-            if (isProduction() && !apiUsagePolicy.canUseOCR(request.userId())) {
-                return new ReservationInfo(
-                    null,
-                    "오늘의 OCR 사용 한도에 도달했습니다. 수동으로 정보를 입력해주세요.",
-                    true  // isLimitExceeded
-                );
-            }
-            
-            // OCR API 호출
-            String text = ocrService.extractText(request.imageData());
-            apiUsagePolicy.recordUsage(request.userId(), "OCR");
-            
-            // REQ-MEDIA-002: 항공권 정보 추출
-            // REQ-MEDIA-003: 호텔 정보 추출
-            return switch(request.imageType()) {
-                case "FLIGHT" -> extractFlightInfo(text);
-                case "HOTEL" -> extractHotelInfo(text);
-                default -> extractGeneralInfo(text);
-            };
-        };
+    @Bean("uploadToS3AndOCR")  // REQ-MEDIA-001
+    public Function<ImageUpload, OCRResult> uploadToS3AndOCR() {
+        // S3 업로드 후 OCR 처리 (Gemini Vision API)
+        // 사용 제한: 10회/일
+    }
+
+    @Bean("classifyImageType")  // REQ-MEDIA-002
+    public Function<OCRResult, ImageType> classifyImageType() {
+        // 이미지 유형 분류 (항공권/호텔/티켓/기타)
+    }
+
+    @Bean("extractFlightInfo")  // REQ-MEDIA-003
+    public Function<OCRText, FlightReservation> extractFlightInfo() {
+        // 항공권 정보 추출 (항공사, 편명, 시간, 좌석)
+    }
+
+    @Bean("extractHotelInfo")  // REQ-MEDIA-004
+    public Function<OCRText, HotelReservation> extractHotelInfo() {
+        // 호텔 바우처/예약서 정보 추출
+    }
+
+    @Bean("extractEventInfo")  // REQ-MEDIA-005
+    public Function<OCRText, EventReservation> extractEventInfo() {
+        // 공연/행사 티켓 정보 추출
     }
 }
 ```
 
-#### **USER 도메인 (인증/세션 담당)**
-**담당 요구사항**:
+#### **USER 도메인 (사용자 개인화 & 스타일 관리)**
+**담당 DB 테이블**:
+- `users` (사용자 정보)
+- `user_sessions` (세션 관리)
+- `api_usage_logs` (API 사용 로그)
+- `user_preferences` (사용자 선호도)
+- `travel_styles` (여행 스타일 템플릿 20+개)
+- `user_travel_styles` (선택된 스타일)
+
+**담당 Function & 요구사항**:
 ```java
-// UserService.java
+// [예시] UserService.java
 @Service
 public class UserService {
-    // REQ-USER-001: JWT 인증 및 세션 관리
-}
+    // REQ-USER-001: JWT 인증 (완료)
 
-// ChatThreadRepository.java (REQ-USER-002)
-@Repository
-public interface ChatThreadRepository {
-    // chat_threads 테이블 관리
-}
-
-// ChatMessageRepository.java (REQ-USER-003)
-@Repository
-public interface ChatMessageRepository {
-    // chat_messages 테이블 관리
-}
-```
-
-#### **CHAT1 도메인 (기본 채팅 담당)**
-**담당 요구사항**:
-```java
-// ChatController.java
-@RestController
-@RequestMapping("/api/chat")
-public class ChatController {
-    
-    @PostMapping("/quick-form")  // REQ-CHAT1-001
-    public ResponseEntity submitQuickForm(@RequestBody QuickFormRequest request) {
-        // 빠른 입력 폼 처리
+    @Bean("trackApiUsage")  // REQ-USER-002
+    public Function<UsageRequest, UsageResponse> trackApiUsage() {
+        // Perplexity, OCR 사용량 기록
     }
-    
-    @PostMapping("/message")  // REQ-CHAT1-002, REQ-CHAT1-003
-    public ResponseEntity sendMessage(@RequestBody MessageRequest request) {
-        // 기본 채팅 인터페이스
-        // 메시지 저장 및 조회
+
+    @Bean("getTravelStyleTemplates")  // REQ-USER-004
+    public Function<StyleRequest, List<TravelStyle>> getTravelStyleTemplates() {
+        // 20개 이상의 여행 스타일 템플릿 제공
+    }
+
+    @Bean("processQuickInput")  // REQ-USER-005 ★
+    public Function<QuickFormData, TravelInfo> processQuickInput() {
+        // 빠른 입력 폼 데이터 파싱 및 검증
+    }
+
+    @Bean("saveUserTravelStyle")  // REQ-USER-006
+    public Function<StyleSelection, StyleResponse> saveUserTravelStyle() {
+        // 사용자가 선택한 여행 스타일 저장
+    }
+
+    @Bean("integrateReservationInfo")  // REQ-USER-007
+    public Function<ReservationData, IntegratedTravelInfo> integrateReservationInfo() {
+        // MEDIA에서 추출한 예약 정보를 여행 정보에 통합
     }
 }
 ```
+
 
 ### 6.2 개발 우선순위 및 제외 항목
 
@@ -5466,6 +5515,10 @@ public Function<PlanRequest, PlanResponse> generateTravelPlan() {
 - [ ] REQ-USER-001: JWT 인증 기본 구조
 - [ ] REQ-USER-002: chat_threads 테이블 생성
 - [ ] REQ-USER-003: chat_messages 테이블 생성
+- [ ] REQ-USER-004: 사용자 여행 스타일 템플릿 관리
+- [ ] REQ-USER-005: 여행 히스토리 관리
+- [ ] REQ-USER-006: 사용자 선호도 저장 및 조회
+- [ ] REQ-USER-007: 빠른 입력 폼 지원
 
 #### 🟡 Day 2: 실용 기능 추가
 
@@ -5476,12 +5529,20 @@ public class FollowUpQuestionGenerator {
     QUICK_STRATEGY: "빠른 질문 1-2개"
     DETAILED_STRATEGY: "상세 질문 3-4개"
 }
+
+// REQ-CHAT2-010: 프로젝트 관리 연동
+public class ProjectIntegrationService {
+    saveProjectContext();
+    loadProjectContext();
+}
 ```
 
 **Day 2 CHAT2 체크리스트**:
-- [ ] REQ-CHAT2-004: Follow-up 질문 생성 로직 고도화
-- [ ] REQ-CHAT2-005: Follow-up 상태 관리 개선
-- [ ] REQ-CHAT2-006: 정보 수집 진행률 계산 로직
+- [ ] REQ-CHAT2-004: Intent Classification 및 라우팅 로직 구현
+- [ ] REQ-CHAT2-005: Follow-up 질문 생성 로직 고도화
+- [ ] REQ-CHAT2-006: Follow-up 상태 관리 개선
+- [ ] REQ-CHAT2-007: 정보 수집 진행률 계산 로직
+- [ ] REQ-CHAT2-010: 프로젝트 관리 도구 연동 구현
 
 **MEDIA 팀 담당**:
 ```java
@@ -5491,6 +5552,8 @@ public class FollowUpQuestionGenerator {
 public Function<OCRRequest, ReservationInfo> processOCR() {
     // REQ-MEDIA-002: 항공권 정보 추출
     // REQ-MEDIA-003: 호텔 정보 추출
+    // REQ-MEDIA-004: 호텔 바우처 정보 추출
+    // REQ-MEDIA-005: 공연/행사 티켓 정보 추출
 }
 ```
 
@@ -5498,6 +5561,8 @@ public Function<OCRRequest, ReservationInfo> processOCR() {
 - [ ] REQ-MEDIA-001: OCR Service API 연동
 - [ ] REQ-MEDIA-002: 항공권 정보 추출 로직 구현
 - [ ] REQ-MEDIA-003: 호텔 예약서 정보 추출 로직 구현
+- [ ] REQ-MEDIA-004: 호텔 바우처 정보 추출 구현
+- [ ] REQ-MEDIA-005: 공연/행사 티켓 정보 추출 구현
 
 **TRIP 팀 담당**:
 ```java
@@ -5533,6 +5598,8 @@ public Function<WeatherRequest, WeatherResponse> getWeatherInfo() {
 - [ ] REQ-CHAT1-001: 빠른 입력 폼 백엔드 API 구현
 - [ ] REQ-CHAT1-002: 기본 채팅 인터페이스 구현
 - [ ] REQ-CHAT1-003: 메시지 저장 및 조회 구현
+- [ ] REQ-CHAT1-004: 일반 대화 처리 구현
+- [ ] REQ-CHAT1-005: 목적지 미정 사용자 추천 시스템 구현
 
 #### 🟢 Day 3: 통합 테스트 & 버그 수정
 
@@ -5563,11 +5630,11 @@ public class GlobalExceptionHandler {
 **Day 3 통합 테스트 체크리스트**:
 
 **필수 요구사항 검증**:
-- [ ] REQ-CHAT2-001~007: LLM 오케스트레이터 전체 플로우 테스트
+- [ ] REQ-CHAT1-001~005: 채팅 인터페이스 및 일반 대화 처리 테스트
+- [ ] REQ-CHAT2-001~010: LLM 오케스트레이터 전체 플로우 테스트
+- [ ] REQ-MEDIA-001~005: OCR 처리 플로우 테스트 (항공권/호텔/티켓)
+- [ ] REQ-USER-001~007: 인증, 세션 관리, 사용자 프로필 테스트
 - [ ] REQ-TRIP-001~007: 여행 계획 생성 전체 플로우 테스트
-- [ ] REQ-MEDIA-001~003: OCR 처리 플로우 테스트
-- [ ] REQ-USER-001~003: 인증 및 세션 관리 테스트
-- [ ] REQ-CHAT1-001~003: 채팅 인터페이스 테스트
 
 **시나리오별 E2E 테스트**:
 - [ ] 시나리오 1: 기본 정보만으로 계획 생성
@@ -5650,14 +5717,22 @@ public class GlobalExceptionHandler {
 #### 핵심 Function 구현 우선순위
 | Function 이름 | 담당 도메인 | 요구사항 번호 | 설명 |
 |--------------|------------|-------------|------|
+| `handleGeneralChat` | CHAT1 | REQ-CHAT1-004 | 일반 대화 처리 |
+| `recommendDestination` | CHAT1 | REQ-CHAT1-005 | 목적지 추천 |
 | `analyzeUserInput` | CHAT2 | REQ-CHAT2-003 | 사용자 입력에서 여행 정보 추출 |
-| `startFollowUp` | CHAT2 | REQ-CHAT2-004 | Follow-up 질문 세션 시작 |
-| `continueFollowUp` | CHAT2 | REQ-CHAT2-005 | Follow-up 질문 계속 |
+| `classifyIntent` | CHAT2 | REQ-CHAT2-004 | Intent 분류 및 라우팅 |
+| `startFollowUp` | CHAT2 | REQ-CHAT2-005 | Follow-up 질문 세션 시작 |
+| `continueFollowUp` | CHAT2 | REQ-CHAT2-006 | Follow-up 질문 계속 |
 | `generateTravelPlan` | TRIP | REQ-TRIP-001 | 여행 계획 생성 (통합) |
 | `searchWithPerplexity` | TRIP | REQ-TRIP-003 | Perplexity로 트렌디 장소 검색 |
 | `selectOptimalPlaces` | TRIP | REQ-TRIP-004 | 하이브리드 장소 선택 |
 | `getWeatherInfo` | TRIP | REQ-TRIP-005 | 날씨 정보 조회 |
 | `processOCR` | MEDIA | REQ-MEDIA-001 | 예약서 정보 OCR 추출 |
+| `extractFlightInfo` | MEDIA | REQ-MEDIA-002 | 항공권 정보 추출 |
+| `extractHotelInfo` | MEDIA | REQ-MEDIA-003~004 | 호텔 정보 추출 |
+| `extractEventInfo` | MEDIA | REQ-MEDIA-005 | 이벤트 티켓 정보 추출 |
+| `saveUserPreference` | USER | REQ-USER-006 | 사용자 선호도 저장 |
+| `getQuickInputForm` | USER | REQ-USER-007 | 빠른 입력 폼 제공 |
 
 ### 6.4 성공 지표
 

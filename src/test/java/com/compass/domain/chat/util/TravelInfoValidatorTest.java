@@ -49,6 +49,7 @@ class TravelInfoValidatorTest {
                 .budgetLevel("moderate")
                 .budgetCurrency("KRW")
                 .budgetCollected(true)
+                .travelStyle("relaxed") // 100% 완성을 위해 travelStyle 추가
                 .build();
     }
     
