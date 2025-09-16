@@ -11,8 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -28,7 +29,9 @@ public class MainLLMOrchestrator {
     private final IntentClassifier intentClassifier;
     private final PhaseManager phaseManager;
     private final ChatThreadService chatThreadService;
-    private final VertexAiGeminiChatClient geminiChatClient;
+
+    @Autowired(required = false)
+    private ChatModel chatModel;  // Spring AI ChatModel 인터페이스
 
     // 스레드별 컨텍스트 저장소
     private final Map<String, TravelContext> contextStore = new ConcurrentHashMap<>();
@@ -89,13 +92,14 @@ public class MainLLMOrchestrator {
     // 응답 생성
     private ChatResponse generateResponse(ChatRequest request, Intent intent,
                                          TravelPhase phase, TravelContext context) {
-        // LLM 프롬프트 구성
-        var messages = buildPromptMessages(request, intent, phase, context);
-        var prompt = new Prompt(messages);
+        String content;
 
-        // LLM 호출
-        var aiResponse = geminiChatClient.call(prompt);
-        var content = aiResponse.getResult().getOutput().getContent();
+        // ChatModel이 설정되어 있으면 LLM 사용, 아니면 Mock 응답
+        if (chatModel != null) {
+            content = generateLLMResponse(request, intent, phase);
+        } else {
+            content = generateMockResponse(request, intent, phase);
+        }
 
         // 응답 타입 결정
         var responseType = determineResponseType(intent, phase);
@@ -108,10 +112,25 @@ public class MainLLMOrchestrator {
             .build();
     }
 
+    // LLM 응답 생성
+    private String generateLLMResponse(ChatRequest request, Intent intent, TravelPhase phase) {
+        try {
+            // 프롬프트 메시지 구성
+            var messages = buildPromptMessages(request, intent, phase);
+            var prompt = new Prompt(messages);
+
+            // LLM 호출
+            var response = chatModel.call(prompt);
+            return response.getResult().getOutput().getContent();
+        } catch (Exception e) {
+            log.error("LLM 호출 실패: {}", e.getMessage());
+            // 실패 시 Mock 응답 반환
+            return generateMockResponse(request, intent, phase);
+        }
+    }
+
     // 프롬프트 메시지 구성
-    private List<Message> buildPromptMessages(ChatRequest request, Intent intent,
-                                             TravelPhase phase, TravelContext context) {
-        // List.of 사용으로 불변 리스트 생성
+    private List<Message> buildPromptMessages(ChatRequest request, Intent intent, TravelPhase phase) {
         return List.of(
             new SystemMessage(buildSystemPrompt(intent, phase)),
             new UserMessage(request.getMessage())
@@ -127,6 +146,18 @@ public class MainLLMOrchestrator {
 
             사용자의 요청에 맞춰 적절한 응답을 제공해주세요.
             """, intent, phase);
+    }
+
+    // 임시 응답 생성 메서드
+    private String generateMockResponse(ChatRequest request, Intent intent, TravelPhase phase) {
+        // 개발 초기 단계에서 사용할 임시 응답
+        return switch (phase) {
+            case INITIALIZATION -> "안녕하세요! 여행 계획을 도와드리겠습니다. 어디로 여행을 가고 싶으신가요?";
+            case INFORMATION_COLLECTION -> "여행 정보를 수집하고 있습니다. 추가 정보가 필요합니다.";
+            case PLAN_GENERATION -> "여행 계획을 생성 중입니다...";
+            case FEEDBACK_REFINEMENT -> "피드백을 반영하여 계획을 수정하고 있습니다.";
+            case COMPLETION -> "여행 계획이 완성되었습니다!";
+        };
     }
 
     // 응답 타입 결정
