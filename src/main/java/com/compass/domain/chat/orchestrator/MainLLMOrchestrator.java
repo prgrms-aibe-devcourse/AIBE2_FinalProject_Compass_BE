@@ -8,7 +8,6 @@ import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.service.ChatThreadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.ChatResponse as AiChatResponse;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -95,7 +94,7 @@ public class MainLLMOrchestrator {
         var prompt = new Prompt(messages);
 
         // LLM 호출
-        AiChatResponse aiResponse = geminiChatClient.call(prompt);
+        var aiResponse = geminiChatClient.call(prompt);
         var content = aiResponse.getResult().getOutput().getContent();
 
         // 응답 타입 결정
