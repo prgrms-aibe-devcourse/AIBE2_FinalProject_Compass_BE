@@ -1,8 +1,7 @@
 package com.compass.domain.chat.function.planning;
 
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -10,12 +9,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 // 여행 계획 생성 함수
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class GenerateTravelPlanFunction implements Function<Object, Object> {
-
-    // Lombok 의존성 임시
-    private static final Logger log = LoggerFactory.getLogger(GenerateTravelPlanFunction.class);
 
     @Override
     public Object apply(Object request) {
