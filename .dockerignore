@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+*.iml
+.vscode
+.DS_Store
+
+# Build outputs
+build/
+out/
+target/
+*.class
+
+# Gradle
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
+
+# Logs
+logs/
+*.log
+
+# Test
+src/test/
+
+# Documentation
+*.md
+docs/
+
+# Environment files (보안상 제외하지만 도커에서는 필요한 파일은 명시적으로 복사)
+.env.local
+.env.development
+
+# 하지만 Google Cloud 키 파일은 필요하므로 제외하지 않음
+# !travelagent-468611-1ae0c9d4e187.json

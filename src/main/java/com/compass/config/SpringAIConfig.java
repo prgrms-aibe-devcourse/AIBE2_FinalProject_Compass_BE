@@ -1,37 +1,41 @@
 package com.compass.config;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.vertexai.VertexAI;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
+import org.springframework.core.io.FileSystemResource;
 
-// Spring AI 설정
+import java.io.IOException;
+
+// Spring AI 설정 - 실제 Gemini API 사용
 @Slf4j
 @Configuration
 public class SpringAIConfig {
 
-    // Vertex AI Gemini ChatModel 빈 등록
+    @Value("${GOOGLE_CLOUD_PROJECT_ID:travelagent-468611}")
+    private String projectId;
+
+    @Value("${GOOGLE_CLOUD_LOCATION:asia-northeast3}")
+    private String location;
+
+    @Value("${GOOGLE_APPLICATION_CREDENTIALS}")
+    private String credentialsPath;
+
+    // Vertex AI 인증 설정
     @Bean
-    @Primary
-    @ConditionalOnProperty(name = "spring.ai.vertex.ai.gemini.project-id")
-    public ChatModel vertexAiGeminiChatModel() {
-        log.info("Vertex AI Gemini ChatModel 설정 중...");
+    public VertexAI vertexAI() throws IOException {
+        log.info("Vertex AI 초기화 중 - Project: {}, Location: {}", projectId, location);
 
-        // Spring Boot Starter가 자동으로 설정하므로
-        // 여기서는 추가 설정만 필요한 경우에 사용
-        // 실제 ChatModel은 AutoConfiguration으로 생성됨
+        // 서비스 계정 키 파일로 인증
+        GoogleCredentials credentials = GoogleCredentials
+                .fromStream(new FileSystemResource(credentialsPath).getInputStream());
 
-        return null; // AutoConfiguration이 처리
+        return new VertexAI(projectId, location, credentials);
     }
 
-    // 개발 환경용 Mock ChatModel
-    @Bean
-    @ConditionalOnProperty(name = "spring.ai.vertex.ai.gemini.project-id", matchIfMissing = true, havingValue = "false")
-    public ChatModel mockChatModel() {
-        log.warn("Mock ChatModel 사용 중 - 실제 LLM 연동 안 됨");
-        return null; // Mock 모드
-    }
+    // Spring Boot AutoConfiguration이 자동으로 ChatModel을 생성하므로
+    // 추가 설정이 필요한 경우에만 커스텀 빈 정의
 }
