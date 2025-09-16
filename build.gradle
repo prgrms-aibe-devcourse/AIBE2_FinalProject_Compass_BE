@@ -45,7 +45,7 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
     // AWS
-    implementation 'software.amazon.awssdk:s3:2.22.0'
+    implementation 'software.amazon.awssdk:s3:2.33.10'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
