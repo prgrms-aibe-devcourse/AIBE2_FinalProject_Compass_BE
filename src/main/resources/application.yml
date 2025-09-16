@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: compass-backend
+
+  profiles:
+    active: local
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/compass}
+    username: ${DATABASE_USERNAME:compass}
+    password: ${DATABASE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+
+  ai:
+    vertex:
+      ai:
+        gemini:
+          project-id: ${GOOGLE_CLOUD_PROJECT_ID}
+          location: ${GOOGLE_CLOUD_LOCATION:asia-northeast3}
+          model: ${GEMINI_MODEL:gemini-2.0-flash-exp}
+
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-change-this-in-production}
+  expiration: 86400000 # 24 hours
+
+logging:
+  level:
+    com.compass: DEBUG
+    org.springframework.ai: DEBUG
