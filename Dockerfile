@@ -7,7 +7,7 @@ COPY src ./src
 RUN gradle build --no-daemon -x test
 
 # Runtime stage
-FROM openjdk:17-slim
+FROM openjdk:18-slim
 WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
 EXPOSE 8080
