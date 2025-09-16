@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: compass-postgres
+    environment:
+      POSTGRES_DB: compass_db
+      POSTGRES_USER: compass
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - compass-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: compass-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - compass-network
+
+  app:
+    build: .
+    container_name: compass-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/compass_db
+      SPRING_DATASOURCE_USERNAME: compass
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - compass-network
+
+  # RDS 접속용 앱 컨테이너 (필요시 주석 해제)
+  # app-rds:
+  #   build: .
+  #   container_name: compass-backend-rds
+  #   ports:
+  #     - "8081:8080"
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: rds
+  #     RDS_PASSWORD: ${RDS_PASSWORD}
+  #     SPRING_REDIS_HOST: redis
+  #     SPRING_REDIS_PORT: 6379
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - compass-network
+
+volumes:
+  postgres_data:
+
+networks:
+  compass-network:
+    driver: bridge

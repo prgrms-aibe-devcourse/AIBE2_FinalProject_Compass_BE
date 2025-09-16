@@ -1,0 +1,103 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: compass_test
+          POSTGRES_USER: compass
+          POSTGRES_PASSWORD: compass1004!
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Build with Gradle
+      run: ./gradlew build -x test
+      env:
+        SPRING_PROFILES_ACTIVE: test
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/compass_test
+        SPRING_DATASOURCE_USERNAME: compass
+        SPRING_DATASOURCE_PASSWORD: compass1004!
+        SPRING_REDIS_HOST: localhost
+        SPRING_REDIS_PORT: 6379
+
+    # Unit tests will be added later
+    # - name: Run tests
+    #   run: ./gradlew test
+    #   env:
+    #     SPRING_PROFILES_ACTIVE: test
+    #     SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/compass_test
+    #     SPRING_DATASOURCE_USERNAME: compass
+    #     SPRING_DATASOURCE_PASSWORD: compass1004!
+    #     SPRING_REDIS_HOST: localhost
+    #     SPRING_REDIS_PORT: 6379
+
+    # - name: Generate test report
+    #   uses: dorny/test-reporter@v1
+    #   if: success() || failure()
+    #   with:
+    #     name: Test Results
+    #     path: build/test-results/test/*.xml
+    #     reporter: java-junit
+
+    - name: Build Docker image
+      run: docker build -t compass-backend:${{ github.sha }} .
+
+    - name: Run security scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: compass-backend:${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'

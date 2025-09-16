@@ -1,0 +1,18 @@
+# This file defines code owners for automatic PR review requests
+# Each line is a file pattern followed by one or more owners
+
+# Default owner for everything in the repo
+* @kmj
+
+# Backend specific files
+/src/ @kmj
+/build.gradle @kmj
+/Dockerfile @kmj
+/docker-compose.yml @kmj
+
+# GitHub Actions workflows
+/.github/ @kmj
+
+# Documentation
+/docs/ @kmj
+*.md @kmj

@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/compass_db
+    username: compass
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+
+  redis:
+    host: redis
+    port: 6379
+
+logging:
+  level:
+    com.compass: DEBUG
+    org.springframework.web: INFO
+    org.hibernate: INFO
