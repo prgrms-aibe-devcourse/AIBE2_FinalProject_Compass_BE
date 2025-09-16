@@ -1,0 +1,17 @@
+# CodeRabbit 설정
+# CodeRabbit AI 코드 리뷰 비활성화
+
+# 리뷰 비활성화
+reviews:
+  enabled: false
+
+# PR 코멘트 비활성화
+comments:
+  enabled: false
+
+# 자동 리뷰 비활성화
+auto_review:
+  enabled: false
+
+# 전체 비활성화
+enabled: false
