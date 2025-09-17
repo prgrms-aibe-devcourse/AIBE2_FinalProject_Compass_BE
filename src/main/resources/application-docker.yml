@@ -21,6 +21,33 @@ spring:
     host: redis
     port: 6379
 
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      refresh-secret: ${JWT_SECRET}
+      access-expiration: 86400000
+      refresh-expiration: 604800000
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: dummy-google-client-id
+            client-secret: dummy-google-client-secret
+            scope: profile, email
+          kakao:
+            client-id: dummy-kakao-client-id
+            client-secret: dummy-kakao-client-secret
+            authorization-grant-type: authorization_code
+            redirect-uri: http://localhost:8080/login/oauth2/code/kakao
+            scope: profile_nickname, profile_image, account_email
+            client-authentication-method: client_secret_post
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
 logging:
   level:
     com.compass: DEBUG

@@ -16,6 +16,8 @@ import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 
 import java.util.List;
 import java.util.Map;
@@ -233,6 +235,72 @@ class ResponseGeneratorTest {
         // then
         assertThat(response).isNotNull();
         assertThat(response.getContent()).contains("함께 멋진 여행 계획을 만들어볼까요?");
+        assertThat(response.isRequiresConfirmation()).isTrue();
+    }
+
+    @Test
+    @DisplayName("일반 대화 처리 + 여행 유도 - 인사말")
+    void testGeneralChatWithTravelInductionGreeting() {
+        // given
+        var request = createChatRequest("안녕하세요!");
+        var intent = Intent.GENERAL_CHAT;
+        var phase = TravelPhase.INITIALIZATION;
+        var context = TravelContext.builder()
+            .threadId("thread-1")
+            .userId("user-1")
+            .build();
+
+        // when (ChatModel이 없어서 기본 응답 반환)
+        var response = responseGenerator.generateResponse(request, intent, phase, context);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.getContent()).contains("안녕하세요");
+        assertThat(response.getContent()).contains("여행");
+        assertThat(response.isRequiresConfirmation()).isTrue();
+    }
+
+    @Test
+    @DisplayName("일반 대화 처리 + 여행 유도 - 날씨 질문")
+    void testGeneralChatWithTravelInductionWeather() {
+        // given
+        var request = createChatRequest("오늘 날씨 어때?");
+        var intent = Intent.GENERAL_CHAT;
+        var phase = TravelPhase.INITIALIZATION;
+        var context = TravelContext.builder()
+            .threadId("thread-1")
+            .userId("user-1")
+            .build();
+
+        // when
+        var response = responseGenerator.generateResponse(request, intent, phase, context);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.getContent()).contains("날씨");
+        assertThat(response.getContent()).contains("여행");
+        assertThat(response.isRequiresConfirmation()).isTrue();
+    }
+
+    @Test
+    @DisplayName("일반 대화 처리 + 여행 유도 - 심심함 표현")
+    void testGeneralChatWithTravelInductionBored() {
+        // given
+        var request = createChatRequest("너무 심심해");
+        var intent = Intent.GENERAL_CHAT;
+        var phase = TravelPhase.INITIALIZATION;
+        var context = TravelContext.builder()
+            .threadId("thread-1")
+            .userId("user-1")
+            .build();
+
+        // when
+        var response = responseGenerator.generateResponse(request, intent, phase, context);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.getContent()).contains("기분전환");
+        assertThat(response.getContent()).contains("여행");
         assertThat(response.isRequiresConfirmation()).isTrue();
     }
 
