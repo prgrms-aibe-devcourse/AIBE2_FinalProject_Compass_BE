@@ -8,10 +8,9 @@ import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.service.ChatThreadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 // 메인 오케스트레이터 서비스
 @Slf4j
@@ -24,9 +23,7 @@ public class MainLLMOrchestrator {
     private final ChatThreadService chatThreadService;
     private final ContextManager contextManager;
     private final PromptBuilder promptBuilder;
-
-    @Autowired(required = false)
-    private ChatModel chatModel;  // Spring AI ChatModel 인터페이스
+    private final ResponseGenerator responseGenerator;
 
 
     // 채팅 요청 처리
@@ -40,8 +37,14 @@ public class MainLLMOrchestrator {
         // 대화 횟수 증가
         context.incrementConversation();
 
+        // 이전 응답이 확인을 요구했는지 체크
+        var message = request.getMessage().trim();
+        if (isConfirmationResponse(message)) {
+            return handleConfirmationResponse(message, context, request);
+        }
+
         // Intent 분류
-        var intent = intentClassifier.classify(request.getMessage());
+        var intent = intentClassifier.classify(message);
         log.debug("분류된 Intent: {}", intent);
 
         // 현재 Phase 확인
@@ -51,8 +54,8 @@ public class MainLLMOrchestrator {
         // Phase 전환 처리
         var nextPhase = handlePhaseTransition(currentPhase, intent, context);
 
-        // 응답 생성
-        return generateResponse(request, intent, nextPhase, context);
+        // 응답 생성 - ResponseGenerator 사용
+        return responseGenerator.generateResponse(request, intent, nextPhase, context);
     }
 
     // Phase 전환 처리
@@ -69,118 +72,130 @@ public class MainLLMOrchestrator {
         return nextPhase;
     }
 
-
-    // 응답 생성
-    private ChatResponse generateResponse(ChatRequest request, Intent intent,
-                                         TravelPhase phase, TravelContext context) {
-        String content;
-
-        // ChatModel이 설정되어 있으면 LLM 사용, 아니면 Mock 응답
-        if (chatModel != null) {
-            content = generateLLMResponse(request, intent, phase);
-        } else {
-            content = generateMockResponse(request, intent, phase);
-        }
-
-        // 응답 타입 결정
-        var responseType = determineResponseType(intent, phase);
-
-        return ChatResponse.builder()
-            .content(content)
-            .type(responseType)
-            .data(buildResponseData(intent, phase, context))
-            .nextAction(determineNextAction(intent, phase))
-            .build();
-    }
-
-    // LLM 응답 생성
-    private String generateLLMResponse(ChatRequest request, Intent intent, TravelPhase phase) {
-        try {
-            // 프롬프트 메시지 구성 - PromptBuilder 사용
-            var messages = promptBuilder.buildPromptMessages(request, intent, phase);
-            var prompt = new Prompt(messages);
-
-            // LLM 호출
-            var response = chatModel.call(prompt);
-            return response.getResult().getOutput().getContent();
-        } catch (Exception e) {
-            log.error("LLM 호출 실패: {}", e.getMessage());
-            // 실패 시 Mock 응답 반환
-            return generateMockResponse(request, intent, phase);
-        }
-    }
-
-    // 임시 응답 생성 메서드 - 여행 계획으로 유도하는 응답
-    private String generateMockResponse(ChatRequest request, Intent intent, TravelPhase phase) {
-        // Intent와 Phase를 고려한 전략적 응답
-        if (phase == TravelPhase.INITIALIZATION) {
-            return switch (intent) {
-                case GENERAL_CHAT -> """
-                    안녕하세요! 오늘 기분은 어떠신가요? 😊
-                    요즘 날씨가 정말 좋은데, 어디론가 떠나고 싶지 않으신가요?
-                    제가 멋진 여행 계획을 도와드릴 수 있어요!
-                    """;
-                case TRAVEL_QUESTION -> """
-                    네, 여행 관련 질문이시군요! 기꺼이 도와드리겠습니다.
-                    그런데 혹시 구체적인 여행 계획을 세우는 데도 관심이 있으신가요?
-                    완벽한 여행 일정을 함께 만들어볼 수 있어요!
-                    """;
-                case TRAVEL_INFO_COLLECTION -> """
-                    좋아요! 여행 계획을 시작해볼까요? 🎉
-                    완벽한 여행을 위해 몇 가지 정보를 알려주세요.
-                    어디로 가고 싶으신지, 언제쯤 떠나실 예정인지 궁금해요!
-                    """;
-                default -> "무엇을 도와드릴까요? 여행 계획이 있으신가요?";
-            };
-        }
-
-        // 다른 Phase들의 기본 응답
-        return switch (phase) {
-            case INITIALIZATION -> "이미 처리됨";
-            case INFORMATION_COLLECTION -> """
-                여행 정보를 수집 중이에요! 🗺️
-                목적지, 날짜, 예산, 동행자 정보를 알려주시면
-                맞춤형 여행 일정을 만들어드릴게요.
-                """;
-            case PLAN_GENERATION -> "여행 계획을 생성 중입니다... ✈️";
-            case FEEDBACK_REFINEMENT -> "피드백을 반영하여 계획을 수정하고 있습니다. 🔧";
-            case COMPLETION -> "완벽한 여행 계획이 완성되었습니다! 🎊";
-        };
-    }
-
-    // 응답 타입 결정
-    private String determineResponseType(Intent intent, TravelPhase phase) {
-        // 단순화된 Intent로 기본 TEXT 타입만 사용
-        if (phase == TravelPhase.PLAN_GENERATION) {
-            return "ITINERARY";
-        }
-        return "TEXT";
-    }
-
-    // 응답 데이터 구성
-    private Object buildResponseData(Intent intent, TravelPhase phase, TravelContext context) {
-        // 필요한 경우 추가 데이터 반환
-        if (intent == Intent.TRAVEL_INFO_COLLECTION) {
-            return context.getCollectedInfo();
-        } else if (phase == TravelPhase.PLAN_GENERATION) {
-            return context.getTravelPlan();
-        }
-        return null;
-    }
-
-    // 다음 액션 결정
-    private String determineNextAction(Intent intent, TravelPhase phase) {
-        // Switch Expression 활용
-        return switch (phase) {
-            case INFORMATION_COLLECTION -> "COLLECT_MORE_INFO";
-            case FEEDBACK_REFINEMENT -> "REFINE_PLAN";
-            case COMPLETION -> "SAVE_OR_EXPORT";
-            default -> "CONTINUE";
-        };
-    }
-
     // 컨텍스트 초기화
     public void resetContext(String threadId) {
         contextManager.resetContext(threadId);
+    }
+
+    // 진행 의사 확인 응답인지 판별
+    private boolean isConfirmationResponse(String message) {
+        var lowerMessage = message.toLowerCase().trim();
+
+        // 부정적 응답 패턴 (먼저 확인)
+        var negativePatterns = List.of(
+            "아니", "아뇨", "안", "싫어", "싫습니다",
+            "no", "n", "그만", "중단", "멈춰", "취소",
+            "다시", "나중에", "보류", "필요없", "괜찮"
+        );
+
+        // 긍정적 응답 패턴
+        var positivePatterns = List.of(
+            "네", "예", "응", "좋아", "좋습니다", "알겠습니다",
+            "그래", "오케이", "ok", "okay", "yes", "y",
+            "진행", "시작", "계속", "다음", "할게요", "할래요",
+            "부탁", "원해", "원합니다", "해줘", "해주세요"
+        );
+
+        // 부정 패턴 먼저 확인 (우선순위 높음)
+        for (var pattern : negativePatterns) {
+            if (lowerMessage.contains(pattern)) return true;
+        }
+
+        // 긍정 패턴 확인
+        for (var pattern : positivePatterns) {
+            if (lowerMessage.contains(pattern)) return true;
+        }
+
+        return false;
+    }
+
+    // 자연어 진행 의사 확인 처리
+    private ChatResponse handleConfirmationResponse(String message, TravelContext context, ChatRequest request) {
+        var lowerMessage = message.toLowerCase().trim();
+        var isPositive = checkPositiveIntent(lowerMessage);
+
+        var currentPhase = TravelPhase.valueOf(context.getCurrentPhase());
+
+        if (isPositive) {
+            log.info("사용자가 Phase 진행에 동의: currentPhase={}, message={}", currentPhase, message);
+
+            // 다음 Phase로 전환
+            var nextPhase = determineNextPhase(currentPhase);
+            if (nextPhase != currentPhase) {
+                context.setCurrentPhase(nextPhase.name());
+                contextManager.updateContext(context);
+                log.info("Phase 전환: {} -> {}", currentPhase, nextPhase);
+            }
+
+            // 다음 Phase에 맞는 응답 생성
+            return responseGenerator.generateResponse(request, Intent.TRAVEL_INFO_COLLECTION, nextPhase, context);
+        } else {
+            log.info("사용자가 Phase 진행 거부: currentPhase={}, message={}", currentPhase, message);
+
+            // 현재 Phase 유지하며 대안 제시
+            return generateAlternativeResponse(currentPhase);
+        }
+    }
+
+    // 긍정적 의도 확인
+    private boolean checkPositiveIntent(String message) {
+        // 부정적 응답 패턴 (먼저 확인하여 제외)
+        var negativePatterns = List.of(
+            "아니", "아뇨", "안", "싫어", "싫습니다",
+            "no", "n", "그만", "중단", "멈춰", "취소",
+            "다시", "나중에", "보류", "필요없", "괜찮"
+        );
+
+        // 부정 패턴이 있으면 false 반환
+        for (var pattern : negativePatterns) {
+            if (message.contains(pattern)) {
+                return false;
+            }
+        }
+
+        // 긍정적 응답 패턴
+        var positivePatterns = List.of(
+            "네", "예", "응", "좋아", "좋습니다", "알겠습니다",
+            "그래", "오케이", "ok", "okay", "yes", "y",
+            "진행", "시작", "계속", "다음", "할게", "할래",
+            "부탁", "원해", "원합니다", "해줘", "해주세요"
+        );
+
+        for (var pattern : positivePatterns) {
+            if (message.contains(pattern)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // 다음 Phase 결정
+    private TravelPhase determineNextPhase(TravelPhase currentPhase) {
+        return switch (currentPhase) {
+            case INITIALIZATION -> TravelPhase.INFORMATION_COLLECTION;
+            case INFORMATION_COLLECTION -> TravelPhase.PLAN_GENERATION;
+            case PLAN_GENERATION -> TravelPhase.FEEDBACK_REFINEMENT;
+            case FEEDBACK_REFINEMENT -> TravelPhase.COMPLETION;
+            case COMPLETION -> TravelPhase.COMPLETION;  // 이미 완료
+        };
+    }
+
+    // 대안 응답 생성 (N 선택시)
+    private ChatResponse generateAlternativeResponse(TravelPhase phase) {
+        var content = switch (phase) {
+            case INITIALIZATION -> "알겠습니다. 다른 도움이 필요하시면 언제든지 말씀해주세요!";
+            case INFORMATION_COLLECTION -> "더 많은 정보가 필요하신가요? 천천히 알려주세요.";
+            case PLAN_GENERATION -> "계획을 다시 검토해보시겠어요? 수정하고 싶은 부분이 있으신가요?";
+            case FEEDBACK_REFINEMENT -> "어떤 부분이 마음에 들지 않으신가요? 구체적으로 알려주시면 수정해드릴게요.";
+            case COMPLETION -> "저장하지 않고 계속 수정하시겠어요?";
+        };
+
+        return ChatResponse.builder()
+            .content(content)
+            .type("TEXT")
+            .nextAction("WAIT_FOR_INPUT")
+            .requiresConfirmation(false)
+            .build();
     }
 }

@@ -14,4 +14,5 @@ public class ChatResponse {
     private String type;
     private Object data;
     private String nextAction;
+    private boolean requiresConfirmation;  // Phase 진행 확인 필요 여부
 }
