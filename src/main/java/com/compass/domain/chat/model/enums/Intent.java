@@ -1,17 +1,9 @@
 package com.compass.domain.chat.model.enums;
 
-/**
- * TODO: 구현 필요
- * 담당: Chat2 개발자
- */
+// 사용자 의도 분류
 public enum Intent {
-    TRAVEL_PLANNING,
-    INFORMATION_COLLECTION,
-    IMAGE_UPLOAD,
-    GENERAL_QUESTION,
-    QUICK_INPUT,
-    DESTINATION_SEARCH,
-    RESERVATION_PROCESSING,
-    API_USAGE_CHECK,
-    UNKNOWN
+    GENERAL_CHAT,           // 일반 대화
+    TRAVEL_QUESTION,        // 여행 관련 질문 (정보 제공)
+    TRAVEL_INFO_COLLECTION, // 여행 계획을 위한 정보 수집 시작
+    UNKNOWN                 // 분류 불가
 }

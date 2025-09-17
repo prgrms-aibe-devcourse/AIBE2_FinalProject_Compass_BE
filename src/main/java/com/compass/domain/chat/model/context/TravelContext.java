@@ -2,20 +2,27 @@ package com.compass.domain.chat.model.context;
 
 import lombok.Data;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
-/**
- * TODO: 구현 필요
- * 담당: Chat2 개발자
- *
- * 대화 컨텍스트 관리
- */
+// 대화 컨텍스트 관리 - 여행 계획 유도를 위한 추적
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class TravelContext {
     private String threadId;
     private String userId;
     private String currentPhase;
     private Object collectedInfo;
     private Object travelPlan;
-    // TODO: 추가 필드 구현
+
+    // 대화 진행 추적
+    @Builder.Default
+    private int conversationCount = 0;  // 대화 횟수 카운트
+
+    // 대화 횟수 증가
+    public void incrementConversation() {
+        this.conversationCount++;
+    }
 }
