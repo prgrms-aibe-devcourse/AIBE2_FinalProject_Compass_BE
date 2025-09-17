@@ -57,9 +57,7 @@ public class SubmitTravelFormFunction implements Function<TravelFormSubmitReques
         boolean isDepartureValid = StringUtils.hasText(request.departureLocation());
 
         // 3. 여행 날짜 검증
-        boolean isDatesValid = request.travelDates() != null &&
-                StringUtils.hasText(request.travelDates().get("startDate")) &&
-                StringUtils.hasText(request.travelDates().get("endDate"));
+        boolean isDatesValid = request.travelDates() != null && request.travelDates().startDate() != null && request.travelDates().endDate() != null;
 
         return isDestinationValid && isDepartureValid && isDatesValid;
     }
