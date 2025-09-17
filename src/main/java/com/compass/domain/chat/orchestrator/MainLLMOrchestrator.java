@@ -61,7 +61,8 @@ public class MainLLMOrchestrator {
     // Phase 전환 처리
     private TravelPhase handlePhaseTransition(TravelPhase currentPhase, Intent intent,
                                               TravelContext context) {
-        var nextPhase = phaseManager.determineNextPhase(currentPhase, intent, context);
+        // PhaseManager의 transitionPhase 메서드 사용
+        var nextPhase = phaseManager.transitionPhase(context.getThreadId(), intent, context);
 
         if (nextPhase != currentPhase) {
             log.info("Phase 전환: {} -> {}", currentPhase, nextPhase);
