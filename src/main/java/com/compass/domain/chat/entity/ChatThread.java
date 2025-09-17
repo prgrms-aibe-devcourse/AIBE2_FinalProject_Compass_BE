@@ -49,7 +49,16 @@ public class ChatThread {
     
     @Column(name = "travel_plan_data", columnDefinition = "TEXT")
     private String travelPlanData;
-    
+
+    // Phase 상태 저장 (INITIALIZATION, INFORMATION_COLLECTION, PLAN_GENERATION, FEEDBACK_REFINEMENT, COMPLETION)
+    @Column(name = "current_phase", length = 50)
+    @Builder.Default
+    private String currentPhase = "INITIALIZATION";
+
+    // Phase 마지막 업데이트 시간
+    @Column(name = "phase_updated_at")
+    private LocalDateTime phaseUpdatedAt;
+
     @Column(name = "is_visible")
     @Builder.Default
     private Boolean isVisible = true;

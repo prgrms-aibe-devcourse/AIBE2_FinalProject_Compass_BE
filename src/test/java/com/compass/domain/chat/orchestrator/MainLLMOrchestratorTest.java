@@ -198,8 +198,8 @@ class MainLLMOrchestratorTest {
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
         when(intentClassifier.classify("제주도 여행 계획 짜줘"))
             .thenReturn(Intent.TRAVEL_INFO_COLLECTION);
-        when(phaseManager.determineNextPhase(
-            TravelPhase.INITIALIZATION,
+        when(phaseManager.transitionPhase(
+            "thread-123",
             Intent.TRAVEL_INFO_COLLECTION,
             context
         )).thenReturn(TravelPhase.INFORMATION_COLLECTION);
@@ -228,8 +228,8 @@ class MainLLMOrchestratorTest {
         assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.INFORMATION_COLLECTION.name());
 
         verify(intentClassifier).classify("제주도 여행 계획 짜줘");
-        verify(phaseManager).determineNextPhase(
-            TravelPhase.INITIALIZATION,
+        verify(phaseManager).transitionPhase(
+            "thread-123",
             Intent.TRAVEL_INFO_COLLECTION,
             context
         );
@@ -251,8 +251,8 @@ class MainLLMOrchestratorTest {
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
         when(intentClassifier.classify("날씨 어때?"))
             .thenReturn(Intent.TRAVEL_QUESTION);
-        when(phaseManager.determineNextPhase(
-            TravelPhase.INFORMATION_COLLECTION,
+        when(phaseManager.transitionPhase(
+            "thread-1",
             Intent.TRAVEL_QUESTION,
             context
         )).thenReturn(TravelPhase.INFORMATION_COLLECTION);  // 같은 Phase 유지
