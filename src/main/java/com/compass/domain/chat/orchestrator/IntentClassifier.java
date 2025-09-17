@@ -1,12 +1,12 @@
 package com.compass.domain.chat.orchestrator;
 
 import com.compass.domain.chat.model.enums.Intent;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -14,10 +14,13 @@ import java.util.List;
 // Intent 분류기
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class IntentClassifier {
 
     private final ChatModel chatModel;  // 필수 의존성
+
+    public IntentClassifier(@Qualifier("vertexAiGeminiChat") ChatModel chatModel) {
+        this.chatModel = chatModel;
+    }
 
     // 삭제: 키워드 맵은 더 이상 필요없음 (LLM만 사용)
 

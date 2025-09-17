@@ -9,8 +9,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 // 응답 생성 전담 컴포넌트
 @Slf4j
@@ -21,7 +26,8 @@ public class ResponseGenerator {
     private final PromptBuilder promptBuilder;
 
     @Autowired(required = false)
-    private ChatModel chatModel;  // Optional - 개발 환경에서는 없을 수 있음
+    @Qualifier("vertexAiGeminiChat")
+    private ChatModel chatModel;  // Vertex AI Gemini 모델 사용
 
     // 메인 응답 생성 메서드
     public ChatResponse generateResponse(ChatRequest request, Intent intent,
@@ -69,9 +75,14 @@ public class ResponseGenerator {
     // LLM을 통한 응답 생성
     public String generateLLMResponse(ChatRequest request, Intent intent, TravelPhase phase) {
         try {
-            log.debug("LLM 응답 생성 시작");
+            log.debug("LLM 응답 생성 시작 - Intent: {}, Phase: {}", intent, phase);
 
-            // 프롬프트 메시지 구성
+            // 일반 대화 + INITIALIZATION Phase인 경우 특별 처리
+            if (intent == Intent.GENERAL_CHAT && phase == TravelPhase.INITIALIZATION) {
+                return generateGeneralChatWithTravelInduction(request);
+            }
+
+            // 기존 프롬프트 메시지 구성
             var messages = promptBuilder.buildPromptMessages(request, intent, phase);
             var prompt = new Prompt(messages);
 
@@ -188,5 +199,85 @@ public class ResponseGenerator {
             case FEEDBACK_REFINEMENT -> "\n\n✏️ 수정사항을 반영해드렸어요! 이대로 진행할까요?";
             case COMPLETION -> "";  // COMPLETION은 확인 불필요
         };
+    }
+
+    // 일반 대화 처리 + 여행 유도 (LLM 기반)
+    private String generateGeneralChatWithTravelInduction(ChatRequest request) {
+        log.debug("일반 대화 + 여행 유도 응답 생성");
+
+        var systemPrompt = """
+            당신은 친절하고 재미있는 여행 계획 도우미 '컴패스'입니다.
+            사용자와 자연스럽게 대화하면서, 적절한 타이밍에 여행 계획으로 대화를 유도합니다.
+
+            대화 전략:
+            1. 먼저 사용자의 말에 공감하고 적절히 응답하세요
+            2. 대화 내용과 연결하여 자연스럽게 여행을 언급하세요
+            3. 부담스럽지 않게, 제안하는 톤으로 여행 계획을 권유하세요
+
+            예시:
+            - 날씨 언급 → "날씨가 좋은 곳으로 여행 떠나보시는 건 어떠세요?"
+            - 스트레스/피로 → "잠시 일상을 벗어나 여행으로 리프레시하시는 건 어떨까요?"
+            - 취미/관심사 → "그 취미를 즐길 수 있는 여행지를 소개해드릴까요?"
+            - 일반 인사 → "요즘 여행 가고 싶은 곳이 있으신가요?"
+
+            이모지를 적절히 사용하여 친근한 분위기를 만드세요.
+            """;
+
+        var userPrompt = String.format("""
+            사용자: %s
+
+            위 메시지에 먼저 친근하게 응답한 후,
+            자연스럽게 여행 계획을 제안해주세요.
+            """, request.getMessage());
+
+        try {
+            var prompt = new Prompt(List.of(
+                new SystemMessage(systemPrompt),
+                new UserMessage(userPrompt)
+            ));
+
+            var response = chatModel.call(prompt);
+            return response.getResult().getOutput().getContent();
+        } catch (Exception e) {
+            log.error("일반 대화 LLM 호출 실패: {}", e.getMessage());
+            return generateDefaultGeneralChatResponse(request.getMessage());
+        }
+    }
+
+    // 일반 대화 기본 응답 (LLM 실패 시 폴백)
+    private String generateDefaultGeneralChatResponse(String message) {
+        var lowerMessage = message.toLowerCase();
+
+        if (lowerMessage.contains("안녕") || lowerMessage.contains("hello")) {
+            return """
+                안녕하세요! 반가워요 😊
+                오늘 기분은 어떠신가요?
+                혹시 요즘 여행 가고 싶은 곳이 있으신가요?
+                제가 멋진 여행 계획을 도와드릴 수 있어요! ✈️
+                """;
+        }
+
+        if (lowerMessage.contains("날씨")) {
+            return """
+                날씨 정보가 궁금하시군요! ☀️
+                요즘 날씨가 참 좋죠? 이런 날씨에 여행 떠나기 딱 좋은데...
+                혹시 날씨 좋은 여행지로 계획 세워보실래요? 🏖️
+                """;
+        }
+
+        if (lowerMessage.contains("심심") || lowerMessage.contains("지루")) {
+            return """
+                일상이 좀 지루하신가 봐요 😔
+                이럴 때 여행만큼 좋은 기분전환이 없죠!
+                가까운 곳이라도 여행 계획 세워볼까요? 제가 도와드릴게요! 🗺️
+                """;
+        }
+
+        // 기본 응답
+        return """
+            네, 무엇을 도와드릴까요? 😊
+            혹시 여행 계획이 필요하시면 언제든 말씀해주세요!
+            국내든 해외든 완벽한 일정을 만들어드릴 수 있어요 ✨
+            """;
     }
 }
