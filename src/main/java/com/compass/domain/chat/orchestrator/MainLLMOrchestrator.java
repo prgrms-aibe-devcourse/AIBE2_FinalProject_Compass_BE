@@ -8,15 +8,10 @@ import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.service.ChatThreadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 // 메인 오케스트레이터 서비스
 @Slf4j
@@ -27,8 +22,8 @@ public class MainLLMOrchestrator {
     private final IntentClassifier intentClassifier;
     private final PhaseManager phaseManager;
     private final ChatThreadService chatThreadService;
-
     private final ContextManager contextManager;
+    private final PromptBuilder promptBuilder;
 
     @Autowired(required = false)
     private ChatModel chatModel;  // Spring AI ChatModel 인터페이스
@@ -101,8 +96,8 @@ public class MainLLMOrchestrator {
     // LLM 응답 생성
     private String generateLLMResponse(ChatRequest request, Intent intent, TravelPhase phase) {
         try {
-            // 프롬프트 메시지 구성
-            var messages = buildPromptMessages(request, intent, phase);
+            // 프롬프트 메시지 구성 - PromptBuilder 사용
+            var messages = promptBuilder.buildPromptMessages(request, intent, phase);
             var prompt = new Prompt(messages);
 
             // LLM 호출
@@ -113,39 +108,6 @@ public class MainLLMOrchestrator {
             // 실패 시 Mock 응답 반환
             return generateMockResponse(request, intent, phase);
         }
-    }
-
-    // 프롬프트 메시지 구성
-    private List<Message> buildPromptMessages(ChatRequest request, Intent intent, TravelPhase phase) {
-        return List.of(
-            new SystemMessage(buildSystemPrompt(intent, phase)),
-            new UserMessage(request.getMessage())
-        );
-    }
-
-    // 시스템 프롬프트 구성 - 여행 계획으로 자연스럽게 유도
-    private String buildSystemPrompt(Intent intent, TravelPhase phase) {
-        // 모든 대화를 여행 계획으로 유도하는 전략적 프롬프트
-        return String.format("""
-            당신은 친근하고 열정적인 여행 계획 전문가입니다.
-            목표: 자연스럽게 대화를 이끌어 사용자가 여행 계획을 세우도록 도와주기
-
-            현재 Intent: %s
-            현재 Phase: %s
-
-            대화 전략:
-            1. GENERAL_CHAT: 일반 대화에서도 여행 관련 화제로 자연스럽게 전환
-               예: "안녕하세요! 오늘은 어떤 일로 찾아오셨나요? 혹시 여행 계획이 있으신가요?"
-
-            2. TRAVEL_QUESTION: 여행 질문에 답하면서 전체 여행 계획의 필요성 제안
-               예: "파리 날씨 정보를 알려드렸는데, 파리 여행 계획을 함께 세워볼까요?"
-
-            3. TRAVEL_INFO_COLLECTION: 본격적인 여행 정보 수집 시작
-               예: "좋아요! 완벽한 여행 계획을 위해 몇 가지 정보가 필요합니다."
-
-            항상 긍정적이고 도움이 되는 톤을 유지하며,
-            사용자가 여행에 관심을 갖도록 자연스럽게 유도하세요.
-            """, intent, phase);
     }
 
     // 임시 응답 생성 메서드 - 여행 계획으로 유도하는 응답
