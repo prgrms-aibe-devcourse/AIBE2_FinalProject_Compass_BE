@@ -17,8 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 // 메인 오케스트레이터 서비스
 @Slf4j
@@ -29,12 +27,10 @@ public class MainLLMOrchestrator {
     private final IntentClassifier intentClassifier;
     private final PhaseManager phaseManager;
     private final ChatThreadService chatThreadService;
+    private final ContextManager contextManager;
 
     @Autowired(required = false)
     private ChatModel chatModel;  // Spring AI ChatModel 인터페이스
-
-    // 스레드별 컨텍스트 저장소
-    private final Map<String, TravelContext> contextStore = new ConcurrentHashMap<>();
 
     // 채팅 요청 처리
     public ChatResponse processChat(ChatRequest request) {
@@ -42,7 +38,7 @@ public class MainLLMOrchestrator {
                 request.getThreadId(), request.getUserId());
 
         // 컨텍스트 조회 또는 생성
-        var context = getOrCreateContext(request);
+        var context = contextManager.getOrCreateContext(request);
 
         // Intent 분류
         var intent = intentClassifier.classify(request.getMessage());
@@ -67,27 +63,12 @@ public class MainLLMOrchestrator {
         if (nextPhase != currentPhase) {
             log.info("Phase 전환: {} -> {}", currentPhase, nextPhase);
             context.setCurrentPhase(nextPhase.name());
-            updateContext(context);
+            contextManager.updateContext(context);
         }
 
         return nextPhase;
     }
 
-    // 컨텍스트 조회 또는 생성
-    private TravelContext getOrCreateContext(ChatRequest request) {
-        return contextStore.computeIfAbsent(request.getThreadId(), k ->
-            TravelContext.builder()
-                .threadId(request.getThreadId())
-                .userId(request.getUserId())
-                .currentPhase(TravelPhase.INITIALIZATION.name())
-                .build()
-        );
-    }
-
-    // 컨텍스트 업데이트
-    private void updateContext(TravelContext context) {
-        contextStore.put(context.getThreadId(), context);
-    }
 
     // 응답 생성
     private ChatResponse generateResponse(ChatRequest request, Intent intent,
@@ -194,7 +175,6 @@ public class MainLLMOrchestrator {
 
     // 컨텍스트 초기화
     public void resetContext(String threadId) {
-        log.info("컨텍스트 초기화: threadId={}", threadId);
-        contextStore.remove(threadId);
+        contextManager.resetContext(threadId);
     }
 }
