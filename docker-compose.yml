@@ -47,6 +47,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
       AWS_S3_REGION: ${AWS_S3_REGION}
+    volumes:
+      - D:/finalproject/AIBE2_FinalProject_Compass_BE/travelagent-468611-1ae0c9d4e187.json:/app/travelagent-468611-1ae0c9d4e187.json:ro
     depends_on:
       - postgres
       - redis
