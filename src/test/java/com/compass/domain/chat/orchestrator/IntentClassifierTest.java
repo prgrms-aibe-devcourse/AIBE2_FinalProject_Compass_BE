@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-// Intent 분류기 테스트 (단순화된 3가지 Intent)
+// Intent 분류기 테스트 (단순화된 3가지 Intent - 분류만 담당)
 @ExtendWith(MockitoExtension.class)
 class IntentClassifierTest {
 
