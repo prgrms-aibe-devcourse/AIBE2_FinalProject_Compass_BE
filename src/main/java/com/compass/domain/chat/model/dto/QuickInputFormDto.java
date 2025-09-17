@@ -9,9 +9,9 @@ import java.util.Map;
 //빠른 입력 폼의 전체 구조를 정의하는 DTO
 
 public record QuickInputFormDto(
-        String formType,
-        List<FormField> formFields,
-        Map<String, Object> validationRules
+        String formType, // 폼 구조
+        List<FormField> formFields, // 필드 타입
+        Map<String, Object> validationRules // 검증 규칙
 ) {
 
     // 빠른 입력 폼을 구성하는 개별 필드의 속성을 정의하는 내부 DTO
