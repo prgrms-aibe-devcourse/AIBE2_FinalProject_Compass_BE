@@ -1,5 +1,7 @@
 package com.compass.domain.chat.function.planning;
 
+import com.compass.domain.chat.model.request.TravelPlanRequest;
+import com.compass.domain.chat.model.response.TravelPlanResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -12,10 +14,10 @@ import java.util.function.Function;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class GenerateTravelPlanFunction implements Function<Object, Object> {
+public class GenerateTravelPlanFunction implements Function<TravelPlanRequest, TravelPlanResponse> {
 
     @Override
-    public Object apply(Object request) {
+    public TravelPlanResponse apply(TravelPlanRequest request) {
         log.info("여행 계획 생성 시작");
 
         try {
@@ -69,12 +71,12 @@ public class GenerateTravelPlanFunction implements Function<Object, Object> {
     }
 
     // 성공 응답 생성
-    private Object createResponse(Object plan) {
-        return new Object();
+    private TravelPlanResponse createResponse(Object plan) {
+        return TravelPlanResponse.success("", plan, 0);
     }
 
     // 에러 응답 생성
-    private Object createErrorResponse() {
-        return new Object();
+    private TravelPlanResponse createErrorResponse() {
+        return TravelPlanResponse.error("여행 계획 생성 중 오류가 발생했습니다");
     }
 }
