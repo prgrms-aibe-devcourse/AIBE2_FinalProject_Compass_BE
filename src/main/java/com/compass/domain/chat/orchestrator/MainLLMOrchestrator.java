@@ -27,10 +27,12 @@ public class MainLLMOrchestrator {
     private final IntentClassifier intentClassifier;
     private final PhaseManager phaseManager;
     private final ChatThreadService chatThreadService;
+
     private final ContextManager contextManager;
 
     @Autowired(required = false)
     private ChatModel chatModel;  // Spring AI ChatModel 인터페이스
+
 
     // 채팅 요청 처리
     public ChatResponse processChat(ChatRequest request) {
@@ -39,6 +41,9 @@ public class MainLLMOrchestrator {
 
         // 컨텍스트 조회 또는 생성
         var context = contextManager.getOrCreateContext(request);
+
+        // 대화 횟수 증가
+        context.incrementConversation();
 
         // Intent 분류
         var intent = intentClassifier.classify(request.getMessage());
@@ -118,43 +123,82 @@ public class MainLLMOrchestrator {
         );
     }
 
-    // 시스템 프롬프트 구성
+    // 시스템 프롬프트 구성 - 여행 계획으로 자연스럽게 유도
     private String buildSystemPrompt(Intent intent, TravelPhase phase) {
+        // 모든 대화를 여행 계획으로 유도하는 전략적 프롬프트
         return String.format("""
-            당신은 여행 계획을 도와주는 AI 어시스턴트입니다.
+            당신은 친근하고 열정적인 여행 계획 전문가입니다.
+            목표: 자연스럽게 대화를 이끌어 사용자가 여행 계획을 세우도록 도와주기
+
             현재 Intent: %s
             현재 Phase: %s
 
-            사용자의 요청에 맞춰 적절한 응답을 제공해주세요.
+            대화 전략:
+            1. GENERAL_CHAT: 일반 대화에서도 여행 관련 화제로 자연스럽게 전환
+               예: "안녕하세요! 오늘은 어떤 일로 찾아오셨나요? 혹시 여행 계획이 있으신가요?"
+
+            2. TRAVEL_QUESTION: 여행 질문에 답하면서 전체 여행 계획의 필요성 제안
+               예: "파리 날씨 정보를 알려드렸는데, 파리 여행 계획을 함께 세워볼까요?"
+
+            3. TRAVEL_INFO_COLLECTION: 본격적인 여행 정보 수집 시작
+               예: "좋아요! 완벽한 여행 계획을 위해 몇 가지 정보가 필요합니다."
+
+            항상 긍정적이고 도움이 되는 톤을 유지하며,
+            사용자가 여행에 관심을 갖도록 자연스럽게 유도하세요.
             """, intent, phase);
     }
 
-    // 임시 응답 생성 메서드
+    // 임시 응답 생성 메서드 - 여행 계획으로 유도하는 응답
     private String generateMockResponse(ChatRequest request, Intent intent, TravelPhase phase) {
-        // 개발 초기 단계에서 사용할 임시 응답
+        // Intent와 Phase를 고려한 전략적 응답
+        if (phase == TravelPhase.INITIALIZATION) {
+            return switch (intent) {
+                case GENERAL_CHAT -> """
+                    안녕하세요! 오늘 기분은 어떠신가요? 😊
+                    요즘 날씨가 정말 좋은데, 어디론가 떠나고 싶지 않으신가요?
+                    제가 멋진 여행 계획을 도와드릴 수 있어요!
+                    """;
+                case TRAVEL_QUESTION -> """
+                    네, 여행 관련 질문이시군요! 기꺼이 도와드리겠습니다.
+                    그런데 혹시 구체적인 여행 계획을 세우는 데도 관심이 있으신가요?
+                    완벽한 여행 일정을 함께 만들어볼 수 있어요!
+                    """;
+                case TRAVEL_INFO_COLLECTION -> """
+                    좋아요! 여행 계획을 시작해볼까요? 🎉
+                    완벽한 여행을 위해 몇 가지 정보를 알려주세요.
+                    어디로 가고 싶으신지, 언제쯤 떠나실 예정인지 궁금해요!
+                    """;
+                default -> "무엇을 도와드릴까요? 여행 계획이 있으신가요?";
+            };
+        }
+
+        // 다른 Phase들의 기본 응답
         return switch (phase) {
-            case INITIALIZATION -> "안녕하세요! 여행 계획을 도와드리겠습니다. 어디로 여행을 가고 싶으신가요?";
-            case INFORMATION_COLLECTION -> "여행 정보를 수집하고 있습니다. 추가 정보가 필요합니다.";
-            case PLAN_GENERATION -> "여행 계획을 생성 중입니다...";
-            case FEEDBACK_REFINEMENT -> "피드백을 반영하여 계획을 수정하고 있습니다.";
-            case COMPLETION -> "여행 계획이 완성되었습니다!";
+            case INITIALIZATION -> "이미 처리됨";
+            case INFORMATION_COLLECTION -> """
+                여행 정보를 수집 중이에요! 🗺️
+                목적지, 날짜, 예산, 동행자 정보를 알려주시면
+                맞춤형 여행 일정을 만들어드릴게요.
+                """;
+            case PLAN_GENERATION -> "여행 계획을 생성 중입니다... ✈️";
+            case FEEDBACK_REFINEMENT -> "피드백을 반영하여 계획을 수정하고 있습니다. 🔧";
+            case COMPLETION -> "완벽한 여행 계획이 완성되었습니다! 🎊";
         };
     }
 
     // 응답 타입 결정
     private String determineResponseType(Intent intent, TravelPhase phase) {
-        // Switch Expression 활용
-        return switch (intent) {
-            case QUICK_INPUT -> "FORM";
-            case DESTINATION_SEARCH, RESERVATION_PROCESSING -> "CARD";
-            default -> phase == TravelPhase.PLAN_GENERATION ? "ITINERARY" : "TEXT";
-        };
+        // 단순화된 Intent로 기본 TEXT 타입만 사용
+        if (phase == TravelPhase.PLAN_GENERATION) {
+            return "ITINERARY";
+        }
+        return "TEXT";
     }
 
     // 응답 데이터 구성
     private Object buildResponseData(Intent intent, TravelPhase phase, TravelContext context) {
         // 필요한 경우 추가 데이터 반환
-        if (intent == Intent.INFORMATION_COLLECTION) {
+        if (intent == Intent.TRAVEL_INFO_COLLECTION) {
             return context.getCollectedInfo();
         } else if (phase == TravelPhase.PLAN_GENERATION) {
             return context.getTravelPlan();
