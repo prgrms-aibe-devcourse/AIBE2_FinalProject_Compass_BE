@@ -37,9 +37,9 @@ public class FunctionConfiguration {
 
     private final SubmitTravelFormFunction submitTravelFormFunction;
     private final ShowQuickInputFormFunction showQuickInputFormFunction;
-    private final AskFollowUpQuestionFunction askFollowUpQuestionFunction;
+    // private final AskFollowUpQuestionFunction askFollowUpQuestionFunction; // TODO: 구현 필요
     private final StartFollowUpFunction startFollowUpFunction;
-    private final ValidateAndStoreInfoFunction validateAndStoreInfoFunction;
+    // private final ValidateAndStoreInfoFunction validateAndStoreInfoFunction; // TODO: 구현 필요
 
     @Bean
     public FunctionCallbackWrapper<?, ?> submitTravelFormWrapper() {
@@ -57,13 +57,14 @@ public class FunctionConfiguration {
                 .build();
     }
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> askFollowUpQuestionWrapper() {
-        return FunctionCallbackWrapper.builder(askFollowUpQuestionFunction)
-                .withName("ask_follow_up_question")
-                .withDescription("부족한 정보에 대한 추가 질문 생성")
-                .build();
-    }
+    // TODO: AskFollowUpQuestionFunction 구현 후 주석 해제
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> askFollowUpQuestionWrapper() {
+    //     return FunctionCallbackWrapper.builder(askFollowUpQuestionFunction)
+    //             .withName("ask_follow_up_question")
+    //             .withDescription("부족한 정보에 대한 추가 질문 생성")
+    //             .build();
+    // }
 
     @Bean
     public FunctionCallbackWrapper<?, ?> startFollowUpWrapper() {
@@ -73,13 +74,14 @@ public class FunctionConfiguration {
                 .build();
     }
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> validateAndStoreInfoWrapper() {
-        return FunctionCallbackWrapper.builder(validateAndStoreInfoFunction)
-                .withName("validate_and_store_info")
-                .withDescription("수집된 정보 검증 및 저장")
-                .build();
-    }
+    // TODO: ValidateAndStoreInfoFunction 구현 후 주석 해제
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> validateAndStoreInfoWrapper() {
+    //     return FunctionCallbackWrapper.builder(validateAndStoreInfoFunction)
+    //             .withName("validate_and_store_info")
+    //             .withDescription("수집된 정보 검증 및 저장")
+    //             .build();
+    // }
 
     // ========== 여행 계획 Functions (Planning) ==========
 
@@ -104,105 +106,109 @@ public class FunctionConfiguration {
 
     // ========== 일정 관리 Functions (Itinerary) ==========
 
-    private final GenerateItineraryFunction generateItineraryFunction;
-    private final ShowItineraryFunction showItineraryFunction;
-    private final SearchPlacesFunction searchPlacesFunction;
+    // private final GenerateItineraryFunction generateItineraryFunction; // TODO: 구현 필요
+    // private final ShowItineraryFunction showItineraryFunction; // TODO: 구현 필요
+    // private final SearchPlacesFunction searchPlacesFunction; // TODO: 구현 필요
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> generateItineraryWrapper() {
-        return FunctionCallbackWrapper.builder(generateItineraryFunction)
-                .withName("generate_itinerary")
-                .withDescription("상세 여행 일정 생성")
-                .build();
-    }
+    // TODO: Itinerary Function들 구현 후 주석 해제
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> generateItineraryWrapper() {
+    //     return FunctionCallbackWrapper.builder(generateItineraryFunction)
+    //             .withName("generate_itinerary")
+    //             .withDescription("상세 여행 일정 생성")
+    //             .build();
+    // }
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> showItineraryWrapper() {
-        return FunctionCallbackWrapper.builder(showItineraryFunction)
-                .withName("show_itinerary")
-                .withDescription("생성된 일정 표시")
-                .build();
-    }
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> showItineraryWrapper() {
+    //     return FunctionCallbackWrapper.builder(showItineraryFunction)
+    //             .withName("show_itinerary")
+    //             .withDescription("생성된 일정 표시")
+    //             .build();
+    // }
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> searchPlacesWrapper() {
-        return FunctionCallbackWrapper.builder(searchPlacesFunction)
-                .withName("search_places")
-                .withDescription("관광지 및 장소 검색")
-                .build();
-    }
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> searchPlacesWrapper() {
+    //     return FunctionCallbackWrapper.builder(searchPlacesFunction)
+    //             .withName("search_places")
+    //             .withDescription("관광지 및 장소 검색")
+    //             .build();
+    // }
 
     // ========== 일정 수정 Functions (Adjustment) ==========
 
-    private final ModifyItineraryFunction modifyItineraryFunction;
-    private final RegenerateItineraryFunction regenerateItineraryFunction;
+    // private final ModifyItineraryFunction modifyItineraryFunction; // TODO: 구현 필요
+    // private final RegenerateItineraryFunction regenerateItineraryFunction; // TODO: 구현 필요
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> modifyItineraryWrapper() {
-        return FunctionCallbackWrapper.builder(modifyItineraryFunction)
-                .withName("modify_itinerary")
-                .withDescription("일정 수정")
-                .build();
-    }
+    // TODO: Adjustment Function들 구현 후 주석 해제
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> modifyItineraryWrapper() {
+    //     return FunctionCallbackWrapper.builder(modifyItineraryFunction)
+    //             .withName("modify_itinerary")
+    //             .withDescription("일정 수정")
+    //             .build();
+    // }
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> regenerateItineraryWrapper() {
-        return FunctionCallbackWrapper.builder(regenerateItineraryFunction)
-                .withName("regenerate_itinerary")
-                .withDescription("일정 재생성")
-                .build();
-    }
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> regenerateItineraryWrapper() {
+    //     return FunctionCallbackWrapper.builder(regenerateItineraryFunction)
+    //             .withName("regenerate_itinerary")
+    //             .withDescription("일정 재생성")
+    //             .build();
+    // }
 
     // ========== 최종화 Functions (Finalization) ==========
 
-    private final SaveFinalItineraryFunction saveFinalItineraryFunction;
-    private final ExportItineraryFunction exportItineraryFunction;
+    // private final SaveFinalItineraryFunction saveFinalItineraryFunction; // TODO: 구현 필요
+    // private final ExportItineraryFunction exportItineraryFunction; // TODO: 구현 필요
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> saveFinalItineraryWrapper() {
-        return FunctionCallbackWrapper.builder(saveFinalItineraryFunction)
-                .withName("save_final_itinerary")
-                .withDescription("최종 일정 저장")
-                .build();
-    }
+    // TODO: Finalization Function들 구현 후 주석 해제
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> saveFinalItineraryWrapper() {
+    //     return FunctionCallbackWrapper.builder(saveFinalItineraryFunction)
+    //             .withName("save_final_itinerary")
+    //             .withDescription("최종 일정 저장")
+    //             .build();
+    // }
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> exportItineraryWrapper() {
-        return FunctionCallbackWrapper.builder(exportItineraryFunction)
-                .withName("export_itinerary")
-                .withDescription("일정 내보내기 (PDF, 이미지 등)")
-                .build();
-    }
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> exportItineraryWrapper() {
+    //     return FunctionCallbackWrapper.builder(exportItineraryFunction)
+    //             .withName("export_itinerary")
+    //             .withDescription("일정 내보내기 (PDF, 이미지 등)")
+    //             .build();
+    // }
 
     // ========== 일반 Functions (General) ==========
 
-    private final HandleGeneralQueryFunction handleGeneralQueryFunction;
-    private final ShowProgressFunction showProgressFunction;
-    private final RestartPlanningFunction restartPlanningFunction;
+    // private final HandleGeneralQueryFunction handleGeneralQueryFunction; // TODO: 구현 필요
+    // private final ShowProgressFunction showProgressFunction; // TODO: 구현 필요
+    // private final RestartPlanningFunction restartPlanningFunction; // TODO: 구현 필요
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> handleGeneralQueryWrapper() {
-        return FunctionCallbackWrapper.builder(handleGeneralQueryFunction)
-                .withName("handle_general_query")
-                .withDescription("일반 질문 처리")
-                .build();
-    }
+    // TODO: General Function들 구현 후 주석 해제
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> handleGeneralQueryWrapper() {
+    //     return FunctionCallbackWrapper.builder(handleGeneralQueryFunction)
+    //             .withName("handle_general_query")
+    //             .withDescription("일반 질문 처리")
+    //             .build();
+    // }
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> showProgressWrapper() {
-        return FunctionCallbackWrapper.builder(showProgressFunction)
-                .withName("show_progress")
-                .withDescription("진행 상황 표시")
-                .build();
-    }
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> showProgressWrapper() {
+    //     return FunctionCallbackWrapper.builder(showProgressFunction)
+    //             .withName("show_progress")
+    //             .withDescription("진행 상황 표시")
+    //             .build();
+    // }
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> restartPlanningWrapper() {
-        return FunctionCallbackWrapper.builder(restartPlanningFunction)
-                .withName("restart_planning")
-                .withDescription("계획 다시 시작")
-                .build();
-    }
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> restartPlanningWrapper() {
+    //     return FunctionCallbackWrapper.builder(restartPlanningFunction)
+    //             .withName("restart_planning")
+    //             .withDescription("계획 다시 시작")
+    //             .build();
+    // }
 
     // ========== 처리 Functions (Processing) ==========
 
@@ -257,39 +263,41 @@ public class FunctionConfiguration {
 
     // ========== 유틸리티 Functions (Utility) ==========
 
-    private final SearchWebFunction searchWebFunction;
-    private final SendNotificationFunction sendNotificationFunction;
+    // private final SearchWebFunction searchWebFunction; // TODO: 구현 필요
+    // private final SendNotificationFunction sendNotificationFunction; // TODO: 구현 필요
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> searchWebWrapper() {
-        return FunctionCallbackWrapper.builder(searchWebFunction)
-                .withName("search_web")
-                .withDescription("웹 검색")
-                .build();
-    }
+    // TODO: Utility Function들 구현 후 주석 해제
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> searchWebWrapper() {
+    //     return FunctionCallbackWrapper.builder(searchWebFunction)
+    //             .withName("search_web")
+    //             .withDescription("웹 검색")
+    //             .build();
+    // }
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> sendNotificationWrapper() {
-        return FunctionCallbackWrapper.builder(sendNotificationFunction)
-                .withName("send_notification")
-                .withDescription("알림 전송")
-                .build();
-    }
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> sendNotificationWrapper() {
+    //     return FunctionCallbackWrapper.builder(sendNotificationFunction)
+    //             .withName("send_notification")
+    //             .withDescription("알림 전송")
+    //             .build();
+    // }
 
     // Bean 등록 후 로깅
     @Bean
     public String functionRegistrationLogger() {
         log.info("========== Spring AI Function 등록 완료 ==========");
-        log.info("총 25개 Function이 FunctionCallbackWrapper로 등록되었습니다.");
-        log.info("- Collection Functions: 5개");
-        log.info("- Planning Functions: 2개");
-        log.info("- Itinerary Functions: 3개");
-        log.info("- Adjustment Functions: 2개");
-        log.info("- Finalization Functions: 2개");
-        log.info("- General Functions: 3개");
-        log.info("- Processing Functions: 3개");
-        log.info("- External API Functions: 2개");
-        log.info("- Utility Functions: 2개");
+        log.info("총 11개 Function이 FunctionCallbackWrapper로 등록되었습니다.");
+        log.info("- Collection Functions: 3개 (구현됨)");
+        log.info("- Planning Functions: 2개 (구현됨)");
+        log.info("- Itinerary Functions: 0개 (TODO)");
+        log.info("- Adjustment Functions: 0개 (TODO)");
+        log.info("- Finalization Functions: 0개 (TODO)");
+        log.info("- General Functions: 0개 (TODO)");
+        log.info("- Processing Functions: 3개 (구현됨)");
+        log.info("- External API Functions: 2개 (구현됨)");
+        log.info("- Utility Functions: 0개 (TODO)");
+        log.info("- 미구현 Function: 14개");
         log.info("=================================================");
         return "Function Registration Complete";
     }
