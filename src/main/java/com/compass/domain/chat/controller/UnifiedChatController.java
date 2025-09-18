@@ -125,7 +125,7 @@ public class UnifiedChatController {
             userDetails.getUsername(), threadId);
 
         try {
-            mainLLMOrchestrator.resetContext(threadId);
+            mainLLMOrchestrator.resetContext(threadId, userDetails.getUsername());
             return ResponseEntity.noContent().build();
 
         } catch (Exception e) {

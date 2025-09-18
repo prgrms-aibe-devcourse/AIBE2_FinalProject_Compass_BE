@@ -66,7 +66,7 @@ class ResponseGeneratorTest {
     void testGenerateLLMResponse() {
         // given
         var request = createChatRequest("제주도 여행 계획 짜줘");
-        var intent = Intent.TRAVEL_INFO_COLLECTION;
+        var intent = Intent.INFORMATION_COLLECTION;
         var phase = TravelPhase.INITIALIZATION;
 
         List<Message> messages = mock(List.class);
@@ -92,7 +92,7 @@ class ResponseGeneratorTest {
     void testLLMFailureReturnsMockResponse() {
         // given
         var request = createChatRequest("제주도 여행");
-        var intent = Intent.TRAVEL_INFO_COLLECTION;
+        var intent = Intent.INFORMATION_COLLECTION;
         var phase = TravelPhase.INITIALIZATION;
 
         List<Message> messages = mock(List.class);
@@ -115,17 +115,17 @@ class ResponseGeneratorTest {
         // when & then
         // GENERAL_CHAT
         var generalResponse = responseGenerator.generateMockResponse(
-            request, Intent.GENERAL_CHAT, TravelPhase.INITIALIZATION);
+            request, Intent.GENERAL_QUESTION, TravelPhase.INITIALIZATION);
         assertThat(generalResponse).contains("안녕하세요! 오늘 기분은 어떠신가요?");
 
         // TRAVEL_QUESTION
         var questionResponse = responseGenerator.generateMockResponse(
-            request, Intent.TRAVEL_QUESTION, TravelPhase.INITIALIZATION);
+            request, Intent.GENERAL_QUESTION, TravelPhase.INITIALIZATION);
         assertThat(questionResponse).contains("여행 관련 질문이시군요!");
 
         // TRAVEL_INFO_COLLECTION
         var collectionResponse = responseGenerator.generateMockResponse(
-            request, Intent.TRAVEL_INFO_COLLECTION, TravelPhase.INITIALIZATION);
+            request, Intent.INFORMATION_COLLECTION, TravelPhase.INITIALIZATION);
         assertThat(collectionResponse).contains("좋아요! 여행 계획을 시작해볼까요?");
     }
 
@@ -137,19 +137,19 @@ class ResponseGeneratorTest {
 
         // when & then
         var infoResponse = responseGenerator.generateMockResponse(
-            request, Intent.GENERAL_CHAT, TravelPhase.INFORMATION_COLLECTION);
+            request, Intent.GENERAL_QUESTION, TravelPhase.INFORMATION_COLLECTION);
         assertThat(infoResponse).contains("여행 정보를 수집 중이에요!");
 
         var planResponse = responseGenerator.generateMockResponse(
-            request, Intent.GENERAL_CHAT, TravelPhase.PLAN_GENERATION);
+            request, Intent.GENERAL_QUESTION, TravelPhase.PLAN_GENERATION);
         assertThat(planResponse).contains("여행 계획을 생성 중입니다");
 
         var feedbackResponse = responseGenerator.generateMockResponse(
-            request, Intent.GENERAL_CHAT, TravelPhase.FEEDBACK_REFINEMENT);
+            request, Intent.GENERAL_QUESTION, TravelPhase.FEEDBACK_REFINEMENT);
         assertThat(feedbackResponse).contains("피드백을 반영하여");
 
         var completionResponse = responseGenerator.generateMockResponse(
-            request, Intent.GENERAL_CHAT, TravelPhase.COMPLETION);
+            request, Intent.GENERAL_QUESTION, TravelPhase.COMPLETION);
         assertThat(completionResponse).contains("완벽한 여행 계획이 완성되었습니다!");
     }
 
@@ -159,12 +159,12 @@ class ResponseGeneratorTest {
         // when & then
         // PLAN_GENERATION Phase는 ITINERARY 타입
         var itineraryType = responseGenerator.determineResponseType(
-            Intent.GENERAL_CHAT, TravelPhase.PLAN_GENERATION);
+            Intent.GENERAL_QUESTION, TravelPhase.PLAN_GENERATION);
         assertThat(itineraryType).isEqualTo("ITINERARY");
 
         // 나머지는 TEXT 타입
         var textType = responseGenerator.determineResponseType(
-            Intent.GENERAL_CHAT, TravelPhase.INITIALIZATION);
+            Intent.GENERAL_QUESTION, TravelPhase.INITIALIZATION);
         assertThat(textType).isEqualTo("TEXT");
     }
 
@@ -182,17 +182,17 @@ class ResponseGeneratorTest {
         // when & then
         // TRAVEL_INFO_COLLECTION은 collectedInfo 반환
         var collectedData = responseGenerator.buildResponseData(
-            Intent.TRAVEL_INFO_COLLECTION, TravelPhase.INITIALIZATION, context);
+            Intent.INFORMATION_COLLECTION, TravelPhase.INITIALIZATION, context);
         assertThat(collectedData).isEqualTo(Map.of("destination", "제주도"));
 
         // PLAN_GENERATION은 travelPlan 반환
         var planData = responseGenerator.buildResponseData(
-            Intent.GENERAL_CHAT, TravelPhase.PLAN_GENERATION, context);
+            Intent.GENERAL_QUESTION, TravelPhase.PLAN_GENERATION, context);
         assertThat(planData).isEqualTo(Map.of("day1", "한라산"));
 
         // 나머지는 null
         var nullData = responseGenerator.buildResponseData(
-            Intent.GENERAL_CHAT, TravelPhase.INITIALIZATION, context);
+            Intent.GENERAL_QUESTION, TravelPhase.INITIALIZATION, context);
         assertThat(nullData).isNull();
     }
 
@@ -201,19 +201,19 @@ class ResponseGeneratorTest {
     void testDetermineNextAction() {
         // when & then
         assertThat(responseGenerator.determineNextAction(
-            Intent.GENERAL_CHAT, TravelPhase.INFORMATION_COLLECTION))
+            Intent.GENERAL_QUESTION, TravelPhase.INFORMATION_COLLECTION))
             .isEqualTo("COLLECT_MORE_INFO");
 
         assertThat(responseGenerator.determineNextAction(
-            Intent.GENERAL_CHAT, TravelPhase.FEEDBACK_REFINEMENT))
+            Intent.GENERAL_QUESTION, TravelPhase.FEEDBACK_REFINEMENT))
             .isEqualTo("REFINE_PLAN");
 
         assertThat(responseGenerator.determineNextAction(
-            Intent.GENERAL_CHAT, TravelPhase.COMPLETION))
+            Intent.GENERAL_QUESTION, TravelPhase.COMPLETION))
             .isEqualTo("SAVE_OR_EXPORT");
 
         assertThat(responseGenerator.determineNextAction(
-            Intent.GENERAL_CHAT, TravelPhase.INITIALIZATION))
+            Intent.GENERAL_QUESTION, TravelPhase.INITIALIZATION))
             .isEqualTo("CONTINUE");
     }
 
@@ -222,7 +222,7 @@ class ResponseGeneratorTest {
     void testConfirmationPromptForInitialization() {
         // given
         var request = createChatRequest("여행 계획 짜고 싶어요");
-        var intent = Intent.TRAVEL_INFO_COLLECTION;
+        var intent = Intent.INFORMATION_COLLECTION;
         var phase = TravelPhase.INITIALIZATION;
         var context = TravelContext.builder()
             .threadId("thread-1")
@@ -243,7 +243,7 @@ class ResponseGeneratorTest {
     void testGeneralChatWithTravelInductionGreeting() {
         // given
         var request = createChatRequest("안녕하세요!");
-        var intent = Intent.GENERAL_CHAT;
+        var intent = Intent.GENERAL_QUESTION;
         var phase = TravelPhase.INITIALIZATION;
         var context = TravelContext.builder()
             .threadId("thread-1")
@@ -265,7 +265,7 @@ class ResponseGeneratorTest {
     void testGeneralChatWithTravelInductionWeather() {
         // given
         var request = createChatRequest("오늘 날씨 어때?");
-        var intent = Intent.GENERAL_CHAT;
+        var intent = Intent.GENERAL_QUESTION;
         var phase = TravelPhase.INITIALIZATION;
         var context = TravelContext.builder()
             .threadId("thread-1")
@@ -287,7 +287,7 @@ class ResponseGeneratorTest {
     void testGeneralChatWithTravelInductionBored() {
         // given
         var request = createChatRequest("너무 심심해");
-        var intent = Intent.GENERAL_CHAT;
+        var intent = Intent.GENERAL_QUESTION;
         var phase = TravelPhase.INITIALIZATION;
         var context = TravelContext.builder()
             .threadId("thread-1")
@@ -309,7 +309,7 @@ class ResponseGeneratorTest {
     void testConfirmationPromptForInformationCollection() {
         // given
         var request = createChatRequest("제주도 3박 4일");
-        var intent = Intent.TRAVEL_INFO_COLLECTION;
+        var intent = Intent.INFORMATION_COLLECTION;
         var phase = TravelPhase.INFORMATION_COLLECTION;
         var context = TravelContext.builder()
             .threadId("thread-1")
@@ -330,7 +330,7 @@ class ResponseGeneratorTest {
     void testConfirmationPromptForPlanGeneration() {
         // given
         var request = createChatRequest("계획 확인");
-        var intent = Intent.TRAVEL_INFO_COLLECTION;
+        var intent = Intent.INFORMATION_COLLECTION;
         var phase = TravelPhase.PLAN_GENERATION;
         var context = TravelContext.builder()
             .threadId("thread-1")
@@ -351,7 +351,7 @@ class ResponseGeneratorTest {
     void testConfirmationPromptForFeedbackRefinement() {
         // given
         var request = createChatRequest("수정사항 확인");
-        var intent = Intent.TRAVEL_INFO_COLLECTION;
+        var intent = Intent.INFORMATION_COLLECTION;
         var phase = TravelPhase.FEEDBACK_REFINEMENT;
         var context = TravelContext.builder()
             .threadId("thread-1")
@@ -372,7 +372,7 @@ class ResponseGeneratorTest {
     void testNoConfirmationPromptForCompletion() {
         // given
         var request = createChatRequest("여행 계획 완료");
-        var intent = Intent.TRAVEL_INFO_COLLECTION;
+        var intent = Intent.INFORMATION_COLLECTION;
         var phase = TravelPhase.COMPLETION;
         var context = TravelContext.builder()
             .threadId("thread-1")
@@ -394,7 +394,7 @@ class ResponseGeneratorTest {
     void testGenerateResponseWithLLM() {
         // given
         var request = createChatRequest("제주도 여행");
-        var intent = Intent.TRAVEL_INFO_COLLECTION;
+        var intent = Intent.INFORMATION_COLLECTION;
         var phase = TravelPhase.INITIALIZATION;
         var context = TravelContext.builder()
             .threadId("thread-1")
@@ -428,7 +428,7 @@ class ResponseGeneratorTest {
         responseGenerator = new ResponseGenerator(promptBuilder);  // ChatModel 없이 생성
 
         var request = createChatRequest("안녕하세요");
-        var intent = Intent.GENERAL_CHAT;
+        var intent = Intent.GENERAL_QUESTION;
         var phase = TravelPhase.INITIALIZATION;
         var context = TravelContext.builder()
             .threadId("thread-1")

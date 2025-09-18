@@ -48,7 +48,7 @@ class IntentClassifierTest {
         Intent result = intentClassifier.classify(emptyMessage);
 
         // then
-        assertThat(result).isEqualTo(Intent.UNKNOWN);
+        assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
         verify(chatModel, never()).call(any(Prompt.class));
     }
 
@@ -59,7 +59,7 @@ class IntentClassifierTest {
         Intent result = intentClassifier.classify(null);
 
         // then
-        assertThat(result).isEqualTo(Intent.UNKNOWN);
+        assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
         verify(chatModel, never()).call(any(Prompt.class));
     }
 
@@ -74,7 +74,7 @@ class IntentClassifierTest {
         Intent result = intentClassifier.classify(message);
 
         // then
-        assertThat(result).isEqualTo(Intent.TRAVEL_INFO_COLLECTION);
+        assertThat(result).isEqualTo(Intent.INFORMATION_COLLECTION);
         verify(chatModel, times(1)).call(any(Prompt.class));
     }
 
@@ -89,7 +89,7 @@ class IntentClassifierTest {
         Intent result = intentClassifier.classify(message);
 
         // then
-        assertThat(result).isEqualTo(Intent.TRAVEL_QUESTION);
+        assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
         verify(chatModel, times(1)).call(any(Prompt.class));
     }
 
@@ -104,7 +104,7 @@ class IntentClassifierTest {
         Intent result = intentClassifier.classify(message);
 
         // then
-        assertThat(result).isEqualTo(Intent.GENERAL_CHAT);
+        assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
         verify(chatModel, times(1)).call(any(Prompt.class));
     }
 
@@ -126,7 +126,7 @@ class IntentClassifierTest {
             Intent result = intentClassifier.classify(message);
 
             // then
-            assertThat(result).isEqualTo(Intent.TRAVEL_INFO_COLLECTION);
+            assertThat(result).isEqualTo(Intent.INFORMATION_COLLECTION);
         }
     }
 
@@ -148,7 +148,7 @@ class IntentClassifierTest {
             Intent result = intentClassifier.classify(message);
 
             // then
-            assertThat(result).isEqualTo(Intent.TRAVEL_QUESTION);
+            assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
         }
     }
 
@@ -163,7 +163,7 @@ class IntentClassifierTest {
         Intent result = intentClassifier.classify(message);
 
         // then
-        assertThat(result).isEqualTo(Intent.GENERAL_CHAT);
+        assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
         verify(chatModel, times(1)).call(any(Prompt.class));
     }
 
@@ -178,7 +178,7 @@ class IntentClassifierTest {
         Intent result = intentClassifier.classify(message);
 
         // then
-        assertThat(result).isEqualTo(Intent.GENERAL_CHAT);
+        assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
         verify(chatModel, times(1)).call(any(Prompt.class));
     }
 
@@ -193,7 +193,7 @@ class IntentClassifierTest {
         Intent result = intentClassifier.classify(message);
 
         // then
-        assertThat(result).isEqualTo(Intent.TRAVEL_INFO_COLLECTION);
+        assertThat(result).isEqualTo(Intent.INFORMATION_COLLECTION);
         verify(chatModel, times(1)).call(any(Prompt.class));
     }
 

@@ -77,7 +77,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.TRAVEL_INFO_COLLECTION),
+            eq(Intent.INFORMATION_COLLECTION),
             eq(TravelPhase.INFORMATION_COLLECTION),
             eq(context)
         )).thenReturn(nextPhaseResponse);
@@ -92,7 +92,7 @@ class MainLLMOrchestratorTest {
         verify(contextManager).updateContext(context);
         verify(responseGenerator).generateResponse(
             eq(request),
-            eq(Intent.TRAVEL_INFO_COLLECTION),
+            eq(Intent.INFORMATION_COLLECTION),
             eq(TravelPhase.INFORMATION_COLLECTION),
             eq(context)
         );
@@ -120,7 +120,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.TRAVEL_INFO_COLLECTION),
+            eq(Intent.INFORMATION_COLLECTION),
             eq(TravelPhase.PLAN_GENERATION),
             eq(context)
         )).thenReturn(nextPhaseResponse);
@@ -197,10 +197,10 @@ class MainLLMOrchestratorTest {
 
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
         when(intentClassifier.classify("제주도 여행 계획 짜줘"))
-            .thenReturn(Intent.TRAVEL_INFO_COLLECTION);
+            .thenReturn(Intent.INFORMATION_COLLECTION);
         when(phaseManager.transitionPhase(
             "thread-123",
-            Intent.TRAVEL_INFO_COLLECTION,
+            Intent.INFORMATION_COLLECTION,
             context
         )).thenReturn(TravelPhase.INFORMATION_COLLECTION);
 
@@ -213,7 +213,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.TRAVEL_INFO_COLLECTION),
+            eq(Intent.INFORMATION_COLLECTION),
             eq(TravelPhase.INFORMATION_COLLECTION),
             eq(context)
         )).thenReturn(mockResponse);
@@ -230,7 +230,7 @@ class MainLLMOrchestratorTest {
         verify(intentClassifier).classify("제주도 여행 계획 짜줘");
         verify(phaseManager).transitionPhase(
             "thread-123",
-            Intent.TRAVEL_INFO_COLLECTION,
+            Intent.INFORMATION_COLLECTION,
             context
         );
         verify(contextManager).updateContext(context);
@@ -250,10 +250,10 @@ class MainLLMOrchestratorTest {
 
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
         when(intentClassifier.classify("날씨 어때?"))
-            .thenReturn(Intent.TRAVEL_QUESTION);
+            .thenReturn(Intent.GENERAL_QUESTION);
         when(phaseManager.transitionPhase(
             "thread-1",
-            Intent.TRAVEL_QUESTION,
+            Intent.GENERAL_QUESTION,
             context
         )).thenReturn(TravelPhase.INFORMATION_COLLECTION);  // 같은 Phase 유지
 
@@ -266,7 +266,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.TRAVEL_QUESTION),
+            eq(Intent.GENERAL_QUESTION),
             eq(TravelPhase.INFORMATION_COLLECTION),
             eq(context)
         )).thenReturn(mockResponse);
@@ -306,7 +306,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.TRAVEL_INFO_COLLECTION),
+            eq(Intent.INFORMATION_COLLECTION),
             eq(TravelPhase.COMPLETION),
             eq(context)
         )).thenReturn(completionResponse);
@@ -357,7 +357,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.TRAVEL_INFO_COLLECTION),
+            eq(Intent.INFORMATION_COLLECTION),
             eq(TravelPhase.INFORMATION_COLLECTION),
             eq(context)
         )).thenReturn(nextPhaseResponse);

@@ -67,15 +67,15 @@ public class MainLLMOrchestrator {
         if (nextPhase != currentPhase) {
             log.info("Phase 전환: {} -> {}", currentPhase, nextPhase);
             context.setCurrentPhase(nextPhase.name());
-            contextManager.updateContext(context);
+            contextManager.updateContext(context, context.getUserId());
         }
 
         return nextPhase;
     }
 
     // 컨텍스트 초기화
-    public void resetContext(String threadId) {
-        contextManager.resetContext(threadId);
+    public void resetContext(String threadId, String userId) {
+        contextManager.resetContext(threadId, userId);
     }
 
     // 진행 의사 확인 응답인지 판별
@@ -124,7 +124,7 @@ public class MainLLMOrchestrator {
             var nextPhase = determineNextPhase(currentPhase);
             if (nextPhase != currentPhase) {
                 context.setCurrentPhase(nextPhase.name());
-                contextManager.updateContext(context);
+                contextManager.updateContext(context, context.getUserId());
                 log.info("Phase 전환: {} -> {}", currentPhase, nextPhase);
             }
 

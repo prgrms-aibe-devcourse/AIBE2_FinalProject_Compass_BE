@@ -1,13 +1,14 @@
 package com.compass.domain.chat.orchestrator;
 
+import com.compass.domain.chat.model.context.TravelContext;
 import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
-import com.compass.domain.chat.model.request.ChatRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,64 +16,68 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PromptBuilderTest {
 
     private PromptBuilder promptBuilder;
+    private TravelContext context;
 
     @BeforeEach
     void setUp() {
         promptBuilder = new PromptBuilder();
+
+        // 기본 TravelContext 설정
+        context = TravelContext.builder()
+            .threadId("thread-1")
+            .userId("user-1")
+            .currentPhase(TravelPhase.INITIALIZATION.name())
+            .collectedInfo(new HashMap<>())
+            .build();
     }
 
     @Test
-    @DisplayName("기본 프롬프트 메시지 생성")
-    void testBuildBasicPromptMessages() {
+    @DisplayName("시스템 프롬프트 생성 테스트")
+    void testBuildSystemPrompt() {
         // given
-        var request = new ChatRequest();
-        request.setMessage("제주도 여행 계획 짜줘");
-        request.setThreadId("thread-1");
-        request.setUserId("user-1");
-
-        Intent intent = Intent.TRAVEL_INFO_COLLECTION;
+        Intent intent = Intent.INFORMATION_COLLECTION;
         TravelPhase phase = TravelPhase.INITIALIZATION;
 
         // when
-        var messages = promptBuilder.buildPromptMessages(request, intent, phase);
+        var systemPrompt = promptBuilder.buildSystemPrompt(intent, phase, context);
 
         // then
-        assertThat(messages).hasSize(2); // 시스템 메시지 + 사용자 메시지
-        assertThat(messages.get(0)).isInstanceOf(SystemMessage.class);
-        assertThat(messages.get(1)).isInstanceOf(UserMessage.class);
-        assertThat(messages.get(1).getContent()).isEqualTo("제주도 여행 계획 짜줘");
+        assertThat(systemPrompt).isNotNull();
+        assertThat(systemPrompt).contains("현재 Intent: " + intent);
+        assertThat(systemPrompt).contains("현재 Phase: " + phase);
+        assertThat(systemPrompt).contains("당신은 전문 여행 계획 도우미입니다");
     }
 
     @Test
     @DisplayName("시스템 프롬프트 구성 - INITIALIZATION Phase")
     void testBuildSystemPromptInitialization() {
         // given
-        Intent intent = Intent.GENERAL_CHAT;
+        Intent intent = Intent.GENERAL_QUESTION;
         TravelPhase phase = TravelPhase.INITIALIZATION;
 
         // when
-        var systemPrompt = promptBuilder.buildSystemPrompt(intent, phase);
+        var systemPrompt = promptBuilder.buildSystemPrompt(intent, phase, context);
 
         // then
-        assertThat(systemPrompt).contains("친근하고 열정적인 여행 계획 전문가");
+        assertThat(systemPrompt).contains("전문 여행 계획 도우미");
         assertThat(systemPrompt).contains("INITIALIZATION");
-        assertThat(systemPrompt).contains("GENERAL_CHAT");
-        assertThat(systemPrompt).contains("친근한 인사로 시작");
+        assertThat(systemPrompt).contains("GENERAL_QUESTION");
+        assertThat(systemPrompt).contains("친절하고 전문적인 톤 유지");
     }
 
     @Test
     @DisplayName("시스템 프롬프트 구성 - INFORMATION_COLLECTION Phase")
     void testBuildSystemPromptInfoCollection() {
         // given
-        Intent intent = Intent.TRAVEL_INFO_COLLECTION;
+        Intent intent = Intent.INFORMATION_COLLECTION;
         TravelPhase phase = TravelPhase.INFORMATION_COLLECTION;
+        context.updatePhase(phase);
 
         // when
-        var systemPrompt = promptBuilder.buildSystemPrompt(intent, phase);
+        var systemPrompt = promptBuilder.buildSystemPrompt(intent, phase, context);
 
         // then
-        assertThat(systemPrompt).contains("필수 정보 체계적으로 수집");
-        assertThat(systemPrompt).contains("목적지, 날짜, 예산, 동행자");
+        assertThat(systemPrompt).contains("본격적인 여행 정보 수집 시작");
     }
 
     @Test
@@ -82,41 +87,41 @@ class PromptBuilderTest {
         TravelPhase phase = TravelPhase.INITIALIZATION;
 
         // when & then
-        // GENERAL_CHAT
-        var generalPrompt = promptBuilder.buildSystemPrompt(Intent.GENERAL_CHAT, phase);
+        // GENERAL_QUESTION
+        var generalPrompt = promptBuilder.buildSystemPrompt(Intent.GENERAL_QUESTION, phase, context);
+        assertThat(generalPrompt).contains("대화 전략");
         assertThat(generalPrompt).contains("여행 관련 화제로 자연스럽게 전환");
 
-        // TRAVEL_QUESTION
-        var questionPrompt = promptBuilder.buildSystemPrompt(Intent.TRAVEL_QUESTION, phase);
-        assertThat(questionPrompt).contains("여행 질문에 답하면서 전체 여행 계획의 필요성 제안");
-
-        // TRAVEL_INFO_COLLECTION
-        var collectionPrompt = promptBuilder.buildSystemPrompt(Intent.TRAVEL_INFO_COLLECTION, phase);
+        // INFORMATION_COLLECTION
+        var collectionPrompt = promptBuilder.buildSystemPrompt(Intent.INFORMATION_COLLECTION, phase, context);
         assertThat(collectionPrompt).contains("본격적인 여행 정보 수집 시작");
 
-        // UNKNOWN
-        var unknownPrompt = promptBuilder.buildSystemPrompt(Intent.UNKNOWN, phase);
-        assertThat(unknownPrompt).contains("사용자의 의도를 명확히 파악");
+        // WEATHER_INQUIRY
+        var weatherPrompt = promptBuilder.buildSystemPrompt(Intent.WEATHER_INQUIRY, phase, context);
+        assertThat(weatherPrompt).contains("날씨 질문에 답하면서 전체 여행 계획의 필요성 제안");
     }
 
     @Test
     @DisplayName("각 Phase별 프롬프트 확인")
     void testPhaseSpecificPrompts() {
         // given
-        Intent intent = Intent.TRAVEL_INFO_COLLECTION;
+        Intent intent = Intent.INFORMATION_COLLECTION;
 
         // when & then
         // PLAN_GENERATION
-        var planPrompt = promptBuilder.buildSystemPrompt(intent, TravelPhase.PLAN_GENERATION);
-        assertThat(planPrompt).contains("수집된 정보 기반 최적 일정 생성");
-        assertThat(planPrompt).contains("일자별 세부 계획 제시");
+        context.updatePhase(TravelPhase.PLAN_GENERATION);
+        var planPrompt = promptBuilder.buildSystemPrompt(intent, TravelPhase.PLAN_GENERATION, context);
+        assertThat(planPrompt).contains("수집된 정보 기반");
+        assertThat(planPrompt).contains("계획");
 
         // FEEDBACK_REFINEMENT
-        var feedbackPrompt = promptBuilder.buildSystemPrompt(intent, TravelPhase.FEEDBACK_REFINEMENT);
+        context.updatePhase(TravelPhase.FEEDBACK_REFINEMENT);
+        var feedbackPrompt = promptBuilder.buildSystemPrompt(intent, TravelPhase.FEEDBACK_REFINEMENT, context);
         assertThat(feedbackPrompt).contains("사용자 피드백 적극 수용");
 
         // COMPLETION
-        var completionPrompt = promptBuilder.buildSystemPrompt(intent, TravelPhase.COMPLETION);
+        context.updatePhase(TravelPhase.COMPLETION);
+        var completionPrompt = promptBuilder.buildSystemPrompt(intent, TravelPhase.COMPLETION, context);
         assertThat(completionPrompt).contains("최종 계획 요약 제시");
     }
 
@@ -127,63 +132,62 @@ class PromptBuilderTest {
         String message = "제주도 3박 4일 여행";
 
         // when
-        var userPrompt = promptBuilder.buildUserPrompt(message);
+        var userPrompt = promptBuilder.buildUserPrompt(message, context);
 
         // then
-        assertThat(userPrompt).isEqualTo(message);
+        assertThat(userPrompt).contains(message);
+        assertThat(userPrompt).contains("대화 히스토리");
+        assertThat(userPrompt).contains("현재 여행 계획 진행률");
     }
 
     @Test
-    @DisplayName("간단한 프롬프트 생성")
-    void testBuildSimplePrompt() {
+    @DisplayName("컨텍스트와 함께 프롬프트 생성")
+    void testBuildPromptWithContext() {
         // given
-        String template = "목적지: %s, 기간: %s";
-        String destination = "제주도";
-        String duration = "3박4일";
+        Intent intent = Intent.INFORMATION_COLLECTION;
+        TravelPhase phase = TravelPhase.INFORMATION_COLLECTION;
+
+        // 컨텍스트에 정보 추가
+        context.updateCollectedInfo("destination", "제주도");
+        context.updateCollectedInfo("budget", "100만원");
 
         // when
-        var result = promptBuilder.buildSimplePrompt(template, destination, duration);
+        var systemPrompt = promptBuilder.buildSystemPrompt(intent, phase, context);
 
         // then
-        assertThat(result).isEqualTo("목적지: 제주도, 기간: 3박4일");
+        assertThat(systemPrompt).contains("제주도");
+        assertThat(systemPrompt).contains("100만원");
+        assertThat(systemPrompt).contains("추가로 필요한 정보");
     }
 
     @Test
     @DisplayName("빈 메시지 처리")
     void testBuildPromptWithEmptyMessage() {
         // given
-        var request = new ChatRequest();
-        request.setMessage("");
-        request.setThreadId("thread-1");
-        request.setUserId("user-1");
+        String message = "";
 
         // when
-        var messages = promptBuilder.buildPromptMessages(request, Intent.GENERAL_CHAT, TravelPhase.INITIALIZATION);
+        var userPrompt = promptBuilder.buildUserPrompt(message, context);
 
         // then
-        assertThat(messages).hasSize(2);
-        assertThat(messages.get(1).getContent()).isEmpty();
+        assertThat(userPrompt).contains("사용자 메시지: ");
+        assertThat(userPrompt).contains("대화 히스토리: 0개");
     }
 
     @Test
     @DisplayName("모든 Intent와 Phase 조합 테스트")
     void testAllIntentPhaseCombinations() {
-        // given
-        var request = new ChatRequest();
-        request.setMessage("테스트 메시지");
-
         // when & then
         for (Intent intent : Intent.values()) {
             for (TravelPhase phase : TravelPhase.values()) {
-                var messages = promptBuilder.buildPromptMessages(request, intent, phase);
+                context.updatePhase(phase);
+                var systemPrompt = promptBuilder.buildSystemPrompt(intent, phase, context);
 
-                // 모든 조합에서 메시지 생성 확인
-                assertThat(messages).hasSize(2);
-                assertThat(messages.get(0)).isInstanceOf(SystemMessage.class);
-                assertThat(messages.get(1)).isInstanceOf(UserMessage.class);
+                // 모든 조합에서 프롬프트 생성 확인
+                assertThat(systemPrompt).isNotNull();
+                assertThat(systemPrompt).isNotEmpty();
 
                 // 시스템 프롬프트에 Intent와 Phase 정보 포함 확인
-                var systemPrompt = ((SystemMessage) messages.get(0)).getContent();
                 assertThat(systemPrompt).contains(intent.toString());
                 assertThat(systemPrompt).contains(phase.toString());
             }
