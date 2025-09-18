@@ -19,7 +19,14 @@ public class FormBasedCollector implements TravelInfoCollector {
             Integer budget,
             String companions,
             String travelStyle
-    ) {}
+    ) {
+        // 생성자에서 날짜 유효성 검증 로직 추가
+        public FormData {
+            if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+                throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.");
+            }
+        }
+    }
 
     /**
      * 제출된 폼 데이터(FormData)를 TravelInfo 객체로 변환합니다.
