@@ -22,21 +22,21 @@ public class AnalyzeUserInputFunction implements Function<AnalyzeUserInputReques
 
     // LLM에게 역할을 지시하는 프롬프트 템플릿
     private static final String PROMPT_TEMPLATE = """
-            You are a travel information extractor. Your task is to update a JSON object with new information provided by a user.
-            The current date is {currentDate}. Use this to resolve relative dates like "next Friday" or "this weekend".
+            당신은 여행 정보 추출 전문가입니다. 사용자가 제공한 새로운 정보를 바탕으로 기존 JSON 객체를 업데이트하는 것이 당신의 임무입니다.
+            현재 날짜는 {currentDate}입니다. "다음 주 금요일"이나 "이번 주말" 같은 상대적인 날짜를 해석할 때 이 정보를 사용하세요.
 
-            Here is the current travel information we have:
+            현재까지 수집된 여행 정보는 다음과 같습니다:
             ---
             {currentInfo}
             ---
-            The user just provided this new input: "{userInput}"
+            사용자가 방금 다음과 같은 새로운 정보를 입력했습니다: "{userInput}"
 
-            Analyze the user's input and update the current travel information.
-            - Only update the fields that are clearly mentioned in the user's input.
-            - Do not make up information for fields that are not mentioned.
-            - If the user's input is unclear or doesn't seem to answer a travel-related question, return the original information without any changes.
+            사용자의 입력을 분석하여 현재 여행 정보를 업데이트하세요.
+            - 사용자의 입력에 명확하게 언급된 필드만 업데이트하세요.
+            - 언급되지 않은 정보는 임의로 만들지 마세요.
+            - 사용자의 입력이 불분명하거나 여행 관련 질문에 대한 답변이 아닌 것 같으면, 아무것도 변경하지 말고 원래 정보를 그대로 반환하세요.
 
-            Respond with ONLY the updated JSON object. The JSON structure must be as follows:
+            오직 업데이트된 JSON 객체만 응답해야 합니다. JSON 구조는 반드시 다음 형식을 따라야 합니다:
             {
               "userId": "string",
               "destinations": ["string"],
