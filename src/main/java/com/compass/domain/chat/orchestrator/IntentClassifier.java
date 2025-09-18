@@ -134,6 +134,6 @@ public class IntentClassifier {
             log.error("Intent 파싱 실패: {}", e.getMessage());
         }
 
-        return Intent.GENERAL_CHAT;
+        return Intent.GENERAL_QUESTION;
     }
 }

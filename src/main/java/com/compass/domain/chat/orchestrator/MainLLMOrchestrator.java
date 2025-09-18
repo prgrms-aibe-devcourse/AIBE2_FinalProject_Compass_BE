@@ -129,7 +129,7 @@ public class MainLLMOrchestrator {
             }
 
             // 다음 Phase에 맞는 응답 생성
-            return responseGenerator.generateResponse(request, Intent.TRAVEL_INFO_COLLECTION, nextPhase, context);
+            return responseGenerator.generateResponse(request, Intent.INFORMATION_COLLECTION, nextPhase, context);
         } else {
             log.info("사용자가 Phase 진행 거부: currentPhase={}, message={}", currentPhase, message);
 

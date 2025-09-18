@@ -110,13 +110,13 @@ public class PhaseManager {
     private TravelPhase handleInitializationPhase(Intent intent, TravelContext context,
                                                  TravelPhase currentPhase) {
         // 정보 수집 시작 조건
-        if (intent == Intent.TRAVEL_INFO_COLLECTION ||
+        if (intent == Intent.INFORMATION_COLLECTION ||
             intent == Intent.TRAVEL_PLANNING) {
             log.info("정보 수집 Phase로 전환");
             return TravelPhase.INFORMATION_COLLECTION;
         }
         // 여행 질문이 반복되면 정보 수집으로 유도
-        if (intent == Intent.TRAVEL_QUESTION &&
+        if (intent == Intent.GENERAL_QUESTION &&
             context.getConversationCount() >= 2) {
             log.info("여행 질문이 반복되어 정보 수집으로 전환");
             return TravelPhase.INFORMATION_COLLECTION;
@@ -133,7 +133,7 @@ public class PhaseManager {
             return TravelPhase.PLAN_GENERATION;
         }
         // 사용자가 직접 계획 생성 요청
-        if (intent == Intent.ITINERARY_GENERATION) {
+        if (intent == Intent.DESTINATION_SEARCH) {
             log.info("사용자 요청으로 계획 생성 Phase로 전환");
             return TravelPhase.PLAN_GENERATION;
         }
@@ -149,7 +149,7 @@ public class PhaseManager {
             return TravelPhase.FEEDBACK_REFINEMENT;
         }
         // 계획 수정 요청시 바로 피드백 단계로
-        if (intent == Intent.ITINERARY_ADJUSTMENT) {
+        if (intent == Intent.PLAN_MODIFICATION || intent == Intent.FEEDBACK) {
             return TravelPhase.FEEDBACK_REFINEMENT;
         }
         return currentPhase;
@@ -159,13 +159,13 @@ public class PhaseManager {
     private TravelPhase handleFeedbackRefinementPhase(Intent intent, TravelContext context,
                                                      TravelPhase currentPhase) {
         // 사용자 만족시 완료 단계로 전환
-        if (intent == Intent.PLAN_FINALIZATION ||
-            intent == Intent.SAVE_AND_EXPORT) {
+        if (intent == Intent.COMPLETION) {
+            // 완료 Intent
             log.info("사용자 만족, 완료 Phase로 전환");
             return TravelPhase.COMPLETION;
         }
         // 추가 정보 필요시 정보 수집으로 복귀
-        if (intent == Intent.TRAVEL_INFO_COLLECTION &&
+        if (intent == Intent.INFORMATION_COLLECTION &&
             needsMoreInfo(context)) {
             log.info("추가 정보 필요, 정보 수집 Phase로 복귀");
             return TravelPhase.INFORMATION_COLLECTION;
@@ -233,18 +233,17 @@ public class PhaseManager {
         return switch (phase) {
             case INITIALIZATION -> true; // 모든 Intent 허용
             case INFORMATION_COLLECTION ->
-                intent == Intent.TRAVEL_INFO_COLLECTION ||
-                intent == Intent.TRAVEL_QUESTION ||
+                intent == Intent.INFORMATION_COLLECTION ||
+                intent == Intent.GENERAL_QUESTION ||
                 intent == Intent.IMAGE_UPLOAD;
             case PLAN_GENERATION ->
-                intent == Intent.ITINERARY_GENERATION ||
-                intent == Intent.DESTINATION_SEARCH;
+                intent == Intent.DESTINATION_SEARCH ||
+                intent == Intent.TRAVEL_PLANNING;
             case FEEDBACK_REFINEMENT ->
-                intent == Intent.ITINERARY_ADJUSTMENT ||
-                intent == Intent.FEEDBACK_REFINEMENT;
+                intent == Intent.PLAN_MODIFICATION ||
+                intent == Intent.FEEDBACK;
             case COMPLETION ->
-                intent == Intent.PLAN_FINALIZATION ||
-                intent == Intent.SAVE_AND_EXPORT;
+                intent == Intent.COMPLETION;
         };
     }
 }
