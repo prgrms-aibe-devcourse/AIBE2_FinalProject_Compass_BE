@@ -2,7 +2,12 @@ package com.compass.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.annotation.PostConstruct;
 
 // Spring AI 설정 - 실제 Gemini API 사용
@@ -22,6 +27,9 @@ public class SpringAIConfig {
     @Value("${GOOGLE_APPLICATION_CREDENTIALS:}")
     private String credentialsPath;
 
+    @Autowired(required = false)
+    private VertexAiGeminiChatModel vertexAiGeminiChatModel;
+
     @PostConstruct
     public void init() {
         log.info("========================================");
@@ -30,10 +38,21 @@ public class SpringAIConfig {
         log.info("Location: {}", location);
         log.info("Model: {}", modelName);
         log.info("Credentials: {}", credentialsPath.isEmpty() ? "NOT SET" : "SET");
+
+        // 환경 변수로 모델 설정 강제
+        System.setProperty("spring.ai.vertex.ai.gemini.chat.options.model", modelName);
+        log.info("Model 환경변수 설정: {}", modelName);
         log.info("========================================");
     }
 
-    // Spring Boot Starter가 자동으로 VertexAI와 ChatModel을 설정합니다.
-    // application.yml의 spring.ai.vertex.ai.gemini 설정과
-    // GOOGLE_APPLICATION_CREDENTIALS 환경변수를 통해 자동 구성됩니다.
+    // Primary ChatModel Bean 설정
+    @Bean
+    @Primary
+    public ChatModel primaryChatModel() {
+        if (vertexAiGeminiChatModel != null) {
+            log.info("Primary ChatModel: VertexAI Gemini 사용");
+            return vertexAiGeminiChatModel;
+        }
+        throw new IllegalStateException("No ChatModel available");
+    }
 }

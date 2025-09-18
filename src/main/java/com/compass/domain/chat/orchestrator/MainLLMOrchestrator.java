@@ -28,8 +28,12 @@ public class MainLLMOrchestrator {
 
     // 채팅 요청 처리
     public ChatResponse processChat(ChatRequest request) {
-        log.debug("채팅 요청 처리 시작: threadId={}, userId={}",
-                request.getThreadId(), request.getUserId());
+        log.info("╔══════════════════════════════════════════════════════════════");
+        log.info("║ 채팅 요청 처리 시작");
+        log.info("║ Thread ID: {}", request.getThreadId());
+        log.info("║ User ID: {}", request.getUserId());
+        log.info("║ Message: {}", request.getMessage());
+        log.info("╚══════════════════════════════════════════════════════════════");
 
         // 컨텍스트 조회 또는 생성
         var context = contextManager.getOrCreateContext(request);
@@ -45,16 +49,21 @@ public class MainLLMOrchestrator {
 
         // Intent 분류
         var intent = intentClassifier.classify(message);
-        log.debug("분류된 Intent: {}", intent);
+        log.info("║ 분류된 Intent: {}", intent);
 
         // 현재 Phase 확인
         var currentPhase = TravelPhase.valueOf(context.getCurrentPhase());
-        log.debug("현재 Phase: {}", currentPhase);
+        log.info("║ 현재 Phase: {}", currentPhase);
 
         // Phase 전환 처리
         var nextPhase = handlePhaseTransition(currentPhase, intent, context);
 
         // 응답 생성 - ResponseGenerator 사용
+        log.info("╔══════════════════════════════════════════════════════════════");
+        log.info("║ 응답 생성 시작");
+        log.info("║ Intent: {}, Phase: {}", intent, nextPhase);
+        log.info("╚══════════════════════════════════════════════════════════════");
+
         return responseGenerator.generateResponse(request, intent, nextPhase, context);
     }
 
@@ -65,7 +74,11 @@ public class MainLLMOrchestrator {
         var nextPhase = phaseManager.transitionPhase(context.getThreadId(), intent, context);
 
         if (nextPhase != currentPhase) {
-            log.info("Phase 전환: {} -> {}", currentPhase, nextPhase);
+            log.info("╔══════════════════════════════════════════════════════════════");
+            log.info("║ 🔄 Phase 전환 감지!");
+            log.info("║ 이전 Phase: {}", currentPhase);
+            log.info("║ 새로운 Phase: {}", nextPhase);
+            log.info("╚══════════════════════════════════════════════════════════════");
             context.setCurrentPhase(nextPhase.name());
             contextManager.updateContext(context, context.getUserId());
         }

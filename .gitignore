@@ -52,6 +52,7 @@ gradle-app.setting
 CLAUDE.md
 .claude/
 travelagent-468611-1ae0c9d4e187.json
+/script/
 
 # Spring Boot
 /target/

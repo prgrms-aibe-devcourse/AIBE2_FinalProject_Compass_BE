@@ -54,8 +54,9 @@ public class UnifiedChatController {
             log.debug("새 Thread-Id 생성: {}", threadId);
         }
 
-        // 2. 사용자 정보 설정
-        request.setUserId(userDetails.getUsername());
+        // 2. 사용자 정보 설정 (인증이 없는 경우 테스트 사용자로 처리)
+        String userId = userDetails != null ? userDetails.getUsername() : "test-user@test.com";
+        request.setUserId(userId);
         request.setThreadId(threadId);
 
         // 3. 요청 검증 (간단하게)

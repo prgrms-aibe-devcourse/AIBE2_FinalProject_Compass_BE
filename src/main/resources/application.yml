@@ -6,7 +6,7 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:rds}
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com:5432/compass}
+    url: ${DATABASE_URL:jdbc:postgresql://compass-db.coqwxjz7zumt.ap-northeast-2.rds.amazonaws.com:5432/compass}
     username: ${DATABASE_USERNAME:compass}
     password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -27,6 +27,11 @@ spring:
           project-id: ${GOOGLE_CLOUD_PROJECT_ID}
           location: ${GOOGLE_CLOUD_LOCATION:asia-northeast3}
           model: ${GEMINI_MODEL:gemini-2.0-flash}
+          chat:
+            options:
+              model: ${GEMINI_MODEL:gemini-2.0-flash}
+              temperature: 0.7
+              max-output-tokens: 8192
 
     openai:
       api-key: ${OPENAI_API_KEY}

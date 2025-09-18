@@ -21,6 +21,8 @@ public class ShowQuickInputFormFunction implements Function<ShowQuickInputFormFu
 
     @Override
     public QuickInputFormDto apply(Request request) {
+        log.info("=== ShowQuickInputFormFunction 호출됨 ===");
+        log.info("호출 방식: 직접 Java 메소드 호출 (ResponseGenerator에서)");
 
         var formFields = List.of(
                 createDestinationField(),
@@ -35,7 +37,7 @@ public class ShowQuickInputFormFunction implements Function<ShowQuickInputFormFu
 
         var validationRules = Map.<String, Object>of();
 
-
+        log.info("빠른입력폼 생성 완료 - 필드 개수: {}", formFields.size());
         return new QuickInputFormDto("QUICK_INPUT_V1", formFields, validationRules);
     }
 

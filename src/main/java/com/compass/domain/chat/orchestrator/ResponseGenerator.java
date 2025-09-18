@@ -5,6 +5,7 @@ import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
 import com.compass.domain.chat.model.request.ChatRequest;
 import com.compass.domain.chat.model.response.ChatResponse;
+import com.compass.domain.chat.function.collection.ShowQuickInputFormFunction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
@@ -24,6 +25,7 @@ import java.util.List;
 public class ResponseGenerator {
 
     private final PromptBuilder promptBuilder;
+    private final ShowQuickInputFormFunction showQuickInputFormFunction;
 
     @Autowired(required = false)
     @Qualifier("vertexAiGeminiChat")
@@ -139,9 +141,8 @@ public class ResponseGenerator {
         return switch (phase) {
             case INITIALIZATION -> "이미 처리됨";
             case INFORMATION_COLLECTION -> """
-                여행 정보를 수집 중이에요! 🗺️
-                목적지, 날짜, 예산, 동행자 정보를 알려주시면
-                맞춤형 여행 일정을 만들어드릴게요.
+                여행 계획을 작성하기 위한 기본정보를 입력해주세요! 🗺️
+                아래 폼을 통해 편리하게 정보를 입력하실 수 있어요.
                 """;
             case PLAN_GENERATION -> "여행 계획을 생성 중입니다... ✈️";
             case FEEDBACK_REFINEMENT -> "피드백을 반영하여 계획을 수정하고 있습니다. 🔧";
@@ -156,6 +157,11 @@ public class ResponseGenerator {
             return "ITINERARY";
         }
 
+        // INFORMATION_COLLECTION 단계에서는 QUICK_FORM 타입 반환
+        if (phase == TravelPhase.INFORMATION_COLLECTION) {
+            return "QUICK_FORM";
+        }
+
         // Intent에 따른 특별한 타입이 필요한 경우 여기 추가
 
         // 기본값
@@ -164,6 +170,13 @@ public class ResponseGenerator {
 
     // 응답 데이터 구성
     public Object buildResponseData(Intent intent, TravelPhase phase, TravelContext context) {
+        // INFORMATION_COLLECTION 단계에서는 빠른 입력 폼 반환
+        if (phase == TravelPhase.INFORMATION_COLLECTION) {
+            log.debug("INFORMATION_COLLECTION 단계 - 빠른 입력 폼 생성");
+            var request = new ShowQuickInputFormFunction.Request();
+            return showQuickInputFormFunction.apply(request);
+        }
+
         // 필요한 경우 컨텍스트에서 추가 데이터 반환
         if (intent == Intent.INFORMATION_COLLECTION && context != null) {
             return context.getCollectedInfo();
@@ -194,7 +207,7 @@ public class ResponseGenerator {
     private String generateConfirmationPrompt(TravelPhase phase) {
         return switch (phase) {
             case INITIALIZATION -> "\n\n✨ 함께 멋진 여행 계획을 만들어볼까요? 시작하고 싶으시면 말씀해주세요!";
-            case INFORMATION_COLLECTION -> "\n\n📝 충분한 정보가 모인 것 같네요! 이제 여행 일정을 만들어드릴까요?";
+            case INFORMATION_COLLECTION -> "";  // 빠른 입력 폼과 함께 제공되므로 별도 프롬프트 불필요
             case PLAN_GENERATION -> "\n\n🎯 어떠신가요? 이 일정으로 진행하시겠어요? 아니면 수정이 필요하신가요?";
             case FEEDBACK_REFINEMENT -> "\n\n✏️ 수정사항을 반영해드렸어요! 이대로 진행할까요?";
             case COMPLETION -> "";  // COMPLETION은 확인 불필요
