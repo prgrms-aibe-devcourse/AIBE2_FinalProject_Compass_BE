@@ -1,0 +1,21 @@
+# CodeRabbit Configuration
+reviews:
+  # CodeRabbit 리뷰 비활성화
+  enabled: false
+
+  # 또는 특정 조건에서만 비활성화
+  # auto_review: false  # 자동 리뷰 비활성화
+  # request_changes_workflow: false  # 변경 요청 워크플로우 비활성화
+
+# 특정 파일/폴더 제외
+# path_filters:
+#   excluded_paths:
+#     - "docs/**"
+#     - "*.md"
+#     - "test/**"
+
+# 특정 브랜치 제외
+# branch_filters:
+#   excluded_branches:
+#     - "main"
+#     - "develop"
