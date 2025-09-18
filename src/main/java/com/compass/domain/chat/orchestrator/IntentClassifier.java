@@ -30,7 +30,7 @@ public class IntentClassifier {
 
         // 빈 메시지 처리
         if (message == null || message.isEmpty()) {
-            return Intent.UNKNOWN;
+            return Intent.GENERAL_QUESTION;
         }
 
         try {
@@ -43,7 +43,7 @@ public class IntentClassifier {
         } catch (Exception e) {
             log.error("Intent 분류 실패 - 메시지: '{}', 에러: {}", message, e.getMessage());
             // LLM 분류 실패 시 기본값 반환
-            return Intent.GENERAL_CHAT;
+            return Intent.GENERAL_QUESTION;
         }
     }
 
@@ -74,18 +74,36 @@ public class IntentClassifier {
         return """
             당신은 사용자 메시지의 의도를 정확히 분류하는 전문가입니다.
 
-            사용자 메시지를 분석하여 다음 3가지 중 하나로 분류하세요:
+            사용자 메시지를 분석하여 다음 9가지 중 하나로 분류하세요:
 
-            1. TRAVEL_INFO_COLLECTION: 사용자가 여행 계획을 짜달라고 명시적으로 요청
+            1. TRAVEL_PLANNING: 새로운 여행 계획 시작 요청
                예: "여행 계획 짜줘", "일정 짜줘", "3박 4일 제주도 여행 계획", "여행 가고 싶어"
 
-            2. TRAVEL_QUESTION: 여행 관련 정보를 묻는 질문
-               예: "파리 날씨 어때?", "제주도 맛집 추천", "비자 필요해?", "호텔 추천"
+            2. INFORMATION_COLLECTION: 여행 정보 입력 및 수집
+               예: "2월에 가고 싶어", "예산은 100만원", "3명이서 갈거야", "5박 6일로"
 
-            3. GENERAL_CHAT: 여행과 무관한 일반 대화
-               예: "안녕하세요", "고마워", "날씨 좋네", "뭐해?"
+            3. IMAGE_UPLOAD: 이미지 업로드 및 OCR 처리
+               예: "사진 보낼게", "이미지 업로드", "사진에서 정보 추출해줘"
 
-            반드시 위 3가지 중 하나만 응답하세요.
+            4. PLAN_MODIFICATION: 기존 여행 계획 수정 요청
+               예: "일정 변경해줘", "호텔 바꿔줘", "일차 수정", "다른 곳으로 변경"
+
+            5. GENERAL_QUESTION: 여행 관련 일반적인 질문
+               예: "비자 필요해?", "환율 알려줘", "추천 관광지", "맛집 추천"
+
+            6. WEATHER_INQUIRY: 날씨 관련 문의
+               예: "파리 날씨 어때?", "비 오나요?", "기온은?", "날씨 정보"
+
+            7. DESTINATION_SEARCH: 목적지 검색 및 추천
+               예: "제주도 관광지", "파리 명소", "도쿄 어디가 좋아?", "추천 여행지"
+
+            8. FEEDBACK: 사용자 피드백 및 개선 요청
+               예: "마음에 안들어", "다시 짜줘", "더 좋은 방법 없어?", "개선해줘"
+
+            9. COMPLETION: 여행 계획 완료 및 저장
+               예: "완료", "저장해줘", "이대로 확정", "끝", "마무리"
+
+            반드시 위 9가지 중 하나만 응답하세요.
             """;
     }
 
