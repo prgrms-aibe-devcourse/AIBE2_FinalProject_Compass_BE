@@ -129,7 +129,7 @@ class PhaseManagerTest {
         // when
         TravelPhase nextPhase = phaseManager.transitionPhase(
             TEST_THREAD_ID,
-            Intent.ITINERARY_GENERATION,
+            Intent.DESTINATION_SEARCH,
             context
         );
 
@@ -156,7 +156,7 @@ class PhaseManagerTest {
         // when
         TravelPhase nextPhase = phaseManager.transitionPhase(
             TEST_THREAD_ID,
-            Intent.ITINERARY_ADJUSTMENT,
+            Intent.PLAN_MODIFICATION,
             context
         );
 
@@ -179,7 +179,7 @@ class PhaseManagerTest {
         // when
         TravelPhase nextPhase = phaseManager.transitionPhase(
             TEST_THREAD_ID,
-            Intent.PLAN_FINALIZATION,
+            Intent.COMPLETION,
             context
         );
 
@@ -194,31 +194,31 @@ class PhaseManagerTest {
 
         // INITIALIZATION - 모든 Intent 허용
         assertThat(phaseManager.isValidIntentForPhase(
-            TravelPhase.INITIALIZATION, Intent.GENERAL_CHAT
+            TravelPhase.INITIALIZATION, Intent.GENERAL_QUESTION
         )).isTrue();
 
         // INFORMATION_COLLECTION
         assertThat(phaseManager.isValidIntentForPhase(
-            TravelPhase.INFORMATION_COLLECTION, Intent.TRAVEL_INFO_COLLECTION
+            TravelPhase.INFORMATION_COLLECTION, Intent.INFORMATION_COLLECTION
         )).isTrue();
 
         assertThat(phaseManager.isValidIntentForPhase(
-            TravelPhase.INFORMATION_COLLECTION, Intent.ITINERARY_GENERATION
+            TravelPhase.INFORMATION_COLLECTION, Intent.DESTINATION_SEARCH
         )).isFalse();
 
         // PLAN_GENERATION
         assertThat(phaseManager.isValidIntentForPhase(
-            TravelPhase.PLAN_GENERATION, Intent.ITINERARY_GENERATION
+            TravelPhase.PLAN_GENERATION, Intent.DESTINATION_SEARCH
         )).isTrue();
 
         // FEEDBACK_REFINEMENT
         assertThat(phaseManager.isValidIntentForPhase(
-            TravelPhase.FEEDBACK_REFINEMENT, Intent.ITINERARY_ADJUSTMENT
+            TravelPhase.FEEDBACK_REFINEMENT, Intent.PLAN_MODIFICATION
         )).isTrue();
 
         // COMPLETION
         assertThat(phaseManager.isValidIntentForPhase(
-            TravelPhase.COMPLETION, Intent.SAVE_AND_EXPORT
+            TravelPhase.COMPLETION, Intent.COMPLETION
         )).isTrue();
     }
 
@@ -252,7 +252,7 @@ class PhaseManagerTest {
         // when
         TravelPhase nextPhase = phaseManager.transitionPhase(
             TEST_THREAD_ID,
-            Intent.TRAVEL_QUESTION,
+            Intent.GENERAL_QUESTION,
             context
         );
 
