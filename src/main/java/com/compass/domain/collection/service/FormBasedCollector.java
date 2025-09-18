@@ -1,9 +1,9 @@
 package com.compass.domain.collection.service;
 
+import com.compass.domain.collection.dto.DateRange;
 import com.compass.domain.collection.dto.TravelInfo;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.util.List;
 
 // 구조화된 폼 제출을 통해 여행 정보를 수집하는 구현체
@@ -14,18 +14,12 @@ public class FormBasedCollector implements TravelInfoCollector {
     // 폼 제출 데이터를 담는 내부 DTO
     public record FormData(
             List<String> destinations,
-            LocalDate startDate,
-            LocalDate endDate,
+            DateRange travelDates, // startDate, endDate를 DateRange 객체로 통합
             Integer budget,
             String companions,
             String travelStyle
     ) {
-        // 생성자에서 날짜 유효성 검증 로직 추가
-        public FormData {
-            if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
-                throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.");
-            }
-        }
+        // 날짜 유효성 검증은 DateRange 객체가 담당하므로 여기서는 제거합니다.
     }
 
     /**
@@ -45,8 +39,7 @@ public class FormBasedCollector implements TravelInfoCollector {
         // record의 불변성을 활용하여 간단하게 새 객체를 생성합니다.
         return new TravelInfo(
                 formData.destinations(),
-                formData.startDate(),
-                formData.endDate(),
+                formData.travelDates(),
                 formData.budget(),
                 formData.companions(),
                 formData.travelStyle()
