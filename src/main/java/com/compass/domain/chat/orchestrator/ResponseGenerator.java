@@ -78,7 +78,7 @@ public class ResponseGenerator {
             log.debug("LLM 응답 생성 시작 - Intent: {}, Phase: {}", intent, phase);
 
             // 일반 대화 + INITIALIZATION Phase인 경우 특별 처리
-            if (intent == Intent.GENERAL_CHAT && phase == TravelPhase.INITIALIZATION) {
+            if (intent == Intent.GENERAL_QUESTION && phase == TravelPhase.INITIALIZATION) {
                 return generateGeneralChatWithTravelInduction(request);
             }
 
@@ -115,17 +115,17 @@ public class ResponseGenerator {
     // INITIALIZATION Phase 응답 생성
     private String generateInitializationResponse(Intent intent) {
         return switch (intent) {
-            case GENERAL_CHAT -> """
+            case GENERAL_QUESTION -> """
                 안녕하세요! 오늘 기분은 어떠신가요? 😊
                 요즘 날씨가 정말 좋은데, 어디론가 떠나고 싶지 않으신가요?
                 제가 멋진 여행 계획을 도와드릴 수 있어요!
                 """;
-            case TRAVEL_QUESTION -> """
+            case WEATHER_INQUIRY -> """
                 네, 여행 관련 질문이시군요! 기꺼이 도와드리겠습니다.
                 그런데 혹시 구체적인 여행 계획을 세우는 데도 관심이 있으신가요?
                 완벽한 여행 일정을 함께 만들어볼 수 있어요!
                 """;
-            case TRAVEL_INFO_COLLECTION -> """
+            case INFORMATION_COLLECTION -> """
                 좋아요! 여행 계획을 시작해볼까요? 🎉
                 완벽한 여행을 위해 몇 가지 정보를 알려주세요.
                 어디로 가고 싶으신지, 언제쯤 떠나실 예정인지 궁금해요!
@@ -165,7 +165,7 @@ public class ResponseGenerator {
     // 응답 데이터 구성
     public Object buildResponseData(Intent intent, TravelPhase phase, TravelContext context) {
         // 필요한 경우 컨텍스트에서 추가 데이터 반환
-        if (intent == Intent.TRAVEL_INFO_COLLECTION && context != null) {
+        if (intent == Intent.INFORMATION_COLLECTION && context != null) {
             return context.getCollectedInfo();
         } else if (phase == TravelPhase.PLAN_GENERATION && context != null) {
             return context.getTravelPlan();
