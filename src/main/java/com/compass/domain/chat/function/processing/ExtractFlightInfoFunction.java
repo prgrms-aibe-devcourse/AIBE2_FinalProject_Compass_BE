@@ -3,6 +3,8 @@ package com.compass.domain.chat.function.processing;
 import com.compass.domain.chat.model.dto.FlightReservation;
 import com.compass.domain.chat.model.dto.OCRText;
 import com.compass.domain.chat.model.enums.DocumentType;
+import com.compass.domain.chat.service.FlightReservationService;
+import com.compass.domain.chat.service.IataCodeService;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -35,13 +37,8 @@ public class ExtractFlightInfoFunction implements Function<OCRText, FlightReserv
     private static final Pattern BOOKING_PATTERN = Pattern.compile("(PNR|BOOKING|CONFIRMATION)[^A-Z0-9]*([A-Z0-9]{5,})", Pattern.CASE_INSENSITIVE);
 
     private final ProcessOCRFunction processOCRFunction;
-    private final Map<String, String> airportNames = Map.of(
-            "ICN", "Incheon International",
-            "NRT", "Narita International",
-            "GMP", "Gimpo International",
-            "KIX", "Kansai International",
-            "LAX", "Los Angeles International"
-    );
+    private final FlightReservationService flightReservationService;
+    private final IataCodeService iataCodeService;
 
     @PostConstruct
     void registerParser() {
@@ -71,7 +68,7 @@ public class ExtractFlightInfoFunction implements Function<OCRText, FlightReserv
         if (flightNumber.isBlank()) {
             log.debug("항공편 번호를 찾지 못했습니다.");
         }
-        return new FlightReservation(
+        var reservation = new FlightReservation(
                 flightNumber,
                 departure,
                 arrival,
@@ -81,6 +78,8 @@ public class ExtractFlightInfoFunction implements Function<OCRText, FlightReserv
                 seatNumber,
                 bookingReference
         );
+        flightReservationService.save(ocrText.threadId(), ocrText.userId(), reservation);
+        return reservation;
     }
 
     private String findFirst(Matcher matcher, int group) {
@@ -97,7 +96,10 @@ public class ExtractFlightInfoFunction implements Function<OCRText, FlightReserv
     private String resolveAirportCode(String code) {
         return Optional.ofNullable(code)
                 .map(c -> c.toUpperCase(Locale.ROOT))
-                .map(c -> c + " - " + airportNames.getOrDefault(c, ""))
+                .map(c -> {
+                    var name = iataCodeService.lookup(c);
+                    return name.isBlank() ? c : c + " - " + name;
+                })
                 .orElse("");
     }
 

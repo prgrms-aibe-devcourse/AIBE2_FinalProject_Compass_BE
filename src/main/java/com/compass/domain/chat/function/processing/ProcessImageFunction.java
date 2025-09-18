@@ -2,15 +2,14 @@ package com.compass.domain.chat.function.processing;
 
 import com.compass.domain.chat.model.request.ImageUploadRequest;
 import com.compass.domain.chat.model.response.ImageProcessResult;
-import com.compass.domain.chat.function.processing.event.ImageOcrQueuedEvent;
 import com.compass.domain.chat.service.external.OCRClient;
 import com.compass.domain.chat.service.external.S3Client;
+import com.compass.domain.chat.service.queue.OcrQueueService;
 import java.time.LocalDate;
 import java.util.Set;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -27,7 +26,7 @@ public class ProcessImageFunction implements Function<ImageUploadRequest, ImageP
 
     private final S3Client s3Client;
     private final OCRClient ocrClient;
-    private final ApplicationEventPublisher eventPublisher;
+    private final OcrQueueService ocrQueueService;
 
     @Override
     public ImageProcessResult apply(ImageUploadRequest request) {
@@ -61,14 +60,6 @@ public class ProcessImageFunction implements Function<ImageUploadRequest, ImageP
     }
 
     private void enqueueOcrTask(ImageUploadRequest request, String objectKey, String imageUrl) {
-        var event = new ImageOcrQueuedEvent(
-                objectKey,
-                imageUrl,
-                request.threadId(),
-                request.userId(),
-                request.contentType()
-        );
-        eventPublisher.publishEvent(event);
-        log.debug("OCR 큐 대기 등록 - key: {}", objectKey);
+        ocrQueueService.enqueue(objectKey, imageUrl, request.threadId(), request.userId(), request.contentType());
     }
 }

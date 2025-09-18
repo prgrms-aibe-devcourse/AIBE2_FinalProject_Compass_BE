@@ -11,6 +11,7 @@ public record HotelReservation(
         Integer numberOfGuests,
         String confirmationNumber,
         Double totalPrice,
+        Integer nights,
         Double latitude,
         Double longitude
 ) {
