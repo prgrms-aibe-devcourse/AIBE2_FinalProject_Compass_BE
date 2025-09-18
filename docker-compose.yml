@@ -41,12 +41,15 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /app/travelagent-468611-1ae0c9d4e187.json
       GEMINI_MODEL: ${GEMINI_MODEL}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
       # JWT & AWS 설정
       JWT_SECRET: ${JWT_SECRET}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
       AWS_S3_REGION: ${AWS_S3_REGION}
+    volumes:
+      - ./travelagent-468611-1ae0c9d4e187.json:/app/travelagent-468611-1ae0c9d4e187.json:ro
     depends_on:
       - postgres
       - redis
