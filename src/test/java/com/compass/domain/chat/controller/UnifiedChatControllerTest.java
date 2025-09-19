@@ -183,7 +183,7 @@ class UnifiedChatControllerTest {
     @WithMockUser(username = "testuser")
     void resetContext_Success() throws Exception {
         // given
-        doNothing().when(mainLLMOrchestrator).resetContext("test-thread-123");
+        doNothing().when(mainLLMOrchestrator).resetContext("test-thread-123", "testuser");
 
         // when & then
         mockMvc.perform(delete("/api/chat/unified/context")
@@ -191,7 +191,7 @@ class UnifiedChatControllerTest {
                         .with(csrf()))
                 .andExpect(status().isNoContent());
 
-        verify(mainLLMOrchestrator, times(1)).resetContext("test-thread-123");
+        verify(mainLLMOrchestrator, times(1)).resetContext("test-thread-123", "testuser");
     }
 
     @Test
@@ -203,7 +203,7 @@ class UnifiedChatControllerTest {
                         .with(csrf()))
                 .andExpect(status().isBadRequest());
 
-        verify(mainLLMOrchestrator, never()).resetContext(any());
+        verify(mainLLMOrchestrator, never()).resetContext(any(), any());
     }
 
     @Test
@@ -212,7 +212,7 @@ class UnifiedChatControllerTest {
     void resetContext_InternalError() throws Exception {
         // given
         doThrow(new RuntimeException("초기화 실패"))
-                .when(mainLLMOrchestrator).resetContext("test-thread-123");
+                .when(mainLLMOrchestrator).resetContext("test-thread-123", "testuser");
 
         // when & then
         mockMvc.perform(delete("/api/chat/unified/context")
