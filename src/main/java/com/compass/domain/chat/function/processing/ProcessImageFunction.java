@@ -5,7 +5,6 @@ import com.compass.domain.chat.model.response.ImageProcessResult;
 import com.compass.domain.chat.service.external.OCRClient;
 import com.compass.domain.chat.service.external.S3Client;
 import com.compass.domain.chat.service.queue.OcrQueueService;
-import java.time.LocalDate;
 import java.util.Set;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +32,9 @@ public class ProcessImageFunction implements Function<ImageUploadRequest, ImageP
         try {
             validateFile(request);
             var directory = buildDirectory();
-            var objectKey = s3Client.upload(request.data(), directory, request.fileName(), request.contentType());
-            var imageUrl = s3Client.getUrl(objectKey);
+            var uploadResult = s3Client.upload(request.data(), directory, request.fileName(), request.contentType());
+            var objectKey = uploadResult.objectKey();
+            var imageUrl = uploadResult.publicUrl();
             // OCR 수행 및 문서 유형 분류
             var extractedText = ocrClient.extractText(request.data());
             var documentType = ocrClient.detectDocument(extractedText);
@@ -56,7 +56,7 @@ public class ProcessImageFunction implements Function<ImageUploadRequest, ImageP
     }
 
     private String buildDirectory() {
-        return "travel-images/" + LocalDate.now();
+        return "travel-images";
     }
 
     private void enqueueOcrTask(ImageUploadRequest request, String objectKey, String imageUrl) {
