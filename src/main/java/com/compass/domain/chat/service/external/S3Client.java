@@ -4,8 +4,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,6 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
-import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -39,6 +38,9 @@ public class S3Client {
     private String cdnDomain;
     private static final int MULTIPART_THRESHOLD = 5 * 1024 * 1024;
     private static final int PART_SIZE = 5 * 1024 * 1024;
+    private static final int MAX_RETRY = 3;
+    private static final Duration PRESIGNED_URL_DURATION = Duration.ofDays(7);
+    private static final DateTimeFormatter DATE_PATH_FORMAT = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     @PostConstruct
     void init() {
@@ -58,7 +60,7 @@ public class S3Client {
         cdnDomain = environment.getProperty("AWS_CLOUDFRONT_DOMAIN");
     }
 
-    public String upload(byte[] data, String directory, String originalFileName, String contentType) {
+    public S3UploadResult upload(byte[] data, String directory, String originalFileName, String contentType) {
         var objectKey = buildObjectKey(directory, originalFileName);
         var safeType = contentType == null || contentType.isBlank()
                 ? "application/octet-stream"
@@ -68,7 +70,7 @@ public class S3Client {
                 .key(objectKey)
                 .contentType(safeType)
                 .build();
-        for (int attempt = 1; attempt <= 3; attempt++) {
+        for (int attempt = 1; attempt <= MAX_RETRY; attempt++) {
             try {
                 if (data.length > MULTIPART_THRESHOLD) {
                     uploadMultipart(data, objectKey, safeType);
@@ -76,9 +78,11 @@ public class S3Client {
                     delegate.putObject(request, RequestBody.fromBytes(data));
                 }
                 log.debug("S3 업로드 완료 - key: {} (시도 {}회)", objectKey, attempt);
-                break;
+                var publicUrl = buildPublicUrl(objectKey);
+                var presignedUrl = getPresignedUrl(objectKey);
+                return new S3UploadResult(objectKey, publicUrl, presignedUrl);
             } catch (Exception ex) {
-                if (attempt == 3) {
+                if (attempt == MAX_RETRY) {
                     throw new IllegalStateException("S3 업로드 실패", ex);
                 }
                 log.warn("S3 업로드 재시도 - key: {}, attempt: {}", objectKey, attempt, ex);
@@ -89,7 +93,7 @@ public class S3Client {
                 }
             }
         }
-        return objectKey;
+        throw new IllegalStateException("S3 업로드 실패");
     }
 
     public void delete(String objectKey) {
@@ -101,16 +105,9 @@ public class S3Client {
         delegate.deleteObject(request);
     }
 
-    public String getUrl(String objectKey) {
-        if (cdnDomain != null && !cdnDomain.isBlank()) {
-            return "https://" + cdnDomain + "/" + objectKey;
-        }
-        return "https://" + bucket + ".s3." + region.id() + ".amazonaws.com/" + objectKey;
-    }
-
     public String getPresignedUrl(String objectKey) {
         var request = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofDays(7))
+                .signatureDuration(PRESIGNED_URL_DURATION)
                 .getObjectRequest(builder -> builder.bucket(bucket).key(objectKey))
                 .build();
         PresignedGetObjectRequest presigned = presigner.presignGetObject(request);
@@ -118,12 +115,28 @@ public class S3Client {
     }
 
     private String buildObjectKey(String directory, String originalFileName) {
-        var baseFolder = directory == null || directory.isBlank()
-                ? "uploads"
-                : directory;
-        var folder = baseFolder.contains("/") ? baseFolder : baseFolder + "/" + LocalDate.now();
+        var baseFolder = (directory == null || directory.isBlank()) ? "uploads" : sanitizeDirectory(directory);
+        var datePath = LocalDate.now().format(DATE_PATH_FORMAT);
         var extension = extractExtension(originalFileName);
-        return folder + "/" + UUID.randomUUID() + extension;
+        return baseFolder + "/" + datePath + "/" + UUID.randomUUID() + extension;
+    }
+
+    private String sanitizeDirectory(String directory) {
+        var sanitized = directory.trim();
+        while (sanitized.startsWith("/")) {
+            sanitized = sanitized.substring(1);
+        }
+        while (sanitized.endsWith("/")) {
+            sanitized = sanitized.substring(0, sanitized.length() - 1);
+        }
+        return sanitized.isBlank() ? "uploads" : sanitized;
+    }
+
+    private String buildPublicUrl(String objectKey) {
+        if (cdnDomain != null && !cdnDomain.isBlank()) {
+            return "https://" + cdnDomain + "/" + objectKey;
+        }
+        return "https://" + bucket + ".s3." + region.id() + ".amazonaws.com/" + objectKey;
     }
 
     private String extractExtension(String fileName) {
@@ -197,4 +210,6 @@ public class S3Client {
         System.arraycopy(data, position, slice, 0, length);
         return slice;
     }
+
+    public record S3UploadResult(String objectKey, String publicUrl, String presignedUrl) {}
 }
