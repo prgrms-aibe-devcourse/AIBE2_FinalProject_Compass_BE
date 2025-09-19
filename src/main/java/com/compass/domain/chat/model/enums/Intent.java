@@ -21,5 +21,8 @@ public enum Intent {
 
     // Phase 무관: 일반 기능
     GENERAL_QUESTION,       // 여행 관련 일반적인 질문
-    WEATHER_INQUIRY        // 날씨 관련 문의
+    WEATHER_INQUIRY,        // 날씨 관련 문의
+
+    // Phase 무관: 사용자 확인
+    CONFIRMATION           // 사용자 확인/동의 (예: "네", "좋아", "시작할게")
 }

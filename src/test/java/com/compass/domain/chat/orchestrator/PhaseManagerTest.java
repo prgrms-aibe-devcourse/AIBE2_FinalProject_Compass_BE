@@ -3,19 +3,16 @@ package com.compass.domain.chat.orchestrator;
 import com.compass.domain.chat.model.context.TravelContext;
 import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
+import com.compass.domain.chat.orchestrator.cache.PhaseCache;
+import com.compass.domain.chat.orchestrator.persistence.PhasePersistence;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -24,98 +21,98 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PhaseManagerTest {
 
-    @InjectMocks
     private PhaseManager phaseManager;
 
     @Mock
-    private RedisTemplate<String, Object> redisTemplate;
+    private PhaseCache phaseCache;
 
     @Mock
-    private ValueOperations<String, Object> valueOperations;
+    private PhasePersistence phasePersistence;
+
+    @Mock
+    private ContextManager contextManager;
 
     private static final String TEST_THREAD_ID = "test-thread-123";
 
     @BeforeEach
     void setUp() {
-        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        phaseManager = new PhaseManager(phaseCache, phasePersistence, contextManager);
     }
 
     @Test
     @DisplayName("새로운 Thread는 INITIALIZATION Phase로 시작한다")
     void testNewThreadStartsWithInitializationPhase() {
         // given
-        when(valueOperations.get(anyString())).thenReturn(null);
+        when(phaseCache.get(TEST_THREAD_ID)).thenReturn(Optional.empty());
+        when(phasePersistence.findByThreadId(TEST_THREAD_ID)).thenReturn(Optional.empty());
 
         // when
         TravelPhase phase = phaseManager.getCurrentPhase(TEST_THREAD_ID);
 
         // then
         assertThat(phase).isEqualTo(TravelPhase.INITIALIZATION);
+        verify(phaseCache).put(TEST_THREAD_ID, TravelPhase.INITIALIZATION);
     }
 
     @Test
-    @DisplayName("Redis에 저장된 Phase를 정상적으로 조회한다")
-    void testGetCurrentPhaseFromRedis() {
+    @DisplayName("Cache에 저장된 Phase를 정상적으로 조회한다")
+    void testGetCurrentPhaseFromCache() {
         // given
-        Map<String, Object> phaseData = new HashMap<>();
-        phaseData.put("phase", "INFORMATION_COLLECTION");
-        when(valueOperations.get(anyString())).thenReturn(phaseData);
+        when(phaseCache.get(TEST_THREAD_ID)).thenReturn(Optional.of(TravelPhase.INFORMATION_COLLECTION));
 
         // when
         TravelPhase phase = phaseManager.getCurrentPhase(TEST_THREAD_ID);
 
         // then
         assertThat(phase).isEqualTo(TravelPhase.INFORMATION_COLLECTION);
+        verify(phaseCache).get(TEST_THREAD_ID);
+        verify(phasePersistence, never()).findByThreadId(any());
     }
 
     @Test
-    @DisplayName("Phase를 Redis에 저장한다")
-    void testSavePhaseToRedis() {
+    @DisplayName("Phase를 저장한다")
+    void testSavePhase() {
         // when
         phaseManager.savePhase(TEST_THREAD_ID, TravelPhase.PLAN_GENERATION);
 
         // then
-        verify(valueOperations).set(
-            eq("phase:thread:" + TEST_THREAD_ID),
-            argThat(map -> {
-                Map<String, Object> data = (Map<String, Object>) map;
-                return "PLAN_GENERATION".equals(data.get("phase"));
-            }),
-            eq(Duration.ofHours(24))
-        );
+        verify(phaseCache).put(TEST_THREAD_ID, TravelPhase.PLAN_GENERATION);
+        verify(phasePersistence).save(TEST_THREAD_ID, TravelPhase.PLAN_GENERATION);
     }
 
     @Test
     @DisplayName("INITIALIZATION에서 정보수집 Intent시 INFORMATION_COLLECTION으로 전환")
     void testTransitionFromInitializationToInfoCollection() {
         // given
-        when(valueOperations.get(anyString())).thenReturn(null);
+        when(phaseCache.get(TEST_THREAD_ID)).thenReturn(Optional.empty());
+        when(phasePersistence.findByThreadId(TEST_THREAD_ID)).thenReturn(Optional.empty());
+
         TravelContext context = TravelContext.builder()
             .threadId(TEST_THREAD_ID)
+            .userId("user-1")
             .conversationCount(0)
+            .waitingForTravelConfirmation(true)  // 확인 대기 상태로 설정
             .build();
 
         // when
         TravelPhase nextPhase = phaseManager.transitionPhase(
             TEST_THREAD_ID,
-            Intent.TRAVEL_PLANNING,
+            Intent.CONFIRMATION,  // CONFIRMATION Intent로 변경
             context
         );
 
         // then
         assertThat(nextPhase).isEqualTo(TravelPhase.INFORMATION_COLLECTION);
-        verify(valueOperations).set(anyString(), any(), any(Duration.class));
+        verify(phaseCache, times(2)).put(eq(TEST_THREAD_ID), any());
     }
 
     @Test
     @DisplayName("정보수집 완료시 PLAN_GENERATION으로 전환")
     void testTransitionFromInfoCollectionToPlanGeneration() {
         // given
-        Map<String, Object> phaseData = new HashMap<>();
-        phaseData.put("phase", "INFORMATION_COLLECTION");
-        when(valueOperations.get(anyString())).thenReturn(phaseData);
+        when(phaseCache.get(TEST_THREAD_ID)).thenReturn(Optional.of(TravelPhase.INFORMATION_COLLECTION));
 
-        Map<String, Object> collectedInfo = new HashMap<>();
+        var collectedInfo = new java.util.HashMap<String, Object>();
         collectedInfo.put("destination", "제주도");
         collectedInfo.put("startDate", "2024-03-01");
         collectedInfo.put("endDate", "2024-03-03");
@@ -123,6 +120,7 @@ class PhaseManagerTest {
 
         TravelContext context = TravelContext.builder()
             .threadId(TEST_THREAD_ID)
+            .userId("user-1")
             .collectedInfo(collectedInfo)
             .build();
 
@@ -135,21 +133,21 @@ class PhaseManagerTest {
 
         // then
         assertThat(nextPhase).isEqualTo(TravelPhase.PLAN_GENERATION);
+        verify(phaseCache).put(TEST_THREAD_ID, TravelPhase.PLAN_GENERATION);
     }
 
     @Test
     @DisplayName("계획 생성 완료시 FEEDBACK_REFINEMENT로 전환")
     void testTransitionFromPlanGenerationToFeedback() {
         // given
-        Map<String, Object> phaseData = new HashMap<>();
-        phaseData.put("phase", "PLAN_GENERATION");
-        when(valueOperations.get(anyString())).thenReturn(phaseData);
+        when(phaseCache.get(TEST_THREAD_ID)).thenReturn(Optional.of(TravelPhase.PLAN_GENERATION));
 
-        Map<String, Object> travelPlan = new HashMap<>();
+        var travelPlan = new java.util.HashMap<String, Object>();
         travelPlan.put("itinerary", "day1...");
 
         TravelContext context = TravelContext.builder()
             .threadId(TEST_THREAD_ID)
+            .userId("user-1")
             .travelPlan(travelPlan)
             .build();
 
@@ -162,18 +160,18 @@ class PhaseManagerTest {
 
         // then
         assertThat(nextPhase).isEqualTo(TravelPhase.FEEDBACK_REFINEMENT);
+        verify(phaseCache).put(TEST_THREAD_ID, TravelPhase.FEEDBACK_REFINEMENT);
     }
 
     @Test
     @DisplayName("사용자 만족시 COMPLETION으로 전환")
     void testTransitionFromFeedbackToCompletion() {
         // given
-        Map<String, Object> phaseData = new HashMap<>();
-        phaseData.put("phase", "FEEDBACK_REFINEMENT");
-        when(valueOperations.get(anyString())).thenReturn(phaseData);
+        when(phaseCache.get(TEST_THREAD_ID)).thenReturn(Optional.of(TravelPhase.FEEDBACK_REFINEMENT));
 
         TravelContext context = TravelContext.builder()
             .threadId(TEST_THREAD_ID)
+            .userId("user-1")
             .build();
 
         // when
@@ -185,6 +183,7 @@ class PhaseManagerTest {
 
         // then
         assertThat(nextPhase).isEqualTo(TravelPhase.COMPLETION);
+        verify(phaseCache).put(TEST_THREAD_ID, TravelPhase.COMPLETION);
     }
 
     @Test
@@ -229,34 +228,33 @@ class PhaseManagerTest {
         phaseManager.resetPhase(TEST_THREAD_ID);
 
         // then
-        verify(valueOperations).set(
-            eq("phase:thread:" + TEST_THREAD_ID),
-            argThat(map -> {
-                Map<String, Object> data = (Map<String, Object>) map;
-                return "INITIALIZATION".equals(data.get("phase"));
-            }),
-            eq(Duration.ofHours(24))
-        );
+        verify(phaseCache).put(TEST_THREAD_ID, TravelPhase.INITIALIZATION);
+        verify(phasePersistence).save(TEST_THREAD_ID, TravelPhase.INITIALIZATION);
     }
 
     @Test
     @DisplayName("여행 질문 반복시 정보수집으로 전환")
     void testRepeatedTravelQuestionTransition() {
         // given
-        when(valueOperations.get(anyString())).thenReturn(null);
+        when(phaseCache.get(TEST_THREAD_ID)).thenReturn(Optional.empty());
+        when(phasePersistence.findByThreadId(TEST_THREAD_ID)).thenReturn(Optional.empty());
+
         TravelContext context = TravelContext.builder()
             .threadId(TEST_THREAD_ID)
+            .userId("user-1")
             .conversationCount(3) // 반복된 대화
+            .waitingForTravelConfirmation(true)  // 확인 대기 상태로 설정
             .build();
 
         // when
         TravelPhase nextPhase = phaseManager.transitionPhase(
             TEST_THREAD_ID,
-            Intent.GENERAL_QUESTION,
+            Intent.CONFIRMATION,  // 여행을 시작하려는 확인 Intent
             context
         );
 
         // then
         assertThat(nextPhase).isEqualTo(TravelPhase.INFORMATION_COLLECTION);
+        verify(phaseCache, times(2)).put(eq(TEST_THREAD_ID), any());
     }
 }

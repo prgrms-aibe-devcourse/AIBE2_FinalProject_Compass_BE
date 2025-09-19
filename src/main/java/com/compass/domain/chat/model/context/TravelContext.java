@@ -75,6 +75,10 @@ public class TravelContext implements Serializable {
     @Builder.Default
     private Map<String, Object> metadata = new HashMap<>();  // 확장 가능한 메타데이터
 
+    // 여행 계획 확인 대기 상태
+    @Builder.Default
+    private boolean waitingForTravelConfirmation = false;
+
     // 대화 횟수 증가
     public void incrementConversation() {
         this.conversationCount++;

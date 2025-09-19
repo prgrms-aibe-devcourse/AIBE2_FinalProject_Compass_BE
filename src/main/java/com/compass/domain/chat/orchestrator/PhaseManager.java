@@ -22,6 +22,7 @@ public class PhaseManager {
 
     private final PhaseCache phaseCache;
     private final PhasePersistence phasePersistence;
+    private final ContextManager contextManager;
 
     // 진행중인 대화용 Phase 조회 (Redis 우선)
     public TravelPhase getCurrentPhase(String threadId) {
@@ -76,17 +77,42 @@ public class PhaseManager {
         // 동시에 양쪽에 저장
         phaseCache.put(threadId, phase);
         phasePersistence.save(threadId, phase);
-        log.info("Thread {}의 Phase를 {}로 업데이트", threadId, phase);
+
+        log.info("╔══════════════════════════════════════════════════════════════");
+        log.info("║ 💾 Phase 저장 완료");
+        log.info("║ Thread ID: {}", threadId);
+        log.info("║ Phase: {}", phase);
+        log.info("║ Cache 저장: ✅");
+        log.info("║ DB 저장: ✅");
+        log.info("╚══════════════════════════════════════════════════════════════");
     }
 
     // Phase 전환 로직 - Intent와 컨텍스트 기반 전환
     public TravelPhase transitionPhase(String threadId, Intent intent, TravelContext context) {
         TravelPhase currentPhase = getCurrentPhase(threadId);
+
+        log.info("╔══════════════════════════════════════════════════════════════");
+        log.info("║ 🔍 Phase 전환 검토 시작");
+        log.info("║ Thread ID: {}", threadId);
+        log.info("║ 현재 Phase: {}", currentPhase);
+        log.info("║ Intent: {}", intent);
+        log.info("╚══════════════════════════════════════════════════════════════");
+
         TravelPhase nextPhase = determineNextPhase(currentPhase, intent, context);
 
         if (currentPhase != nextPhase) {
+            log.info("╔══════════════════════════════════════════════════════════════");
+            log.info("║ 🎯 Phase 전환 결정!");
+            log.info("║ {} → {}", currentPhase, nextPhase);
+            log.info("║ 전환 이유: Intent {} 에 의한 자동 전환", intent);
+            log.info("╚══════════════════════════════════════════════════════════════");
+
             savePhase(threadId, nextPhase);
-            log.info("Thread {}의 Phase 전환: {} → {}", threadId, currentPhase, nextPhase);
+
+            // 특별한 Phase 전환에 대한 추가 로깅
+            logPhaseTransitionDetails(nextPhase);
+        } else {
+            log.info("║ ℹ️ Phase 유지: {} (전환 불필요)", currentPhase);
         }
 
         return nextPhase;
@@ -95,7 +121,11 @@ public class PhaseManager {
     // 다음 Phase 결정 로직
     private TravelPhase determineNextPhase(TravelPhase currentPhase, Intent intent,
                                           TravelContext context) {
-        log.debug("Phase 전환 결정: current={}, intent={}", currentPhase, intent);
+        log.debug("╔══════════════════════════════════════════════════════════════");
+        log.debug("║ Phase 전환 로직 실행");
+        log.debug("║ 현재 Phase: {}", currentPhase);
+        log.debug("║ Intent: {}", intent);
+        log.debug("╚══════════════════════════════════════════════════════════════");
 
         return switch (currentPhase) {
             case INITIALIZATION -> handleInitializationPhase(intent, context, currentPhase);
@@ -109,18 +139,52 @@ public class PhaseManager {
     // INITIALIZATION Phase 처리
     private TravelPhase handleInitializationPhase(Intent intent, TravelContext context,
                                                  TravelPhase currentPhase) {
-        // 정보 수집 시작 조건
-        if (intent == Intent.INFORMATION_COLLECTION ||
-            intent == Intent.TRAVEL_PLANNING) {
-            log.info("정보 수집 Phase로 전환");
+        // 사용자가 명확하게 여행 계획 시작을 확인한 경우에만 전환
+        // TRAVEL_PLANNING intent는 사용자의 여행 의도를 나타내지만 바로 전환하지 않음
+
+        // 사용자가 명시적으로 확인한 경우 (예: "네", "좋아", "시작할게" 등)
+        // INFORMATION_COLLECTION Intent 자체는 전환 조건이 아님 - 확인 대기 중일 때만 CONFIRMATION으로 전환
+        if (intent == Intent.CONFIRMATION && context.isWaitingForTravelConfirmation()) {
+            log.info("╔══════════════════════════════════════════════════════════════");
+            log.info("║ ✅ 전환 조건 충족: INITIALIZATION → INFORMATION_COLLECTION");
+            log.info("║ 사용자가 여행 계획을 시작하기로 확인했습니다");
+            log.info("╚══════════════════════════════════════════════════════════════");
             return TravelPhase.INFORMATION_COLLECTION;
         }
-        // 여행 질문이 반복되면 정보 수집으로 유도
+
+        // TRAVEL_PLANNING intent가 감지되었을 때
+        if (intent == Intent.TRAVEL_PLANNING) {
+            // 첫 번째 여행 의도 - 확인 질문
+            if (!context.isWaitingForTravelConfirmation() && context.getConversationCount() <= 2) {
+                log.info("║ 💬 첫 여행 의도 감지 - 사용자 확인 대기");
+                context.setWaitingForTravelConfirmation(true);
+                contextManager.updateContext(context, context.getUserId());
+                return currentPhase; // INITIALIZATION 유지
+            }
+            // 5번 이상 여행 관련 대화 - 충분한 여행 의도 표현 후 자동 진행
+            else if (context.getConversationCount() >= 5) {
+                log.info("║ 💬 충분한 여행 대화 진행 - 정보 수집 단계로 자동 전환");
+                context.setWaitingForTravelConfirmation(false);
+                contextManager.updateContext(context, context.getUserId());
+                return TravelPhase.INFORMATION_COLLECTION;
+            }
+            // 확인 대기 중 상태 유지
+            else {
+                log.info("║ 💬 추가 여행 질문 - 확인 대기 상태 유지");
+                return currentPhase; // INITIALIZATION 유지
+            }
+        }
+
+        // 여행 질문이 반복되면 확인 질문 유도
         if (intent == Intent.GENERAL_QUESTION &&
             context.getConversationCount() >= 2) {
-            log.info("여행 질문이 반복되어 정보 수집으로 전환");
-            return TravelPhase.INFORMATION_COLLECTION;
+            log.info("여행 관련 대화 지속 - 확인 질문 대기");
+            context.setWaitingForTravelConfirmation(true);
+            // ContextManager를 통해 변경사항 저장
+            contextManager.updateContext(context, context.getUserId());
+            return currentPhase; // INITIALIZATION 유지
         }
+
         return currentPhase;
     }
 
@@ -129,7 +193,10 @@ public class PhaseManager {
                                                         TravelPhase currentPhase) {
         // 충분한 정보 수집 완료 체크
         if (isInformationComplete(context)) {
-            log.info("정보 수집 완료, 계획 생성 Phase로 전환");
+            log.info("╔══════════════════════════════════════════════════════════════");
+            log.info("║ ✅ 전환 조건 충족: INFORMATION_COLLECTION → PLAN_GENERATION");
+            log.info("║ 필수 정보 수집 완료");
+            log.info("╚══════════════════════════════════════════════════════════════");
             return TravelPhase.PLAN_GENERATION;
         }
         // 사용자가 직접 계획 생성 요청
@@ -145,7 +212,10 @@ public class PhaseManager {
                                                  TravelPhase currentPhase) {
         // 계획 생성 완료시 피드백 단계로 전환
         if (context.getTravelPlan() != null) {
-            log.info("계획 생성 완료, 피드백 단계로 전환");
+            log.info("╔══════════════════════════════════════════════════════════════");
+            log.info("║ ✅ 전환 조건 충족: PLAN_GENERATION → FEEDBACK_REFINEMENT");
+            log.info("║ 여행 계획 생성 완료");
+            log.info("╚══════════════════════════════════════════════════════════════");
             return TravelPhase.FEEDBACK_REFINEMENT;
         }
         // 계획 수정 요청시 바로 피드백 단계로
@@ -161,7 +231,10 @@ public class PhaseManager {
         // 사용자 만족시 완료 단계로 전환
         if (intent == Intent.COMPLETION) {
             // 완료 Intent
-            log.info("사용자 만족, 완료 Phase로 전환");
+            log.info("╔══════════════════════════════════════════════════════════════");
+            log.info("║ ✅ 전환 조건 충족: FEEDBACK_REFINEMENT → COMPLETION");
+            log.info("║ 사용자가 여행 계획에 만족했습니다");
+            log.info("╚══════════════════════════════════════════════════════════════");
             return TravelPhase.COMPLETION;
         }
         // 추가 정보 필요시 정보 수집으로 복귀
@@ -220,6 +293,30 @@ public class PhaseManager {
         TravelPhase initialPhase = TravelPhase.INITIALIZATION;
         savePhase(threadId, initialPhase);
         log.info("Thread {}의 Phase를 초기화", threadId);
+    }
+
+    // Phase 전환 세부 정보 로깅
+    private void logPhaseTransitionDetails(TravelPhase phase) {
+        switch (phase) {
+            case INFORMATION_COLLECTION:
+                log.info("║ 📋 정보 수집 단계로 진입합니다");
+                log.info("║ 목적지, 날짜, 예산 등의 정보를 수집합니다");
+                break;
+            case PLAN_GENERATION:
+                log.info("║ ✈️ 여행 계획 생성 단계로 진입합니다");
+                log.info("║ 수집된 정보를 바탕으로 일정을 생성합니다");
+                break;
+            case FEEDBACK_REFINEMENT:
+                log.info("║ 🔄 피드백 수정 단계로 진입합니다");
+                log.info("║ 사용자의 피드백을 반영하여 계획을 수정합니다");
+                break;
+            case COMPLETION:
+                log.info("║ ✅ 완료 단계로 진입합니다");
+                log.info("║ 최종 여행 계획이 완성되었습니다");
+                break;
+            default:
+                break;
+        }
     }
 
     // 캐시만 삭제 (필요시)

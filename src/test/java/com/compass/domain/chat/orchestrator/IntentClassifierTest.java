@@ -39,13 +39,13 @@ class IntentClassifierTest {
     }
 
     @Test
-    @DisplayName("빈 메시지는 UNKNOWN으로 분류")
+    @DisplayName("빈 메시지는 GENERAL_QUESTION으로 분류")
     void testClassifyEmptyMessage() {
         // given
         String emptyMessage = "";
 
         // when
-        Intent result = intentClassifier.classify(emptyMessage);
+        Intent result = intentClassifier.classify(emptyMessage, false);
 
         // then
         assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
@@ -53,10 +53,10 @@ class IntentClassifierTest {
     }
 
     @Test
-    @DisplayName("null 메시지는 UNKNOWN으로 분류")
+    @DisplayName("null 메시지는 GENERAL_QUESTION으로 분류")
     void testClassifyNullMessage() {
         // when
-        Intent result = intentClassifier.classify(null);
+        Intent result = intentClassifier.classify(null, false);
 
         // then
         assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
@@ -64,14 +64,14 @@ class IntentClassifierTest {
     }
 
     @Test
-    @DisplayName("여행 계획 요청 → TRAVEL_INFO_COLLECTION")
+    @DisplayName("여행 계획 요청 → INFORMATION_COLLECTION")
     void testClassifyTravelPlanningRequest() {
         // given
         String message = "제주도 3박 4일 여행 계획 짜줘";
-        setupLLMResponse("TRAVEL_INFO_COLLECTION");
+        setupLLMResponse("INFORMATION_COLLECTION");
 
         // when
-        Intent result = intentClassifier.classify(message);
+        Intent result = intentClassifier.classify(message, false);
 
         // then
         assertThat(result).isEqualTo(Intent.INFORMATION_COLLECTION);
@@ -79,14 +79,14 @@ class IntentClassifierTest {
     }
 
     @Test
-    @DisplayName("여행 관련 질문 → TRAVEL_QUESTION")
+    @DisplayName("여행 관련 질문 → GENERAL_QUESTION")
     void testClassifyTravelQuestion() {
         // given
         String message = "파리 날씨 어때?";
-        setupLLMResponse("TRAVEL_QUESTION");
+        setupLLMResponse("GENERAL_QUESTION");
 
         // when
-        Intent result = intentClassifier.classify(message);
+        Intent result = intentClassifier.classify(message, false);
 
         // then
         assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
@@ -94,14 +94,14 @@ class IntentClassifierTest {
     }
 
     @Test
-    @DisplayName("일반 대화 → GENERAL_CHAT")
+    @DisplayName("일반 대화 → GENERAL_QUESTION")
     void testClassifyGeneralChat() {
         // given
         String message = "안녕하세요";
-        setupLLMResponse("GENERAL_CHAT");
+        setupLLMResponse("GENERAL_QUESTION");
 
         // when
-        Intent result = intentClassifier.classify(message);
+        Intent result = intentClassifier.classify(message, false);
 
         // then
         assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
@@ -120,10 +120,10 @@ class IntentClassifierTest {
         };
 
         for (String message : messages) {
-            setupLLMResponse("TRAVEL_INFO_COLLECTION");
+            setupLLMResponse("INFORMATION_COLLECTION");
 
             // when
-            Intent result = intentClassifier.classify(message);
+            Intent result = intentClassifier.classify(message, false);
 
             // then
             assertThat(result).isEqualTo(Intent.INFORMATION_COLLECTION);
@@ -142,10 +142,10 @@ class IntentClassifierTest {
         };
 
         for (String message : messages) {
-            setupLLMResponse("TRAVEL_QUESTION");
+            setupLLMResponse("GENERAL_QUESTION");
 
             // when
-            Intent result = intentClassifier.classify(message);
+            Intent result = intentClassifier.classify(message, false);
 
             // then
             assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
@@ -153,14 +153,14 @@ class IntentClassifierTest {
     }
 
     @Test
-    @DisplayName("LLM 응답이 알 수 없는 형식일 때 GENERAL_CHAT 반환")
+    @DisplayName("LLM 응답이 알 수 없는 형식일 때 GENERAL_QUESTION 반환")
     void testInvalidLLMResponse() {
         // given
         String message = "테스트 메시지";
         setupLLMResponse("알 수 없는 응답");
 
         // when
-        Intent result = intentClassifier.classify(message);
+        Intent result = intentClassifier.classify(message, false);
 
         // then
         assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
@@ -168,14 +168,14 @@ class IntentClassifierTest {
     }
 
     @Test
-    @DisplayName("LLM 호출 실패 시 GENERAL_CHAT 반환")
+    @DisplayName("LLM 호출 실패 시 GENERAL_QUESTION 반환")
     void testLLMFailure() {
         // given
         String message = "테스트 메시지";
         when(chatModel.call(any(Prompt.class))).thenThrow(new RuntimeException("LLM 호출 실패"));
 
         // when
-        Intent result = intentClassifier.classify(message);
+        Intent result = intentClassifier.classify(message, false);
 
         // then
         assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
@@ -187,13 +187,43 @@ class IntentClassifierTest {
     void testAmbiguousMessage() {
         // given
         String message = "다음 주 가족 휴가 가려고 하는데";
-        setupLLMResponse("TRAVEL_INFO_COLLECTION");
+        setupLLMResponse("INFORMATION_COLLECTION");
 
         // when
-        Intent result = intentClassifier.classify(message);
+        Intent result = intentClassifier.classify(message, false);
 
         // then
         assertThat(result).isEqualTo(Intent.INFORMATION_COLLECTION);
+        verify(chatModel, times(1)).call(any(Prompt.class));
+    }
+
+    @Test
+    @DisplayName("확인 대기 상태에서 긍정 응답 처리")
+    void testClassifyConfirmationWhileWaiting() {
+        // given
+        String message = "네, 좋아요";
+        setupLLMResponse("CONFIRMATION");
+
+        // when
+        Intent result = intentClassifier.classify(message, true);
+
+        // then
+        assertThat(result).isEqualTo(Intent.CONFIRMATION);
+        verify(chatModel, times(1)).call(any(Prompt.class));
+    }
+
+    @Test
+    @DisplayName("확인 대기 상태에서 부정 응답 처리")
+    void testClassifyRejectionWhileWaiting() {
+        // given
+        String message = "아니요";
+        setupLLMResponse("GENERAL_QUESTION");
+
+        // when
+        Intent result = intentClassifier.classify(message, true);
+
+        // then
+        assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
         verify(chatModel, times(1)).call(any(Prompt.class));
     }
 

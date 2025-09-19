@@ -113,7 +113,7 @@ public class AuthService {
         }
 
         // Extract email from refresh token
-        String email = jwtTokenProvider.getUsername(refreshToken);
+        String email = jwtTokenProvider.getUsernameFromRefreshToken(refreshToken);
 
         // Find user
         User user = userRepository.findByEmail(email)
