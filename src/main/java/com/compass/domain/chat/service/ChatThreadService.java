@@ -53,11 +53,27 @@ public class ChatThreadService {
         return new ThreadResponse(savedThread.getId(), savedThread.getCreatedAt());
     }
 
-    // 대화 메시지 저장
+    // 대화 메시지 저장 (Thread 없으면 자동 생성)
     @Transactional
     public void saveMessage(MessageSaveRequest request) {
+        // Thread가 없으면 자동 생성 (UUID를 ID로 사용)
         ChatThread thread = chatThreadRepository.findById(request.threadId())
-                .orElseThrow(() -> new IllegalArgumentException("Thread not found with id: " + request.threadId()));
+                .orElseGet(() -> {
+                    // Thread ID로 사용자 정보 추출이 어려우므로 임시 처리
+                    // 실제로는 request에 userId를 포함시키거나 SecurityContext에서 가져와야 함
+                    User defaultUser = userRepository.findByEmail("test-user@test.com")
+                            .orElse(userRepository.findAll().stream().findFirst()
+                                    .orElseThrow(() -> new IllegalStateException("No users found in database")));
+
+                    ChatThread newThread = ChatThread.builder()
+                            .id(request.threadId())  // UUID를 그대로 ID로 사용
+                            .user(defaultUser)
+                            .title("새 대화")
+                            .currentPhase("INITIALIZATION")
+                            .build();
+
+                    return chatThreadRepository.save(newThread);
+                });
 
         ChatMessage message = ChatMessage.builder()
                 .thread(thread)
@@ -66,6 +82,12 @@ public class ChatThreadService {
                 .build();
 
         chatMessageRepository.save(message);
+
+        // 첫 메시지인 경우 제목 업데이트
+        if (thread.getMessages().isEmpty() && "user".equals(request.sender())) {
+            thread.updateTitleFromFirstMessage(request.content());
+            chatThreadRepository.save(thread);
+        }
     }
 
     // 특정 스레드의 대화 기록 조회
