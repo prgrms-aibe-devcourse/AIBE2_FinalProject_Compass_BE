@@ -135,4 +135,15 @@ public class UnifiedChatController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    // 헬스 체크 엔드포인트
+    @GetMapping("/health")
+    @Operation(
+        summary = "헬스 체크",
+        description = "서비스 상태 확인"
+    )
+    @ApiResponse(responseCode = "200", description = "서비스 정상")
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("OK");
+    }
 }

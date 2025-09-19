@@ -1,6 +1,6 @@
 package com.compass.domain.chat.function.collection;
 
-import com.compass.domain.chat.function.followup.FollowUpQuestionSelector;
+import com.compass.domain.chat.followup.service.FollowUpQuestionSelector;
 import com.compass.domain.chat.model.response.ChatResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
