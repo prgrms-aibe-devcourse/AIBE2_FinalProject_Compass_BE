@@ -11,7 +11,7 @@ public record OCRResult(
         if (imageUrl == null || imageUrl.isBlank()) {
             throw new IllegalArgumentException("이미지 URL이 비어 있습니다.");
         }
-        extractedText = extractedText == null ? "" : extractedText.trim();
+        extractedText = extractedText == null ? "" : extractedText;
         documentType = documentType == null ? DocumentType.UNKNOWN : documentType;
     }
 }
