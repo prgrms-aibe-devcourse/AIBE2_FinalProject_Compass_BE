@@ -21,8 +21,9 @@ import lombok.ToString;
 @Entity
 @Table(name = "flight_reservations",
         indexes = {
-                @Index(name = "idx_flight_reservation_booking", columnList = "booking_reference"),
-                @Index(name = "idx_flight_reservation_thread", columnList = "thread_id")
+                @Index(name = "idx_flight_reservation_booking", columnList = "booking_reference", unique = true),
+                @Index(name = "idx_flight_reservation_thread", columnList = "thread_id"),
+                @Index(name = "idx_flight_reservation_flight_departure", columnList = "flight_number, departure_time")
         })
 public class FlightReservationEntity {
 
@@ -50,18 +51,23 @@ public class FlightReservationEntity {
     @Column(name = "arrival_airport", nullable = false)
     private String arrivalAirport;
 
-    @Column(name = "departure_time")
-    private LocalDateTime departureDateTime;
+    @NotNull
+    @Column(name = "departure_time", nullable = false)
+    private LocalDateTime departureTime;
 
-    @Column(name = "arrival_time")
-    private LocalDateTime arrivalDateTime;
+    @NotNull
+    @Column(name = "arrival_time", nullable = false)
+    private LocalDateTime arrivalTime;
 
-    @Column(name = "passenger_name")
+    @NotNull
+    @Column(name = "passenger_name", nullable = false)
     private String passengerName;
 
-    @Column(name = "seat_number")
+    @NotNull
+    @Column(name = "seat_number", nullable = false)
     private String seatNumber;
 
-    @Column(name = "booking_reference")
+    @NotNull
+    @Column(name = "booking_reference", nullable = false)
     private String bookingReference;
 }
