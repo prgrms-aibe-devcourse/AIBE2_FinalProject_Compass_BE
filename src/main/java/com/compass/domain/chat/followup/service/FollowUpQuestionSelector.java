@@ -1,4 +1,4 @@
-package com.compass.domain.chat.function.followup;
+package com.compass.domain.chat.followup.service;
 
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
 import org.springframework.stereotype.Component;
