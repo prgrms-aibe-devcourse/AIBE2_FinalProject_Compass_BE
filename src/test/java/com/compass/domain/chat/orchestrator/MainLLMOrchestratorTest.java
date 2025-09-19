@@ -13,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -51,6 +53,10 @@ class MainLLMOrchestratorTest {
             chatThreadService,
             promptBuilder
         );
+
+        // 기본 Mock 설정 - 모든 테스트에서 사용할 기본값
+        lenient().when(chatThreadService.getHistory(anyString())).thenReturn(List.of());
+        lenient().when(intentClassifier.isSpecificTravelQuery(anyString())).thenReturn(false);
     }
 
     @Test
@@ -65,6 +71,9 @@ class MainLLMOrchestratorTest {
             .build();
 
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
+        when(intentClassifier.classify("네, 시작할게요!", false)).thenReturn(Intent.CONFIRMATION);
+        when(phaseManager.transitionPhase("thread-1", Intent.CONFIRMATION, context))
+            .thenReturn(TravelPhase.INFORMATION_COLLECTION);
 
         var nextPhaseResponse = ChatResponse.builder()
             .content("여행 정보를 수집합니다.")
@@ -75,7 +84,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.INFORMATION_COLLECTION),
+            eq(Intent.CONFIRMATION),
             eq(TravelPhase.INFORMATION_COLLECTION),
             eq(context),
             any()
@@ -91,7 +100,7 @@ class MainLLMOrchestratorTest {
         verify(contextManager).updateContext(context, "user-1");
         verify(responseGenerator).generateResponse(
             eq(request),
-            eq(Intent.INFORMATION_COLLECTION),
+            eq(Intent.CONFIRMATION),
             eq(TravelPhase.INFORMATION_COLLECTION),
             eq(context),
             any()
@@ -110,6 +119,9 @@ class MainLLMOrchestratorTest {
             .build();
 
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
+        when(intentClassifier.classify("좋아요, 진행해주세요", false)).thenReturn(Intent.CONFIRMATION);
+        when(phaseManager.transitionPhase("thread-1", Intent.CONFIRMATION, context))
+            .thenReturn(TravelPhase.PLAN_GENERATION);
 
         var nextPhaseResponse = ChatResponse.builder()
             .content("계획을 생성합니다.")
@@ -120,7 +132,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.INFORMATION_COLLECTION),
+            eq(Intent.CONFIRMATION),
             eq(TravelPhase.PLAN_GENERATION),
             eq(context),
             any()
@@ -148,6 +160,23 @@ class MainLLMOrchestratorTest {
             .build();
 
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
+        when(intentClassifier.classify("아니요, 다시 생각해볼게요", false)).thenReturn(Intent.GENERAL_QUESTION);
+        when(phaseManager.transitionPhase("thread-1", Intent.GENERAL_QUESTION, context))
+            .thenReturn(TravelPhase.INITIALIZATION);
+
+        var mockResponse = ChatResponse.builder()
+            .content("알겠습니다. 다른 도움이 필요하시면 말씀해주세요.")
+            .type("TEXT")
+            .requiresConfirmation(false)
+            .build();
+
+        when(responseGenerator.generateResponse(
+            eq(request),
+            eq(Intent.GENERAL_QUESTION),
+            eq(TravelPhase.INITIALIZATION),
+            eq(context),
+            eq(promptBuilder)
+        )).thenReturn(mockResponse);
 
         // when
         var response = orchestrator.processChat(request);
@@ -173,6 +202,23 @@ class MainLLMOrchestratorTest {
             .build();
 
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
+        when(intentClassifier.classify("그만할래요", false)).thenReturn(Intent.GENERAL_QUESTION);
+        when(phaseManager.transitionPhase("thread-1", Intent.GENERAL_QUESTION, context))
+            .thenReturn(TravelPhase.PLAN_GENERATION);
+
+        var mockResponse = ChatResponse.builder()
+            .content("계획을 다시 검토해보시겠어요?")
+            .type("TEXT")
+            .requiresConfirmation(false)
+            .build();
+
+        when(responseGenerator.generateResponse(
+            eq(request),
+            eq(Intent.GENERAL_QUESTION),
+            eq(TravelPhase.PLAN_GENERATION),
+            eq(context),
+            eq(promptBuilder)
+        )).thenReturn(mockResponse);
 
         // when
         var response = orchestrator.processChat(request);
@@ -200,7 +246,7 @@ class MainLLMOrchestratorTest {
         when(intentClassifier.classify("제주도 여행 계획 짜줘", false))
             .thenReturn(Intent.INFORMATION_COLLECTION);
         when(phaseManager.transitionPhase(
-            "thread-123",
+            "thread-1",
             Intent.INFORMATION_COLLECTION,
             context
         )).thenReturn(TravelPhase.INFORMATION_COLLECTION);
@@ -216,7 +262,8 @@ class MainLLMOrchestratorTest {
             eq(request),
             eq(Intent.INFORMATION_COLLECTION),
             eq(TravelPhase.INFORMATION_COLLECTION),
-            eq(context)
+            eq(context),
+            any()
         )).thenReturn(mockResponse);
 
         // when
@@ -230,7 +277,7 @@ class MainLLMOrchestratorTest {
 
         verify(intentClassifier).classify("제주도 여행 계획 짜줘", false);
         verify(phaseManager).transitionPhase(
-            "thread-123",
+            "thread-1",
             Intent.INFORMATION_COLLECTION,
             context
         );
@@ -298,6 +345,9 @@ class MainLLMOrchestratorTest {
             .build();
 
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
+        when(intentClassifier.classify("네, 확정할게요", false)).thenReturn(Intent.CONFIRMATION);
+        when(phaseManager.transitionPhase("thread-1", Intent.CONFIRMATION, context))
+            .thenReturn(TravelPhase.COMPLETION);
 
         var completionResponse = ChatResponse.builder()
             .content("여행 계획이 완료되었습니다.")
@@ -308,7 +358,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.INFORMATION_COLLECTION),
+            eq(Intent.CONFIRMATION),
             eq(TravelPhase.COMPLETION),
             eq(context),
             any()
@@ -350,6 +400,9 @@ class MainLLMOrchestratorTest {
             .build();
 
         when(contextManager.getOrCreateContext(request)).thenReturn(context);
+        when(intentClassifier.classify("y", false)).thenReturn(Intent.CONFIRMATION);
+        when(phaseManager.transitionPhase("thread-1", Intent.CONFIRMATION, context))
+            .thenReturn(TravelPhase.INFORMATION_COLLECTION);
 
         var nextPhaseResponse = ChatResponse.builder()
             .content("여행 정보를 수집합니다.")
@@ -360,7 +413,7 @@ class MainLLMOrchestratorTest {
 
         when(responseGenerator.generateResponse(
             eq(request),
-            eq(Intent.INFORMATION_COLLECTION),
+            eq(Intent.CONFIRMATION),
             eq(TravelPhase.INFORMATION_COLLECTION),
             eq(context),
             any()

@@ -88,7 +88,7 @@ class ResponseGeneratorTest {
         var intent = Intent.INFORMATION_COLLECTION;
         var phase = TravelPhase.INFORMATION_COLLECTION;
 
-        when(travelContext.isWaitingForTravelConfirmation()).thenReturn(false);
+        lenient().when(travelContext.isWaitingForTravelConfirmation()).thenReturn(false);
 
         // ShowQuickInputFormFunction 모킹
         var quickForm = new QuickInputFormDto(
@@ -96,7 +96,7 @@ class ResponseGeneratorTest {
             List.of(),
             Map.of()
         );
-        when(showQuickInputFormFunction.apply(any())).thenReturn(quickForm);
+        lenient().when(showQuickInputFormFunction.apply(any())).thenReturn(quickForm);
 
         // when
         var response = responseGenerator.generateResponse(request, intent, phase, travelContext, promptBuilder);

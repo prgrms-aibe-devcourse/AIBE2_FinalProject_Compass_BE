@@ -23,7 +23,7 @@ logs/
 *.log
 
 # Test
-src/test/
+# src/test/  # Commented out to allow tests in Docker CI build
 
 # Documentation
 *.md
