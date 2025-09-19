@@ -1,7 +1,7 @@
 spring:
   # Database Configuration - AWS RDS
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com:5432/postgres}
+    url: ${DATABASE_URL:jdbc:postgresql://compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com:5432/compass}
     username: ${DATABASE_USERNAME:compass}
     password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver

@@ -33,10 +33,13 @@ public class MainLLMOrchestrator {
         log.info("║ Message: {}", request.getMessage());
         log.info("╚══════════════════════════════════════════════════════════════");
 
-        // 1. 사용자 메시지 저장
+        // 1. ChatThread 생성 또는 확인 (가장 먼저!)
+        ensureChatThreadExists(request);
+
+        // 2. 사용자 메시지 저장
         saveUserMessage(request);
 
-        // 2. 컨텍스트 조회 또는 생성
+        // 3. 컨텍스트 조회 또는 생성
         var context = contextManager.getOrCreateContext(request);
 
         // 3. 대화 횟수 증가
@@ -106,6 +109,18 @@ public class MainLLMOrchestrator {
         saveSystemMessage(request.getThreadId(), response.getContent());
 
         return response;
+    }
+
+    // ChatThread 존재 확인 및 생성
+    private void ensureChatThreadExists(ChatRequest request) {
+        try {
+            // ChatThreadService에서 Thread 존재 여부 확인하고 없으면 생성
+            chatThreadService.ensureThreadExists(request.getThreadId(), request.getUserId());
+            log.debug("ChatThread 확인/생성 완료: threadId={}", request.getThreadId());
+        } catch (Exception e) {
+            log.error("ChatThread 생성 실패: {}", e.getMessage());
+            throw new RuntimeException("대화 스레드 생성에 실패했습니다.", e);
+        }
     }
 
     // 사용자 메시지 저장

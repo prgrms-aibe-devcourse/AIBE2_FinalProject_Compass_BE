@@ -84,6 +84,7 @@ public class SecurityConfig {
             .httpBasic(httpBasic -> httpBasic.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
+                .requestMatchers("/error").permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()  // Authentication endpoints (signup, login, refresh)
                 .requestMatchers("/api/users/**").permitAll()
