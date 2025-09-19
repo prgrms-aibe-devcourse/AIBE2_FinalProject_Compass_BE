@@ -97,7 +97,8 @@ public class UnifiedChatController {
 
         } catch (Exception e) {
             // 500 - 서버 오류
-            log.error("처리 중 오류: userId={}", userDetails.getUsername(), e);
+            String username = userDetails != null ? userDetails.getUsername() : "unknown";
+            log.error("처리 중 오류: userId={}", username, e);
             return ResponseEntity.internalServerError()
                 .body(ChatResponse.builder()
                     .content("처리 중 오류가 발생했습니다.")

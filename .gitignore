@@ -71,3 +71,10 @@ application-local.properties
 # Logs
 logs/
 *.log
+
+# Test scenarios directory
+test-scenarios/
+
+# Temporary files and test artifacts
+temp/
+config/credentials/

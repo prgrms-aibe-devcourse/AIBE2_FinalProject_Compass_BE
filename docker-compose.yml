@@ -1,19 +1,20 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: compass-postgres
-    environment:
-      POSTGRES_DB: compass_db
-      POSTGRES_USER: compass
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - compass-network
+  # postgres는 주석처리 (AWS RDS 사용)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: compass-postgres
+  #   environment:
+  #     POSTGRES_DB: compass_db
+  #     POSTGRES_USER: compass
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - compass-network
 
   redis:
     image: redis:7-alpine
@@ -29,31 +30,53 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: rds
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/compass_db
-      SPRING_DATASOURCE_USERNAME: compass
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      # Spring Profile - docker 프로파일 사용
+      SPRING_PROFILES_ACTIVE: docker
+
+      # Database Configuration (AWS RDS)
+      DATABASE_URL: ${DATABASE_URL:-jdbc:postgresql://compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com:5432/compass}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-compass}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+
+      # Redis Configuration
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
-      # Google Cloud & AI 설정
+
+      # JWT Configuration - 모든 형식으로 제공
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-very-long-and-secure-jwt-refresh-secret-key-that-should-be-at-least-256-bits}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800000}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-86400000}
+
+      # Spring Security JWT (다른 형식으로도 제공)
+      SPRING_SECURITY_JWT_SECRET: ${JWT_SECRET}
+      SPRING_SECURITY_JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-very-long-and-secure-jwt-refresh-secret-key-that-should-be-at-least-256-bits}
+      SPRING_SECURITY_JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-86400000}
+      SPRING_SECURITY_JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800000}
+
+      # Google Cloud & AI Configuration
       GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID}
-      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
       GOOGLE_APPLICATION_CREDENTIALS: /app/travelagent-468611-1ae0c9d4e187.json
-      GEMINI_MODEL: ${GEMINI_MODEL}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+
+      # OpenAI & Perplexity
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
-      # JWT & AWS 설정
-      JWT_SECRET: ${JWT_SECRET}
+
+      # AWS Configuration
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
-      AWS_S3_REGION: ${AWS_S3_REGION}
-      # Tour API 설정
+      AWS_S3_REGION: ${AWS_S3_REGION:-ap-northeast-2}
+
+      # Tour API
       TOUR_API_KEY: ${TOUR_API_KEY}
+
     volumes:
       - ./travelagent-468611-1ae0c9d4e187.json:/app/travelagent-468611-1ae0c9d4e187.json:ro
     depends_on:
-      - postgres
       - redis
     networks:
       - compass-network

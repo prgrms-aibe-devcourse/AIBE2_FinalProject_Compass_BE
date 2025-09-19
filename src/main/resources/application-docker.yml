@@ -1,13 +1,15 @@
 spring:
+  # Database Configuration - AWS RDS
   datasource:
-    url: jdbc:postgresql://postgres:5432/compass_db
-    username: compass
-    password: ${DB_PASSWORD:password}
+    url: ${DATABASE_URL:jdbc:postgresql://compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com:5432/compass}
+    username: ${DATABASE_USERNAME:compass}
+    password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-timeout: 30000
       maximum-pool-size: 10
 
+  # JPA Configuration
   jpa:
     hibernate:
       ddl-auto: update
@@ -17,39 +19,63 @@ spring:
         format_sql: true
     show-sql: true
 
-  redis:
-    host: redis
-    port: 6379
+  # Redis Configuration
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:redis}
+      port: ${SPRING_REDIS_PORT:6379}
 
+  # AI Configuration
+  ai:
+    vertex:
+      ai:
+        gemini:
+          project-id: ${GOOGLE_CLOUD_PROJECT_ID}
+          location: ${GOOGLE_CLOUD_LOCATION:us-central1}
+          model: ${GEMINI_MODEL:gemini-2.0-flash}
+          chat:
+            options:
+              model: ${GEMINI_MODEL:gemini-2.0-flash}
+              temperature: 0.7
+              max-output-tokens: 8192
+
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+
+  # Security Configuration - JWT
   security:
     jwt:
-      secret: ${JWT_SECRET}
-      refresh-secret: ${JWT_SECRET}
-      access-expiration: 86400000
-      refresh-expiration: 604800000
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: dummy-google-client-id
-            client-secret: dummy-google-client-secret
-            scope: profile, email
-          kakao:
-            client-id: dummy-kakao-client-id
-            client-secret: dummy-kakao-client-secret
-            authorization-grant-type: authorization_code
-            redirect-uri: http://localhost:8080/login/oauth2/code/kakao
-            scope: profile_nickname, profile_image, account_email
-            client-authentication-method: client_secret_post
-        provider:
-          kakao:
-            authorization-uri: https://kauth.kakao.com/oauth/authorize
-            token-uri: https://kauth.kakao.com/oauth/token
-            user-info-uri: https://kapi.kakao.com/v2/user/me
-            user-name-attribute: id
+      secret: ${SPRING_SECURITY_JWT_SECRET:${JWT_SECRET}}
+      refresh-secret: ${SPRING_SECURITY_JWT_REFRESH_SECRET:${JWT_REFRESH_SECRET:your-very-long-and-secure-jwt-refresh-secret-key-that-should-be-at-least-256-bits}}
+      access-expiration: ${SPRING_SECURITY_JWT_ACCESS_EXPIRATION:${JWT_ACCESS_EXPIRATION:86400000}}
+      refresh-expiration: ${SPRING_SECURITY_JWT_REFRESH_EXPIRATION:${JWT_REFRESH_EXPIRATION:604800000}}
 
+# JWT Configuration (for JwtTokenProvider)
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+# AWS Configuration
+aws:
+  s3:
+    bucket-name: ${AWS_S3_BUCKET_NAME}
+    region: ${AWS_S3_REGION:ap-northeast-2}
+  credentials:
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}
+
+# Tour API
+tour:
+  api:
+    key: ${TOUR_API_KEY}
+
+# Logging
 logging:
   level:
     com.compass: DEBUG
+    org.springframework.ai: DEBUG
     org.springframework.web: INFO
     org.hibernate: INFO
