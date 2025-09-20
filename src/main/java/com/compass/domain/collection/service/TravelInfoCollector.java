@@ -1,15 +1,13 @@
 package com.compass.domain.collection.service;
 
-import com.compass.domain.collection.dto.TravelInfo;
+import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
 
-// 여행 정보 수집기의 공통 동작을 정의하는 인터페이스
+// Task 2.2.1: 정보 수집 인터페이스
 public interface TravelInfoCollector {
 
-    /**
-     * 입력을 받아 여행 정보를 수집합니다.
-     * @param input 수집에 필요한 입력 데이터 (구현체에 따라 타입이 다름)
-     * @return 수집된 여행 정보(TravelInfo)
-     */
-    TravelInfo collect(Object input);
+    // 사용자 입력으로부터 여행 정보를 수집(업데이트)
+    TravelFormSubmitRequest collect(String userInput, TravelFormSubmitRequest currentInfo);
 
+    // 수집된 정보가 유효한지 검증
+    void validate(TravelFormSubmitRequest info);
 }
