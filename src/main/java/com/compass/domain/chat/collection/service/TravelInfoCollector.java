@@ -1,4 +1,4 @@
-package com.compass.domain.collection.service;
+package com.compass.domain.chat.collection.service;
 
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
 

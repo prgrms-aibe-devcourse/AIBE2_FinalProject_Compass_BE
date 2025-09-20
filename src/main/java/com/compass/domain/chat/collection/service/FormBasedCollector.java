@@ -1,7 +1,7 @@
-package com.compass.domain.collection.service;
+package com.compass.domain.chat.collection.service;
 
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
-import com.compass.domain.collection.service.validator.TravelInfoValidator;
+import com.compass.domain.chat.collection.service.validator.TravelInfoValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;

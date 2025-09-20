@@ -1,8 +1,8 @@
-package com.compass.domain.collection.service;
+package com.compass.domain.chat.collection.service;
 
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
-import com.compass.domain.collection.service.validator.TravelInfoValidator;
-import com.compass.domain.parser.service.TravelInfoParser;
+import com.compass.domain.chat.collection.service.validator.TravelInfoValidator;
+import com.compass.domain.chat.parser.service.TravelInfoParser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
