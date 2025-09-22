@@ -165,4 +165,16 @@ public class JwtTokenProvider {
         long now = new Date().getTime();
         return (expiration.getTime() - now);
     }
+
+    // JWT에서 userId 추출
+    public String getUserId(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(accessKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        Object userId = claims.get("userId");
+        return userId != null ? userId.toString() : null;
+    }
 }

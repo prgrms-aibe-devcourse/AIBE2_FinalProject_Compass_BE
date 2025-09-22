@@ -28,6 +28,7 @@ import java.util.UUID;
 public class UnifiedChatController {
 
     private final MainLLMOrchestrator mainLLMOrchestrator;
+    private final com.compass.config.jwt.JwtTokenProvider jwtTokenProvider;
 
     // 통합 채팅 엔드포인트 - 요구사항대로만
     @PostMapping("/unified")
@@ -46,7 +47,8 @@ public class UnifiedChatController {
             @Valid @RequestBody ChatRequest request,
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestHeader(value = "Thread-Id", required = false)
-            @Parameter(description = "대화 스레드 ID (없으면 자동 생성)") String threadId
+            @Parameter(description = "대화 스레드 ID (없으면 자동 생성)") String threadId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         // 1. Thread-Id 처리 (없으면 생성)
         if (threadId == null || threadId.trim().isEmpty()) {
@@ -54,10 +56,37 @@ public class UnifiedChatController {
             log.debug("새 Thread-Id 생성: {}", threadId);
         }
 
-        // 2. 사용자 정보 설정 (인증이 없는 경우 테스트 사용자로 처리)
-        String userId = userDetails != null ? userDetails.getUsername() : "test-user@test.com";
+        // 2. 사용자 정보 설정 - JWT에서 userId 추출
+        String userId = null;
+        String userEmail = null;
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            try {
+                userId = jwtTokenProvider.getUserId(token);
+                userEmail = jwtTokenProvider.getUsername(token);
+                log.debug("JWT에서 추출 - userId: {}, email: {}", userId, userEmail);
+            } catch (Exception e) {
+                log.warn("JWT 파싱 실패: {}", e.getMessage());
+            }
+        }
+
+        // Fallback: UserDetails 사용
+        if (userId == null && userDetails != null) {
+            userEmail = userDetails.getUsername();
+            userId = userEmail; // 임시로 이메일을 userId로 사용
+        }
+
+        // 테스트 사용자
+        if (userId == null) {
+            userId = "test-user";
+            userEmail = "test-user@test.com";
+        }
+
         request.setUserId(userId);
         request.setThreadId(threadId);
+
+        log.info("채팅 요청 처리 - userId: {}, email: {}, threadId: {}", userId, userEmail, threadId);
 
         // 3. 요청 검증 (간단하게)
         if (request.getMessage() == null || request.getMessage().trim().isEmpty()) {
@@ -123,15 +152,22 @@ public class UnifiedChatController {
             @RequestHeader("Thread-Id") String threadId,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        log.info("컨텍스트 초기화: userId={}, threadId={}",
-            userDetails.getUsername(), threadId);
+        // userDetails null 체크 추가
+        String username = userDetails != null ? userDetails.getUsername() : "unknown";
+        log.info("컨텍스트 초기화 요청: username={}, threadId={}", username, threadId);
+
+        if (userDetails == null) {
+            log.warn("UserDetails is null - 인증 정보 없음");
+            return ResponseEntity.status(401).build();  // Unauthorized
+        }
 
         try {
             mainLLMOrchestrator.resetContext(threadId, userDetails.getUsername());
+            log.info("✅ 컨텍스트 초기화 성공: threadId={}", threadId);
             return ResponseEntity.noContent().build();
 
         } catch (Exception e) {
-            log.error("컨텍스트 초기화 실패: threadId={}", threadId, e);
+            log.error("❌ 컨텍스트 초기화 실패: threadId={}, error={}", threadId, e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }

@@ -57,22 +57,40 @@ public class ChatThreadService {
 
     // ChatThread 존재 확인 및 생성 (첫 대화 시작 시점에 호출)
     @Transactional
-    public void ensureThreadExists(String threadId, String userEmail) {
+    public void ensureThreadExists(String threadId, String userIdOrEmail) {
         // Thread가 이미 존재하는지 확인
         if (chatThreadRepository.existsById(threadId)) {
             log.debug("Thread already exists: {}", threadId);
             return;
         }
 
-        // 사용자 조회
-        User user = userRepository.findByEmail(userEmail)
-                .orElseGet(() -> {
-                    // 테스트 또는 개발 환경에서 기본 사용자 사용
-                    log.warn("User not found with email: {}, using default user", userEmail);
-                    return userRepository.findByEmail("test-user@test.com")
-                            .orElse(userRepository.findAll().stream().findFirst()
-                                    .orElseThrow(() -> new IllegalStateException("No users found in database")));
-                });
+        // 사용자 조회 - userId(숫자)로 먼저 시도, 실패하면 email로 시도
+        User user = null;
+
+        // 숫자 ID인지 확인
+        try {
+            Long userId = Long.parseLong(userIdOrEmail);
+            user = userRepository.findById(userId).orElse(null);
+            if (user != null) {
+                log.debug("User found by ID: {}", userId);
+            }
+        } catch (NumberFormatException e) {
+            // 숫자가 아니면 이메일로 간주
+            log.debug("Not a numeric ID, trying as email: {}", userIdOrEmail);
+        }
+
+        // ID로 못 찾았으면 email로 시도
+        if (user == null) {
+            user = userRepository.findByEmail(userIdOrEmail)
+                    .orElseGet(() -> {
+                        // 테스트 또는 개발 환경에서 기본 사용자 사용
+                        log.warn("User not found with ID/email: {}, using default user", userIdOrEmail);
+                        return userRepository.findByEmail("testac@test.com")
+                                .orElse(userRepository.findByEmail("test-user@test.com")
+                                        .orElse(userRepository.findAll().stream().findFirst()
+                                                .orElseThrow(() -> new IllegalStateException("No users found in database"))));
+                    });
+        }
 
         // 새 Thread 생성
         ChatThread newThread = ChatThread.builder()
@@ -83,7 +101,7 @@ public class ChatThreadService {
                 .build();
 
         chatThreadRepository.save(newThread);
-        log.info("New ChatThread created: threadId={}, userId={}", threadId, user.getId());
+        log.info("🎉 New ChatThread created: threadId={}, userId={}, userEmail={}", threadId, user.getId(), user.getEmail());
     }
 
     // 대화 메시지 저장 (Thread 없으면 자동 생성)

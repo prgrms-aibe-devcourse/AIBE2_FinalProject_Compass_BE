@@ -22,6 +22,7 @@ public class MainLLMOrchestrator {
     private final ResponseGenerator responseGenerator;
     private final ChatThreadService chatThreadService;
     private final PromptBuilder promptBuilder;
+    private final com.compass.domain.chat.collection.service.FormDataConverter formDataConverter;
 
 
     // 채팅 요청 처리
@@ -32,6 +33,92 @@ public class MainLLMOrchestrator {
         log.info("║ User ID: {}", request.getUserId());
         log.info("║ Message: {}", request.getMessage());
         log.info("╚══════════════════════════════════════════════════════════════");
+
+        // 0. 빠른입력폼 데이터 처리 체크
+        if (request.getMetadata() != null && request.getMetadata() instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
+            var metadata = (java.util.Map<String, Object>) request.getMetadata();
+            var type = metadata.get("type");
+
+            if ("TRAVEL_FORM_SUBMIT".equals(type) && metadata.get("formData") != null) {
+                log.info("╔══════════════════════════════════════════════════════════════");
+                log.info("║ 🎯 빠른입력폼 제출 감지 - 여행 정보 수집 완료");
+                log.info("║ FormData: {}", metadata.get("formData"));
+                log.info("╚══════════════════════════════════════════════════════════════");
+
+                try {
+                    // 컨텍스트 조회 또는 생성
+                    var context = contextManager.getOrCreateContext(request);
+
+                    // 폼 데이터를 Map으로 가져오기
+                    @SuppressWarnings("unchecked")
+                    var formDataMap = (java.util.Map<String, Object>) metadata.get("formData");
+
+                    // FormDataConverter를 사용하여 폼 데이터 변환
+                    var travelFormRequest = formDataConverter.convertFromFrontend(
+                        request.getUserId(), formDataMap);
+
+                    // updateFromFormSubmit 메서드를 사용하여 한 번에 모든 정보 업데이트
+                    context.updateFromFormSubmit(travelFormRequest);
+
+                    context.setWaitingForTravelConfirmation(false);
+
+                    // Phase를 PLAN_GENERATION으로 전환
+                    context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
+                    contextManager.updateContext(context, context.getUserId());
+                    phaseManager.savePhase(request.getThreadId(), TravelPhase.PLAN_GENERATION);
+
+                    // 메시지 저장
+                    ensureChatThreadExists(request);
+                    saveUserMessage(request);
+
+                    // 수집된 정보 요약 - TravelFormSubmitRequest에서 가져오기
+                    StringBuilder summary = new StringBuilder("수집된 여행 정보:\n");
+                    summary.append("- 목적지: ").append(travelFormRequest.destinations()).append("\n");
+                    summary.append("- 출발지: ").append(travelFormRequest.departureLocation()).append("\n");
+                    if (travelFormRequest.travelDates() != null) {
+                        summary.append("- 여행 기간: ").append(travelFormRequest.travelDates().startDate())
+                               .append(" ~ ").append(travelFormRequest.travelDates().endDate()).append("\n");
+                    }
+                    summary.append("- 예산: ").append(travelFormRequest.budget()).append("\n");
+                    summary.append("- 여행 스타일: ").append(travelFormRequest.travelStyle()).append("\n");
+                    summary.append("- 동반자: ").append(travelFormRequest.companions()).append("\n");
+
+                    log.info("║ {}", summary.toString().replace("\n", "\n║ "));
+
+                    // 실제 계획 생성을 위해 ResponseGenerator 호출
+                    // 폼 제출 확인 메시지 먼저 저장
+                    String confirmMessage = "여행 정보를 모두 입력해주셔서 감사합니다! 🎉\n\n" +
+                            summary.toString() + "\n" +
+                            "입력하신 정보를 바탕으로 맞춤형 여행 계획을 생성하고 있습니다...\n" +
+                            "잠시만 기다려주세요! ⏳";
+                    saveSystemMessage(request.getThreadId(), confirmMessage);
+
+                    // 실제 계획 생성 (ResponseGenerator를 통해 LLM 호출)
+                    var planResponse = responseGenerator.generateResponse(
+                        request,
+                        Intent.CONFIRMATION,  // 계획 생성을 위한 Intent
+                        TravelPhase.PLAN_GENERATION,
+                        context,
+                        promptBuilder
+                    );
+
+                    // 계획 생성 응답 저장
+                    saveSystemMessage(request.getThreadId(), planResponse.getContent());
+
+                    return planResponse;
+
+                } catch (Exception e) {
+                    log.error("폼 데이터 처리 중 오류 발생: {}", e.getMessage(), e);
+                    return ChatResponse.builder()
+                        .content("폼 데이터 처리 중 오류가 발생했습니다. 다시 시도해주세요.")
+                        .type("ERROR")
+                        .phase(TravelPhase.INFORMATION_COLLECTION.name())
+                        .requiresConfirmation(false)
+                        .build();
+                }
+            }
+        }
 
         // 1. ChatThread 생성 또는 확인 (가장 먼저!)
         ensureChatThreadExists(request);
@@ -53,7 +140,10 @@ public class MainLLMOrchestrator {
         var currentPhase = TravelPhase.valueOf(context.getCurrentPhase());
         log.info("║ 현재 Phase: {}", currentPhase);
 
-        // 5-1. 구체적인 여행 질문 감지 (LLM 기반)
+        // 5-1. 구체적인 여행 질문 감지 (LLM 기반) - 일시적으로 비활성화
+        // 일반 인사를 여행 질문으로 잘못 판단하는 문제 때문에 비활성화
+        // TODO: IntentClassifier의 정확도 개선 후 재활성화
+        /*
         boolean isSpecificTravelQuery = intentClassifier.isSpecificTravelQuery(request.getMessage());
         if (isSpecificTravelQuery && currentPhase == TravelPhase.INITIALIZATION) {
             log.info("║ 🎯 구체적인 여행 질문 감지 - 바로 INFORMATION_COLLECTION으로 전환");
@@ -69,6 +159,7 @@ public class MainLLMOrchestrator {
             saveSystemMessage(request.getThreadId(), response.getContent());
             return response;
         }
+        */
 
         // 6. Intent 분류 (맥락 정보와 함께 LLM으로 분류)
         var intent = intentClassifier.classify(
