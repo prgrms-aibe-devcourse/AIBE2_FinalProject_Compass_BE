@@ -78,3 +78,6 @@ test-scenarios/
 # Temporary files and test artifacts
 temp/
 config/credentials/
+
+# Frontend test directory
+FE/

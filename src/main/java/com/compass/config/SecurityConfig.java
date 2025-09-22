@@ -64,6 +64,8 @@ public class SecurityConfig {
         } else {
             configuration.addAllowedOrigin("http://localhost:3000"); // React 개발 서버
             configuration.addAllowedOrigin("http://localhost:5173"); // Vite 개발 서버
+            configuration.addAllowedOrigin("http://localhost:5500"); // VS Code Live Server
+            configuration.addAllowedOrigin("http://127.0.0.1:5500"); // VS Code Live Server (127.0.0.1)
             configuration.setAllowCredentials(true); // 쿠키 포함 요청 허용
         }
 

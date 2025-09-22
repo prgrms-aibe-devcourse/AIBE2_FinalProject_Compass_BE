@@ -154,25 +154,13 @@ public class PhaseManager {
 
         // TRAVEL_PLANNING intent가 감지되었을 때
         if (intent == Intent.TRAVEL_PLANNING) {
-            // 첫 번째 여행 의도 - 확인 질문
-            if (!context.isWaitingForTravelConfirmation() && context.getConversationCount() <= 2) {
-                log.info("║ 💬 첫 여행 의도 감지 - 사용자 확인 대기");
-                context.setWaitingForTravelConfirmation(true);
-                contextManager.updateContext(context, context.getUserId());
-                return currentPhase; // INITIALIZATION 유지
-            }
-            // 5번 이상 여행 관련 대화 - 충분한 여행 의도 표현 후 자동 진행
-            else if (context.getConversationCount() >= 5) {
-                log.info("║ 💬 충분한 여행 대화 진행 - 정보 수집 단계로 자동 전환");
-                context.setWaitingForTravelConfirmation(false);
-                contextManager.updateContext(context, context.getUserId());
-                return TravelPhase.INFORMATION_COLLECTION;
-            }
-            // 확인 대기 중 상태 유지
-            else {
-                log.info("║ 💬 추가 여행 질문 - 확인 대기 상태 유지");
-                return currentPhase; // INITIALIZATION 유지
-            }
+            log.info("╔══════════════════════════════════════════════════════════════");
+            log.info("║ ✅ TRAVEL_PLANNING Intent 감지 - 바로 정보 수집 단계로 전환");
+            log.info("║ 사용자가 명확히 여행 계획을 요청했습니다");
+            log.info("╚══════════════════════════════════════════════════════════════");
+            context.setWaitingForTravelConfirmation(false);
+            contextManager.updateContext(context, context.getUserId());
+            return TravelPhase.INFORMATION_COLLECTION;
         }
 
         // 여행 질문이 반복되면 확인 질문 유도

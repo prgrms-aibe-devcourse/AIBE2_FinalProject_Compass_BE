@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 // 응답 생성기 - Intent와 Phase에 따른 적절한 응답 생성
 @Slf4j
@@ -31,41 +32,58 @@ public class ResponseGenerator {
     // 통합 응답 생성 (PromptBuilder 추가)
     public ChatResponse generateResponse(ChatRequest request, Intent intent, TravelPhase phase,
                                         TravelContext context, PromptBuilder promptBuilder) {
-        log.debug("응답 생성 시작: Intent={}, Phase={}", intent, phase);
+        log.info("╔══════════════════════════════════════════════════════════════");
+        log.info("║ 🚀 ResponseGenerator.generateResponse 시작");
+        log.info("║ Intent: {}, Phase: {}", intent, phase);
+        log.info("║ Message: {}", request.getMessage());
+        log.info("╚══════════════════════════════════════════════════════════════");
 
-        // 콘텐츠 생성 (PromptBuilder 활용)
-        String content = generateContent(request, intent, phase, context, promptBuilder);
+        // 응답 타입 먼저 결정
+        var responseType = determineResponseType(intent, phase, context);
+        log.info("║ 📋 결정된 ResponseType: {}", responseType);
 
-        // Phase 확인이 필요한지 판단
+        // QUICK_FORM인 경우 간단한 폼 안내 메시지만 생성 (LLM 호출 안 함)
+        String content;
         boolean requiresConfirmation = shouldAskForConfirmation(phase);
 
-        // 확인 프롬프트 추가
-        if (requiresConfirmation && phase == TravelPhase.INITIALIZATION) {
-            // INITIALIZATION 단계에서는 사용자 의사 확인 필요
-            content += generateConfirmationPrompt(phase);
-        }
-
-        // 응답 타입 결정
-        var responseType = determineResponseType(intent, phase, context);
-
-        // QUICK_FORM인 경우 적절한 메시지 생성
         if ("QUICK_FORM".equals(responseType)) {
-            content = generateQuickFormMessage(request.getMessage());
+            log.info("║ ✅ QUICK_FORM 타입 확인 - 폼 안내 메시지 반환");
+            // QUICK_FORM인 경우 폼 작성 안내 메시지만
+            content = "좋습니다! 아래 폼에 여행 정보를 입력해주세요. 빠르고 간편하게 맞춤형 여행 계획을 만들어드릴게요! 🎯";
+        } else {
+            log.info("║ 📝 일반 응답 생성 (ResponseType: {})", responseType);
+            // QUICK_FORM이 아닌 경우에만 LLM 응답 생성
+            content = generateContent(request, intent, phase, context, promptBuilder);
+
+            // 확인 프롬프트 추가
+            if (requiresConfirmation && phase == TravelPhase.INITIALIZATION) {
+                // INITIALIZATION 단계에서는 사용자 의사 확인 필요
+                content += generateConfirmationPrompt(phase);
+            }
         }
 
         // 응답 데이터 구성
         var responseData = buildResponseData(intent, phase, context);
+        log.info("║ 📦 ResponseData 존재: {}", responseData != null);
 
         // 다음 액션 결정
         var nextAction = determineNextAction(intent, phase);
 
-        return ChatResponse.builder()
+        var response = ChatResponse.builder()
             .content(content)
             .type(responseType)
+            .phase(phase.name())
             .data(responseData)
             .nextAction(nextAction)
             .requiresConfirmation(requiresConfirmation)
             .build();
+
+        log.info("╔══════════════════════════════════════════════════════════════");
+        log.info("║ ✅ 최종 응답 생성 완료");
+        log.info("║ Type: {}, Phase: {}", response.getType(), response.getPhase());
+        log.info("╚══════════════════════════════════════════════════════════════");
+
+        return response;
     }
 
     // 오버로드 메소드 (이전 버전 호환성)
@@ -76,6 +94,14 @@ public class ResponseGenerator {
     // 콘텐츠 생성 (PromptBuilder 활용)
     private String generateContent(ChatRequest request, Intent intent, TravelPhase phase,
                                   TravelContext context, PromptBuilder promptBuilder) {
+        // QUICK_FORM 타입인 경우 간단한 안내 메시지만 반환
+        String responseType = determineResponseType(intent, phase, context);
+        log.info("║ 🎨 Content 생성 - ResponseType: {}", responseType);
+        if ("QUICK_FORM".equals(responseType)) {
+            log.info("║ ✅ QUICK_FORM 타입 확인 - 폼 안내 메시지 반환");
+            return "좋습니다! 아래 폼에 여행 정보를 입력해주세요. 빠르고 간편하게 맞춤형 여행 계획을 만들어드릴게요! 🎯";
+        }
+
         // INITIALIZATION 단계에서 여행 계획 확인 대기중인 경우
         // GENERAL_QUESTION이나 다른 Intent가 왔다는 것은 사용자가 확인을 거부하거나 다른 주제로 넘어간 것
         if (phase == TravelPhase.INITIALIZATION &&
@@ -211,14 +237,67 @@ public class ResponseGenerator {
 
     // 응답 타입 결정
     public String determineResponseType(Intent intent, TravelPhase phase, TravelContext context) {
+        log.info("╔══════════════════════════════════════════════════════════════");
+        log.info("║ 🔍 응답 타입 결정");
+        log.info("║ Phase: {}, Intent: {}", phase, intent);
+        log.info("║ Context 존재: {}, CollectedInfo 존재: {}",
+            context != null, context != null ? context.getCollectedInfo() != null : false);
+        if (context != null && context.getCollectedInfo() != null) {
+            log.info("║ CollectedInfo: {}", context.getCollectedInfo());
+        }
+        log.info("╚══════════════════════════════════════════════════════════════");
+
         // Phase에 따른 응답 타입 결정
         if (phase == TravelPhase.PLAN_GENERATION) {
+            log.info("║ → PLAN_GENERATION 단계: ITINERARY 반환");
             return "ITINERARY";
         }
 
-        // INFORMATION_COLLECTION 단계에서는 QUICK_FORM 타입 반환
+        // INFORMATION_COLLECTION 단계에서는 Intent와 컨텍스트를 확인하여 결정
         if (phase == TravelPhase.INFORMATION_COLLECTION) {
-            return "QUICK_FORM";
+            log.info("║ 📋 INFORMATION_COLLECTION 단계 진입");
+
+            // 이미 폼 데이터가 저장되어 있고 충분한 정보가 있으면 TEXT로 다음 액션 유도
+            if (context != null && context.getCollectedInfo() != null) {
+                Map<String, Object> info = (Map<String, Object>) context.getCollectedInfo();
+                log.info("║ CollectedInfo 존재 - 크기: {}", info.size());
+
+                // CollectedInfo가 빈 Map인 경우에도 QUICK_FORM 표시 필요
+                if (info.isEmpty()) {
+                    log.info("║ CollectedInfo가 비어있음 - Intent 확인: {}", intent);
+                    // Intent가 TRAVEL_PLANNING 또는 CONFIRMATION일 때만 QUICK_FORM 표시
+                    if (intent == Intent.TRAVEL_PLANNING || intent == Intent.CONFIRMATION) {
+                        log.info("║ 🎯 빈 CollectedInfo + TRAVEL_PLANNING Intent: QUICK_FORM 반환!");
+                        return "QUICK_FORM";
+                    }
+                }
+
+                // 필수 정보가 모두 있으면 여행 계획 생성 준비
+                if (hasRequiredTravelInfo(info)) {
+                    log.info("║ → 필수 정보 모두 수집됨: TEXT 반환");
+                    return "TEXT";  // 계획 생성 안내 메시지
+                }
+                // 정보가 부족하면 추가 수집 필요
+                log.info("║ → 정보 부족으로 추가 수집 필요: TEXT 반환");
+                return "TEXT";  // 추가 질문 메시지
+            }
+
+            log.info("║ CollectedInfo가 null - Intent 확인: {}", intent);
+
+            // Intent가 TRAVEL_PLANNING 또는 CONFIRMATION일 때만 QUICK_FORM 표시
+            // 일반 대화(GENERAL_QUESTION)에서는 폼을 표시하지 않음
+            if (intent == Intent.TRAVEL_PLANNING || intent == Intent.CONFIRMATION) {
+                log.info("║ 🎯 TRAVEL_PLANNING/CONFIRMATION Intent 감지: QUICK_FORM 반환!");
+                return "QUICK_FORM";
+            }
+            // DESTINATION_SEARCH나 구체적인 여행 관련 Intent도 폼 표시
+            if (intent == Intent.DESTINATION_SEARCH || intent == Intent.INFORMATION_COLLECTION) {
+                log.info("║ 🎯 여행 관련 Intent 감지: QUICK_FORM 반환!");
+                return "QUICK_FORM";
+            }
+            // 그 외의 경우는 TEXT 응답
+            log.info("║ → Intent가 {}이므로 TEXT 반환", intent);
+            return "TEXT";
         }
 
         // INITIALIZATION 단계에서 여행 확인 대기중이면 TEXT로 확인 질문
@@ -233,13 +312,41 @@ public class ResponseGenerator {
         return "TEXT";
     }
 
+    // 필수 여행 정보 확인 (헬퍼 메서드)
+    private boolean hasRequiredTravelInfo(Map<String, Object> info) {
+        if (info == null) return false;
+
+        boolean hasDestination = info.containsKey("destination") &&
+                                info.get("destination") != null &&
+                                !info.get("destination").toString().isEmpty();
+        boolean hasDates = (info.containsKey("startDate") && info.get("startDate") != null) &&
+                          (info.containsKey("endDate") && info.get("endDate") != null);
+        boolean hasBudget = info.containsKey("budget") && info.get("budget") != null;
+
+        return hasDestination && hasDates && hasBudget;
+    }
+
     // 응답 데이터 구성
     public Object buildResponseData(Intent intent, TravelPhase phase, TravelContext context) {
-        // INFORMATION_COLLECTION 단계에서는 빠른 입력 폼 반환
+        // INFORMATION_COLLECTION 단계에서는 컨텍스트 확인 후 처리
         if (phase == TravelPhase.INFORMATION_COLLECTION) {
-            log.debug("INFORMATION_COLLECTION 단계 - 빠른 입력 폼 생성");
-            var request = new ShowQuickInputFormFunction.Request();
-            return showQuickInputFormFunction.apply(request);
+            // 이미 정보가 수집되었는지 확인
+            if (context != null && context.getCollectedInfo() != null) {
+                Map<String, Object> info = (Map<String, Object>) context.getCollectedInfo();
+                // 필수 정보가 있으면 다음 단계 준비
+                if (hasRequiredTravelInfo(info)) {
+                    // 여행 계획 생성 function 호출을 위해 수집된 정보 반환
+                    return context.getCollectedInfo();
+                }
+                // 정보가 부족하면 추가 질문 또는 폼 다시 표시
+                log.debug("정보 부족 - 추가 수집 필요");
+                return context.getCollectedInfo(); // 현재까지 수집된 정보 반환
+            } else {
+                // 처음 INFORMATION_COLLECTION에 들어왔을 때 폼 표시
+                log.debug("INFORMATION_COLLECTION 단계 - 빠른 입력 폼 생성");
+                var request = new ShowQuickInputFormFunction.Request();
+                return showQuickInputFormFunction.apply(request);
+            }
         }
 
         // 필요한 경우 컨텍스트에서 추가 데이터 반환

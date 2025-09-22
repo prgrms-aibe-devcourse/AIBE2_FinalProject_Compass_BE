@@ -1,5 +1,6 @@
 package com.compass.domain.chat.orchestrator;
 
+import com.compass.domain.chat.collection.service.FormDataConverter;
 import com.compass.domain.chat.model.context.TravelContext;
 import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
@@ -43,6 +44,9 @@ class MainLLMOrchestratorTest {
     @Mock
     private ResponseGenerator responseGenerator;
 
+    @Mock
+    private FormDataConverter formDataConverter;
+
     @BeforeEach
     void setUp() {
         orchestrator = new MainLLMOrchestrator(
@@ -51,7 +55,8 @@ class MainLLMOrchestratorTest {
             contextManager,
             responseGenerator,
             chatThreadService,
-            promptBuilder
+            promptBuilder,
+            formDataConverter
         );
 
         // 기본 Mock 설정 - 모든 테스트에서 사용할 기본값

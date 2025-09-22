@@ -12,6 +12,7 @@ import lombok.Builder;
 public class ChatResponse {
     private String content;
     private String type;
+    private String phase;  // 현재 Phase 상태
     private Object data;
     private String nextAction;
     private boolean requiresConfirmation;  // Phase 진행 확인 필요 여부
