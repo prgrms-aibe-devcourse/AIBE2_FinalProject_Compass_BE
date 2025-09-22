@@ -35,6 +35,7 @@ dependencies {
     // Spring AI
     implementation platform("org.springframework.ai:spring-ai-bom:1.0.0-M5")
     implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-vertex-ai-gemini-spring-boot-starter'
 
     // 데이터베이스
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
@@ -47,6 +48,12 @@ dependencies {
 
     // AWS S3
     implementation 'software.amazon.awssdk:s3:2.22.0'
+
+    // Google Cloud Vision (OCR)
+    implementation 'com.google.cloud:google-cloud-vision:3.33.0'
+
+    // Dotenv
+    implementation 'io.github.cdimascio:dotenv-java:3.0.0'
 
     // Swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
