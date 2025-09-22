@@ -24,12 +24,23 @@ public class S3Client {
 
     @PostConstruct
     void init() {
-        bucket = environment.getProperty("AWS_S3_BUCKET_NAME");
+        // Spring 설정에서 AWS S3 정보 가져오기
+        bucket = environment.getProperty("aws.s3.bucket-name");
         if (bucket == null || bucket.isBlank()) {
-            throw new IllegalStateException("S3 버킷이 설정되지 않았습니다.");
+            // 대체 환경변수로 시도
+            bucket = environment.getProperty("AWS_S3_BUCKET_NAME");
         }
-        var regionId = environment.getProperty("AWS_S3_REGION", "ap-northeast-2");
+        
+        if (bucket == null || bucket.isBlank()) {
+            throw new IllegalStateException("S3 버킷이 설정되지 않았습니다. aws.s3.bucket-name 또는 AWS_S3_BUCKET_NAME을 설정해주세요.");
+        }
+        
+        var regionId = environment.getProperty("aws.s3.region", 
+                      environment.getProperty("AWS_S3_REGION", "ap-northeast-2"));
         region = Region.of(regionId);
+        
+        log.info("S3 클라이언트 초기화: bucket={}, region={}", bucket, regionId);
+        
         // 기본 자격 증명 체인으로 클라이언트 초기화
         delegate = software.amazon.awssdk.services.s3.S3Client.builder()
                 .region(region)

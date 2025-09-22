@@ -29,10 +29,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-    // Spring AI
+    // Spring AI (OpenAI만 사용 - Google Credentials 없음)
     implementation platform("org.springframework.ai:spring-ai-bom:1.0.0-M5")
-    implementation 'org.springframework.ai:spring-ai-vertex-ai-gemini-spring-boot-starter'
     implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
 
     // Database
@@ -57,9 +57,9 @@ dependencies {
     // Dotenv for loading .env files
     implementation 'io.github.cdimascio:dotenv-java:3.0.0'
 
-    // Lombok
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    // Lombok (Java 17 호환 버전)
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

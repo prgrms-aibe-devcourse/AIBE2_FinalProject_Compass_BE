@@ -1,35 +1,121 @@
 spring:
   datasource:
-    # AWS RDS endpoint
+    # AWS RDS PostgreSQL endpoint (직접 설정)
     url: jdbc:postgresql://compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com:5432/compass
     username: compass
-    password: ${RDS_PASSWORD}
+    password: compass1004!
     driver-class-name: org.postgresql.Driver
+    
+    # HikariCP 연결 풀 설정 (RDS 최적화)
     hikari:
-      connection-timeout: 30000
-      maximum-pool-size: 5
-      minimum-idle: 2
-      idle-timeout: 600000
-      max-lifetime: 1800000
+      connection-timeout: 30000      # 30초
+      maximum-pool-size: 10          # 최대 연결 수
+      minimum-idle: 3                # 최소 유휴 연결
+      idle-timeout: 600000           # 10분
+      max-lifetime: 1800000          # 30분
+      leak-detection-threshold: 60000 # 1분 (연결 누수 감지)
+      connection-test-query: SELECT 1
+      pool-name: CompassHikariPool
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${HIBERNATE_DDL_AUTO:update}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+        format_sql: false
         jdbc:
           lob:
             non_contextual_creation: true
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        connection:
+          provider_disables_autocommit: true
     show-sql: false
+    open-in-view: false
 
-  redis:
-    host: localhost
-    port: 6379
+  # Redis 설정 (RDS와 함께 사용)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: 
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
 
+  # AI 설정 (OpenAI만 사용 - Google Credentials 없음)
+          ai:
+            openai:
+              api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+                  
+          security:
+            jwt:
+              secret: ${JWT_SECRET}
+              refresh-secret: ${JWT_SECRET}
+      access-expiration: 86400000
+      refresh-expiration: 604800000  # 7일
+
+# 로깅 설정 (운영 환경 최적화)
 logging:
   level:
     com.compass: INFO
     org.springframework.web: INFO
-    org.hibernate: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    com.zaxxer.hikari: INFO
+    
+# 관리 엔드포인트 (헬스체크용)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      
+# JWT 설정 (spring 섹션에 통합)
+
+jwt:
+  secret: dGhpc19pc19hX3ZlcnlfbG9uZ19hbmRfc2VjdXJlX3NlY3JldF9rZXlfZm9yX2p3dF9zaWduaW5nX3B1cnBvc2VzXzIwMjRfY29tcGFzcw==
+  expiration: 86400000
+
+# AWS S3 설정
+aws:
+  s3:
+    access-key-id: ${AWS_ACCESS_KEY_ID}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+    bucket-name: ${AWS_S3_BUCKET_NAME}
+    region: ${AWS_S3_REGION}
+
+# 외부 API 설정
+api:
+  perplexity:
+    key: ${PERPLEXITY_API_KEY}
+  tour:
+    key: ${TOUR_API_KEY}
+
+# 외부 API 환경변수 (Function에서 직접 참조)
+TOUR_API_KEY: ${TOUR_API_KEY}
+PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
+
+# AWS S3 환경변수 (S3Client에서 직접 참조)  
+AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
+AWS_S3_REGION: ${AWS_S3_REGION}
+
+# 서버 설정
+server:
+  port: 8080
+  tomcat:
+    max-connections: 8192
+    threads:
+      max: 200
+      min-spare: 10

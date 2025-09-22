@@ -6,9 +6,9 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:rds}
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com:5432/compass}
-    username: ${DATABASE_USERNAME:compass}
-    password: ${DATABASE_PASSWORD}
+    url: jdbc:postgresql://compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com:5432/compass
+    username: compass
+    password: compass1004!
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -20,31 +20,31 @@ spring:
         format_sql: true
     show-sql: true
 
-  ai:
-    vertex:
-      ai:
-        gemini:
-          project-id: ${GOOGLE_CLOUD_PROJECT_ID}
-          location: ${GOOGLE_CLOUD_LOCATION:asia-northeast3}
-          model: ${GEMINI_MODEL:gemini-2.0-flash}
-
-    openai:
-      api-key: ${OPENAI_API_KEY}
+          ai:
+            openai:
+              api-key: ${OPENAI_API_KEY}
       chat:
         options:
           model: gpt-4o-mini
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      host: localhost
+      port: 6379
+      
+          security:
+            jwt:
+              secret: ${JWT_SECRET}
+              refresh-secret: ${JWT_SECRET}
+      access-expiration: 86400000
+      refresh-expiration: 604800000  # 7일
 
 server:
   port: 8080
 
 jwt:
-  secret: ${JWT_SECRET:your-secret-key-change-this-in-production}
-  expiration: 86400000 # 24 hours
+  secret: ${JWT_SECRET}
+  expiration: 86400000 # 24시간
 
 logging:
   level:
@@ -60,3 +60,7 @@ springdoc:
     enabled: true
     operations-sorter: method
     tags-sorter: alpha
+
+# 외부 API 환경변수
+TOUR_API_KEY: ${TOUR_API_KEY}
+PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}

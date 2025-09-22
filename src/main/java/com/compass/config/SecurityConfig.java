@@ -16,9 +16,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.compass.config.jwt.JwtAuthenticationFilter;
 import com.compass.config.jwt.JwtTokenProvider;
-import com.compass.config.oauth.CustomOAuth2UserService;
-import com.compass.config.oauth.OAuth2AuthenticationFailureHandler;
-import com.compass.config.oauth.OAuth2AuthenticationSuccessHandler;
+// OAuth2 import 임시 비활성화
+// import com.compass.config.oauth.CustomOAuth2UserService;
+// import com.compass.config.oauth.OAuth2AuthenticationFailureHandler;
+// import com.compass.config.oauth.OAuth2AuthenticationSuccessHandler;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,9 +29,10 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
-    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+    // OAuth2 의존성 임시 비활성화
+    // private final CustomOAuth2UserService customOAuth2UserService;
+    // private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    // private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
     private final RedisTemplate<String, Object> redisTemplate;
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -83,10 +85,11 @@ public class SecurityConfig {
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
-        http.oauth2Login(oauth2 -> oauth2
-                .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                .successHandler(oAuth2AuthenticationSuccessHandler)
-                .failureHandler(oAuth2AuthenticationFailureHandler));
+        // OAuth2 설정 임시 비활성화 (클라이언트 등록 정보 없음)
+        // http.oauth2Login(oauth2 -> oauth2
+        //         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+        //         .successHandler(oAuth2AuthenticationSuccessHandler)
+        //         .failureHandler(oAuth2AuthenticationFailureHandler));
 
         return http.build();
     }

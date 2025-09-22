@@ -26,8 +26,7 @@ public class ResponseGenerator {
     private final PromptBuilder promptBuilder;
 
     @Autowired(required = false)
-    @Qualifier("vertexAiGeminiChat")
-    private ChatModel chatModel;  // Vertex AI Gemini 모델 사용
+    private ChatModel chatModel;  // OpenAI 모델 사용
 
     // 메인 응답 생성 메서드
     public ChatResponse generateResponse(ChatRequest request, Intent intent,
