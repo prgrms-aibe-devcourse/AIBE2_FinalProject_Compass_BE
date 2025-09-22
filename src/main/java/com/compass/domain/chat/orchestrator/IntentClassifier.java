@@ -18,7 +18,7 @@ public class IntentClassifier {
 
     private final ChatModel chatModel;  // 필수 의존성
 
-    public IntentClassifier(@Qualifier("vertexAiGeminiChat") ChatModel chatModel) {
+    public IntentClassifier(ChatModel chatModel) {
         this.chatModel = chatModel;
     }
 
