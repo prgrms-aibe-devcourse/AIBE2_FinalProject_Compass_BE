@@ -36,7 +36,8 @@ public class ProcessImageFunction implements Function<ImageUploadRequest, ImageP
             var objectKey = uploadResult.objectKey();
             var imageUrl = uploadResult.publicUrl();
             // OCR 수행 및 문서 유형 분류
-            var extractedText = ocrClient.extractText(request.data());
+            var extraction = ocrClient.extractText(request.data());
+            var extractedText = extraction.text();
             var documentType = ocrClient.detectDocument(extractedText);
             enqueueOcrTask(request, objectKey, imageUrl);
             return new ImageProcessResult(imageUrl, extractedText, documentType);

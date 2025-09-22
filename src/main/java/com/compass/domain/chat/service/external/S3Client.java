@@ -40,7 +40,7 @@ public class S3Client {
     private static final int PART_SIZE = 5 * 1024 * 1024;
     private static final int MAX_RETRY = 3;
     private static final Duration PRESIGNED_URL_DURATION = Duration.ofDays(7);
-    private static final DateTimeFormatter DATE_PATH_FORMAT = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    private static final DateTimeFormatter DATE_PATH_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @PostConstruct
     void init() {
