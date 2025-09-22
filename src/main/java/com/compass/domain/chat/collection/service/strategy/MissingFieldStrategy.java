@@ -18,7 +18,7 @@ public class MissingFieldStrategy implements FollowUpStrategy {
             this::checkDestinations,
             this::checkTravelDates,
             this::checkDepartureLocation
-            // 필요 시 예산, 동행자 등 다른 규칙 추가
+
     );
 
     @Override

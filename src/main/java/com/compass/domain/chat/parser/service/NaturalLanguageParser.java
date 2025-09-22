@@ -2,8 +2,8 @@ package com.compass.domain.chat.parser.service;
 
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
@@ -12,11 +12,15 @@ import java.time.LocalDate;
 //  LLM을 이용해 자연어 입력을 분석하는 파서 구현체
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class NaturalLanguageParser implements TravelInfoParser {
 
     private final ChatClient.Builder chatClientBuilder;
     private final ObjectMapper objectMapper;
+
+    public NaturalLanguageParser(@Lazy ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper) {
+        this.chatClientBuilder = chatClientBuilder;
+        this.objectMapper = objectMapper;
+    }
 
     // LLM 역할 정의 프롬프트 (한글 버전)
     private static final String PROMPT_TEMPLATE = """

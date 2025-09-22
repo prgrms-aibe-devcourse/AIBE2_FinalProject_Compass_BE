@@ -12,6 +12,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -24,7 +25,9 @@ import java.util.Map;
 public class ResponseGenerator {
 
     private final ShowQuickInputFormFunction showQuickInputFormFunction;
-    private final ChatModel chatModel; // Optional - 없으면 Mock 응답
+
+    @Autowired(required = false)
+    private ChatModel chatModel;  // OpenAI 모델 사용 (선택적)
 
     // 통합 응답 생성 (PromptBuilder 추가)
     public ChatResponse generateResponse(ChatRequest request, Intent intent, TravelPhase phase,
@@ -232,7 +235,6 @@ public class ResponseGenerator {
         };
     }
 
-
     // 응답 타입 결정
     public String determineResponseType(Intent intent, TravelPhase phase, TravelContext context) {
         log.info("╔══════════════════════════════════════════════════════════════");
@@ -436,5 +438,4 @@ public class ResponseGenerator {
             return "좋습니다! 빠른 입력폼에 정보를 입력해주시면, 맞춤형 여행 계획을 세워드릴게요! 🎯";
         }
     }
-
 }
