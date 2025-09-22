@@ -1,6 +1,7 @@
 package com.compass.domain.chat.model.request;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 // 빠른 입력 폼에서 제출된 데이터를 담는 DTO
@@ -9,6 +10,8 @@ public record TravelFormSubmitRequest(
     List<String> destinations,
     String departureLocation,
     DateRange travelDates,
+    LocalTime departureTime,  // 출발 시간 추가
+    LocalTime endTime,         // 종료 시간 추가
     String companions,
     Long budget,
     List<String> travelStyle,

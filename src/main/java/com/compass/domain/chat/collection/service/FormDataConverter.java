@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -94,11 +95,32 @@ public class FormDataConverter {
             String reservationDocument = formData.containsKey("specialRequests") ?
                 formData.get("specialRequests").toString() : null;
 
+            // 출발 시간과 종료 시간 처리
+            LocalTime departureTime = null;
+            if (formData.containsKey("departureTime")) {
+                try {
+                    departureTime = LocalTime.parse(formData.get("departureTime").toString());
+                } catch (Exception e) {
+                    log.warn("출발 시간 파싱 실패: {}", formData.get("departureTime"));
+                }
+            }
+
+            LocalTime endTime = null;
+            if (formData.containsKey("endTime")) {
+                try {
+                    endTime = LocalTime.parse(formData.get("endTime").toString());
+                } catch (Exception e) {
+                    log.warn("종료 시간 파싱 실패: {}", formData.get("endTime"));
+                }
+            }
+
             return new TravelFormSubmitRequest(
                 userId,
                 destinations,
                 departureLocation,
                 dateRange,
+                departureTime,    // 출발 시간 추가
+                endTime,          // 종료 시간 추가
                 companions,
                 budget,
                 travelStyle,
