@@ -17,6 +17,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -27,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@ActiveProfiles("test")
 class ResponseGeneratorTest {
 
     private ResponseGenerator responseGenerator;
@@ -88,10 +90,13 @@ class ResponseGeneratorTest {
     void testGenerateResponse() {
         // given
         var request = createChatRequest("여행 계획 세워줘");
-        var intent = Intent.INFORMATION_COLLECTION;
+        var intent = Intent.TRAVEL_PLANNING;
         var phase = TravelPhase.INFORMATION_COLLECTION;
 
         lenient().when(travelContext.isWaitingForTravelConfirmation()).thenReturn(false);
+        // CollectedInfo가 null이 아닌 빈 Map을 반환하도록 설정
+        lenient().when(travelContext.getCollectedInfo()).thenReturn(Map.of());
+        
 
         // ShowQuickInputFormFunction 모킹
         var quickForm = new QuickInputFormDto(
@@ -158,10 +163,6 @@ class ResponseGeneratorTest {
     }
 
     private ChatRequest createChatRequest(String message) {
-        var request = new ChatRequest();
-        request.setUserId("test-user-123");
-        request.setThreadId("test-thread-123");
-        request.setMessage(message);
-        return request;
+        return new ChatRequest(message, "test-thread-123", "test-user-123");
     }
 }

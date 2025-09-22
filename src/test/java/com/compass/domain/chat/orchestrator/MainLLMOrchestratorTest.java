@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.*;
 
 // MainLLMOrchestrator 테스트
 @ExtendWith(MockitoExtension.class)
+@ActiveProfiles("test")
 class MainLLMOrchestratorTest {
 
     private MainLLMOrchestrator orchestrator;
@@ -436,10 +438,6 @@ class MainLLMOrchestratorTest {
 
     // 헬퍼 메서드
     private ChatRequest createChatRequest(String message) {
-        var request = new ChatRequest();
-        request.setMessage(message);
-        request.setThreadId("thread-1");
-        request.setUserId("user-1");
-        return request;
+        return new ChatRequest(message, "thread-1", "user-1");
     }
 }
