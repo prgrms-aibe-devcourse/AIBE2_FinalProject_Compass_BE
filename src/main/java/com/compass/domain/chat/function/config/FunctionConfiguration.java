@@ -15,6 +15,7 @@ import com.compass.domain.chat.function.itinerary.SearchPlacesFunction;
 import com.compass.domain.chat.function.itinerary.ShowItineraryFunction;
 import com.compass.domain.chat.function.planning.DestinationSearchFunction;
 import com.compass.domain.chat.function.planning.GenerateTravelPlanFunction;
+import com.compass.domain.chat.function.planning.RecommendDestinationsFunction;
 import com.compass.domain.chat.function.processing.ExtractFlightInfoFunction;
 import com.compass.domain.chat.function.processing.ProcessImageFunction;
 import com.compass.domain.chat.function.processing.ProcessOCRFunction;
@@ -37,9 +38,11 @@ public class FunctionConfiguration {
 
     private final SubmitTravelFormFunction submitTravelFormFunction;
     private final ShowQuickInputFormFunction showQuickInputFormFunction;
-    // private final AskFollowUpQuestionFunction askFollowUpQuestionFunction; // TODO: 구현 필요
+    private final ContinueFollowUpFunction continueFollowUpFunction;
+    private final RecommendDestinationsFunction recommendDestinationsFunction;
+    private final AnalyzeUserInputFunction analyzeUserInputFunction;
     private final StartFollowUpFunction startFollowUpFunction;
-    // private final ValidateAndStoreInfoFunction validateAndStoreInfoFunction; // TODO: 구현 필요
+
 
     @Bean
     public FunctionCallbackWrapper<?, ?> submitTravelFormWrapper() {
@@ -57,14 +60,6 @@ public class FunctionConfiguration {
                 .build();
     }
 
-    // TODO: AskFollowUpQuestionFunction 구현 후 주석 해제
-    // @Bean
-    // public FunctionCallbackWrapper<?, ?> askFollowUpQuestionWrapper() {
-    //     return FunctionCallbackWrapper.builder(askFollowUpQuestionFunction)
-    //             .withName("ask_follow_up_question")
-    //             .withDescription("부족한 정보에 대한 추가 질문 생성")
-    //             .build();
-    // }
 
     @Bean
     public FunctionCallbackWrapper<?, ?> startFollowUpWrapper() {
@@ -74,14 +69,23 @@ public class FunctionConfiguration {
                 .build();
     }
 
-    // TODO: ValidateAndStoreInfoFunction 구현 후 주석 해제
-    // @Bean
-    // public FunctionCallbackWrapper<?, ?> validateAndStoreInfoWrapper() {
-    //     return FunctionCallbackWrapper.builder(validateAndStoreInfoFunction)
-    //             .withName("validate_and_store_info")
-    //             .withDescription("수집된 정보 검증 및 저장")
-    //             .build();
-    // }
+
+    @Bean
+    public FunctionCallbackWrapper<?, ?> continueFollowUpWrapper() {
+        return FunctionCallbackWrapper.builder(continueFollowUpFunction)
+                .withName("continueFollowUp")
+                .withDescription("사용자의 추가 답변을 처리하고, 모든 정보가 수집될 때까지 후속 질문을 계속합니다.")
+                .build();
+    }
+
+
+    @Bean
+    public FunctionCallbackWrapper<?, ?> recommendDestinationsWrapper() {
+        return FunctionCallbackWrapper.builder(recommendDestinationsFunction)
+                .withName("recommendDestinations")
+                .withDescription("사용자가 '목적지 미정'을 선택했을 경우, 출발지와 여행 스타일에 맞춰 적절한 여행지를 추천합니다.")
+                .build();
+    }
 
     // ========== 여행 계획 Functions (Planning) ==========
 
