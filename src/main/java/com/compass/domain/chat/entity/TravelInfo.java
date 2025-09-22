@@ -20,13 +20,12 @@ public class TravelInfo{
     private Long id;
     private String threadId;
     private String userId;
-    @ElementCollection
     private List<String> destinations;
     private String departureLocation;
     private LocalDate startDate;
     private LocalDate endDate;
     private String companions;
     private Long budget;
-    @ElementCollection
     private List<String> travelStyle;
+    private String reservationDocument;
 }
