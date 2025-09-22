@@ -54,7 +54,7 @@ public class SearchWithPerplexityFunction implements Function<SearchWithPerplexi
 
     // 검색 결과 파싱
     private List<SearchResult> parseSearchResults(String response, SearchQuery query) {
-        // TODO: 실제 파싱 로직 구현 예정
+        // 기본 검색 결과 반환 (향후 실제 파싱 로직 구현 예정)
         return List.of(
             new SearchResult(
                 "검색된 장소",
