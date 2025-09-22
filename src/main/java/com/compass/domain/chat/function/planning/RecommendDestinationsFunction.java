@@ -12,7 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
-// Task 2.3.1: "목적지 미정" 시 사용자에게 맞춤 목적지를 추천하는 Function
+// "목적지 미정" 시 사용자에게 맞춤 목적지를 추천
 
 @Slf4j
 @Component("recommendDestinations")
