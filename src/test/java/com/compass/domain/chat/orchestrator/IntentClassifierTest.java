@@ -136,12 +136,12 @@ class IntentClassifierTest {
     @Test
     @DisplayName("LLM으로 분류되는 복잡한 질문들")
     void testVariousTravelQuestions() {
-        // given - 키워드 매칭에 걸리지 않는 메시지들로 변경
+        // given - 키워드 매칭에 완전히 걸리지 않는 메시지들
         String[] messages = {
-            "맛집 추천해줘",
-            "비자 필요해?", 
-            "숙소 추천해줘",
-            "교통편 알려줘"
+            "이거 어떻게 생각해?",
+            "도움이 필요해", 
+            "뭐 좀 물어볼게",
+            "설명 부탁해"
         };
 
         for (String message : messages) {
