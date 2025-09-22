@@ -17,6 +17,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -50,7 +51,9 @@ class ResponseGeneratorTest {
 
     @BeforeEach
     void setUp() {
-        responseGenerator = new ResponseGenerator(showQuickInputFormFunction, chatModel);
+        responseGenerator = new ResponseGenerator(showQuickInputFormFunction);
+        // ChatModel은 @Autowired(required = false)로 주입되므로 리플렉션으로 설정
+        ReflectionTestUtils.setField(responseGenerator, "chatModel", chatModel);
     }
 
     @Test
