@@ -6,6 +6,7 @@ import com.compass.domain.chat.model.enums.TravelPhase;
 import com.compass.domain.chat.model.request.ChatRequest;
 import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.service.ChatThreadService;
+import com.compass.domain.chat.service.TravelInfoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class MainLLMOrchestrator {
     private final ChatThreadService chatThreadService;
     private final PromptBuilder promptBuilder;
     private final com.compass.domain.chat.collection.service.FormDataConverter formDataConverter;
+    private final TravelInfoService travelInfoService;
 
 
     // 채팅 요청 처리
@@ -60,6 +62,15 @@ public class MainLLMOrchestrator {
 
                     // updateFromFormSubmit 메서드를 사용하여 한 번에 모든 정보 업데이트
                     context.updateFromFormSubmit(travelFormRequest);
+
+                    // DB에 여행 정보 저장
+                    try {
+                        travelInfoService.saveTravelInfo(request.getThreadId(), travelFormRequest);
+                        log.info("║ ✅ TravelInfo DB 저장 성공 - ThreadId: {}", request.getThreadId());
+                    } catch (Exception dbError) {
+                        // DB 저장 실패해도 프로세스는 계속 진행 (메모리에는 저장됨)
+                        log.error("║ ⚠️ TravelInfo DB 저장 실패 (프로세스는 계속): {}", dbError.getMessage());
+                    }
 
                     context.setWaitingForTravelConfirmation(false);
 
