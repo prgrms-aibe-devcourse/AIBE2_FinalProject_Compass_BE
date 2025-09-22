@@ -54,8 +54,9 @@ public class UnifiedChatController {
             log.debug("새 Thread-Id 생성: {}", threadId);
         }
 
-        // 2. 사용자 정보 설정
-        request.setUserId(userDetails.getUsername());
+        // 2. 사용자 정보 설정 (인증이 없는 경우 테스트 사용자로 처리)
+        String userId = userDetails != null ? userDetails.getUsername() : "test-user@test.com";
+        request.setUserId(userId);
         request.setThreadId(threadId);
 
         // 3. 요청 검증 (간단하게)
@@ -96,7 +97,8 @@ public class UnifiedChatController {
 
         } catch (Exception e) {
             // 500 - 서버 오류
-            log.error("처리 중 오류: userId={}", userDetails.getUsername(), e);
+            String username = userDetails != null ? userDetails.getUsername() : "unknown";
+            log.error("처리 중 오류: userId={}", username, e);
             return ResponseEntity.internalServerError()
                 .body(ChatResponse.builder()
                     .content("처리 중 오류가 발생했습니다.")
@@ -125,12 +127,23 @@ public class UnifiedChatController {
             userDetails.getUsername(), threadId);
 
         try {
-            mainLLMOrchestrator.resetContext(threadId);
+            mainLLMOrchestrator.resetContext(threadId, userDetails.getUsername());
             return ResponseEntity.noContent().build();
 
         } catch (Exception e) {
             log.error("컨텍스트 초기화 실패: threadId={}", threadId, e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    // 헬스 체크 엔드포인트
+    @GetMapping("/health")
+    @Operation(
+        summary = "헬스 체크",
+        description = "서비스 상태 확인"
+    )
+    @ApiResponse(responseCode = "200", description = "서비스 정상")
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("OK");
     }
 }

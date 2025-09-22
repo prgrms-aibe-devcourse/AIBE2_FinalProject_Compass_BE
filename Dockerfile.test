@@ -1,0 +1,14 @@
+# Test-only Dockerfile for CI
+FROM gradle:8.5-jdk17 AS test
+
+WORKDIR /app
+
+# Copy build files
+COPY build.gradle settings.gradle ./
+COPY gradle ./gradle
+
+# Copy source code
+COPY src ./src
+
+# Run tests with CI-friendly output
+CMD ["gradle", "test", "--no-daemon", "--console=plain"]

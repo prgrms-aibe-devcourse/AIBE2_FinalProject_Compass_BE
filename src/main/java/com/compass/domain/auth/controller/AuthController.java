@@ -2,6 +2,7 @@ package com.compass.domain.auth.controller;
 
 import com.compass.domain.auth.dto.JwtDto;
 import com.compass.domain.auth.dto.LoginRequestDto;
+import com.compass.domain.auth.dto.RefreshTokenRequestDto;
 import com.compass.domain.auth.dto.SignupRequestDto;
 import com.compass.domain.auth.dto.UserDto;
 import com.compass.domain.auth.service.AuthService;
@@ -52,11 +53,9 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<JwtDto> refresh(@RequestHeader("Authorization") String refreshToken) {
+    public ResponseEntity<JwtDto> refresh(@Valid @RequestBody RefreshTokenRequestDto refreshTokenRequest) {
         log.info("Token refresh request received");
-        // Remove "Bearer " prefix if present
-        String token = refreshToken.startsWith("Bearer ") ? refreshToken.substring(7) : refreshToken;
-        JwtDto jwtDto = authService.refreshToken(token);
+        JwtDto jwtDto = authService.refreshToken(refreshTokenRequest.getRefreshToken());
         return ResponseEntity.ok(jwtDto);
     }
 }
