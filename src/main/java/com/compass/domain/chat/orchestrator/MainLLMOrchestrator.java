@@ -9,6 +9,7 @@ import com.compass.domain.chat.service.ChatThreadService;
 import com.compass.domain.chat.service.TravelInfoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 // 메인 오케스트레이터 서비스
@@ -29,8 +30,12 @@ public class MainLLMOrchestrator {
 
     // 채팅 요청 처리
     public ChatResponse processChat(ChatRequest request) {
-        log.info("채팅 요청 처리 - Thread: {}, User: {}, Message: {}",
-            request.getThreadId(), request.getUserId(), request.getMessage());
+        // MDC에 컨텍스트 정보 설정
+        MDC.put("threadId", request.getThreadId());
+        MDC.put("userId", request.getUserId());
+
+        try {
+            log.info("채팅 요청 처리 시작 - Message: {}", request.getMessage());
 
         // 0. 빠른입력폼 데이터 처리 체크
         if (request.getMetadata() != null && request.getMetadata() instanceof java.util.Map) {
@@ -39,7 +44,8 @@ public class MainLLMOrchestrator {
             var type = metadata.get("type");
 
             if ("TRAVEL_FORM_SUBMIT".equals(type) && metadata.get("formData") != null) {
-                log.info("빠른입력폼 제출 감지 - FormData: {}", metadata.get("formData"));
+                log.info("빠른입력폼 제출 감지");
+                log.debug("FormData: {}", metadata.get("formData"));
 
                 try {
                     // 컨텍스트 조회 또는 생성
@@ -59,7 +65,7 @@ public class MainLLMOrchestrator {
                     // DB에 여행 정보 저장
                     try {
                         travelInfoService.saveTravelInfo(request.getThreadId(), travelFormRequest);
-                        log.info("TravelInfo DB 저장 성공 - ThreadId: {}", request.getThreadId());
+                        log.info("TravelInfo DB 저장 성공");
                     } catch (Exception dbError) {
                         // DB 저장 실패해도 프로세스는 계속 진행 (메모리에는 저장됨)
                         log.error("TravelInfo DB 저장 실패 (프로세스는 계속): {}", dbError.getMessage());
@@ -142,6 +148,7 @@ public class MainLLMOrchestrator {
 
         // 5. 현재 Phase 확인 (먼저 확인)
         var currentPhase = TravelPhase.valueOf(context.getCurrentPhase());
+        MDC.put("phase", currentPhase.name());
         log.info("현재 Phase: {}", currentPhase);
 
         // 5-1. 구체적인 여행 질문 감지 (LLM 기반) - 일시적으로 비활성화
@@ -170,7 +177,9 @@ public class MainLLMOrchestrator {
             request.getMessage(),
             context.isWaitingForTravelConfirmation()
         );
-        log.info("Intent: {}, 여행 확인 대기: {}", intent, context.isWaitingForTravelConfirmation());
+        MDC.put("intent", intent.name());
+        log.info("Intent 분류 완료: {}", intent);
+        log.debug("여행 확인 대기 상태: {}", context.isWaitingForTravelConfirmation());
 
         // 7. Phase 전환 처리 (waitingForTravelConfirmation 플래그를 유지한 상태로)
         var nextPhase = handlePhaseTransition(currentPhase, intent, context);
@@ -200,6 +209,13 @@ public class MainLLMOrchestrator {
         saveSystemMessage(request.getThreadId(), response.getContent());
 
         return response;
+        } finally {
+            // MDC 정리
+            MDC.remove("threadId");
+            MDC.remove("userId");
+            MDC.remove("phase");
+            MDC.remove("intent");
+        }
     }
 
     // ChatThread 존재 확인 및 생성
@@ -207,7 +223,7 @@ public class MainLLMOrchestrator {
         try {
             // ChatThreadService에서 Thread 존재 여부 확인하고 없으면 생성
             chatThreadService.ensureThreadExists(request.getThreadId(), request.getUserId());
-            log.debug("ChatThread 확인/생성 완료: threadId={}", request.getThreadId());
+            log.debug("ChatThread 확인/생성 완료");
         } catch (Exception e) {
             log.error("ChatThread 생성 실패: {}", e.getMessage());
             throw new RuntimeException("대화 스레드 생성에 실패했습니다.", e);
@@ -261,6 +277,13 @@ public class MainLLMOrchestrator {
 
     // 컨텍스트 초기화
     public void resetContext(String threadId, String userId) {
-        contextManager.resetContext(threadId, userId);
+        MDC.put("threadId", threadId);
+        MDC.put("userId", userId);
+        try {
+            contextManager.resetContext(threadId, userId);
+        } finally {
+            MDC.remove("threadId");
+            MDC.remove("userId");
+        }
     }
 }

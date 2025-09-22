@@ -8,6 +8,7 @@ import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -32,7 +33,12 @@ public class ResponseGenerator {
     // 통합 응답 생성 (PromptBuilder 추가)
     public ChatResponse generateResponse(ChatRequest request, Intent intent, TravelPhase phase,
                                         TravelContext context, PromptBuilder promptBuilder) {
-        log.info("응답 생성 시작 - Intent: {}, Phase: {}, Message: {}", intent, phase, request.getMessage());
+        MDC.put("intent", intent.name());
+        MDC.put("phase", phase.name());
+
+        try {
+            log.info("응답 생성 시작");
+            log.debug("Message: {}", request.getMessage());
 
         // 응답 타입 먼저 결정
         var responseType = determineResponseType(intent, phase, context);
@@ -74,9 +80,13 @@ public class ResponseGenerator {
             .requiresConfirmation(requiresConfirmation)
             .build();
 
-        log.info("응답 생성 완료 - Type: {}, Phase: {}", response.getType(), response.getPhase());
+        log.info("응답 생성 완료 - Type: {}", response.getType());
 
         return response;
+        } finally {
+            MDC.remove("intent");
+            MDC.remove("phase");
+        }
     }
 
     // 오버로드 메소드 (이전 버전 호환성)
@@ -230,8 +240,8 @@ public class ResponseGenerator {
 
     // 응답 타입 결정
     public String determineResponseType(Intent intent, TravelPhase phase, TravelContext context) {
-        log.debug("응답 타입 결정 - Phase: {}, Intent: {}, Context: {}, CollectedInfo: {}",
-            phase, intent, context != null, context != null && context.getCollectedInfo() != null);
+        log.debug("응답 타입 결정 - Context: {}, CollectedInfo: {}",
+            context != null, context != null && context.getCollectedInfo() != null);
 
         // Phase에 따른 응답 타입 결정
         if (phase == TravelPhase.PLAN_GENERATION) {
