@@ -140,8 +140,8 @@ class IntentClassifierTest {
         String[] messages = {
             "맛집 추천해줘",
             "비자 필요해?", 
-            "호텔 추천해줘",
-            "버스 타는 법 알려줘"
+            "숙소 추천해줘",
+            "교통편 알려줘"
         };
 
         for (String message : messages) {
