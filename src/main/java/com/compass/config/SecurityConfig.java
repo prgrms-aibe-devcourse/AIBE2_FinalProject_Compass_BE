@@ -43,6 +43,7 @@ public class SecurityConfig {
 
     @Value("${spring.profiles.active:default}")
     private String activeProfile;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
@@ -58,7 +59,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         if ("docker".equals(activeProfile)) {
-            configuration.addAllowedOriginPattern("*"); // Docker 환경에서 모든 origin 허용 (addAllowedOriginPattern 사용)
+            configuration.addAllowedOriginPattern("*"); // Docker 환경에서 모든 origin 허용
             configuration.setAllowCredentials(true); // 쿠키 포함 요청 허용
         } else {
             configuration.addAllowedOrigin("http://localhost:3000"); // React 개발 서버
@@ -82,15 +83,15 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .httpBasic(httpBasic -> httpBasic.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authz -> authz
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()  // Authentication endpoints (signup, login, refresh)
+                .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()  // Authentication endpoints
                 .requestMatchers("/api/users/**").permitAll()
                 .requestMatchers("/api/test/**").permitAll()
                 .requestMatchers("/api/debug/**").permitAll()  // Debug endpoints for testing
-                .requestMatchers("/api/chat/**", "/api/v1/chat/**").permitAll()  // Chat endpoints for testing
+                .requestMatchers("/api/chat/**", "/api/v1/chat/**").permitAll()  // Chat endpoints
                 .requestMatchers("/api/trips/**").permitAll()  // Trips endpoints for testing
                 .requestMatchers("/api/tour/**").permitAll()  // Tour API endpoints for testing
                 .requestMatchers("/api/search/**").permitAll()  // Search API endpoints
@@ -99,7 +100,7 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated()
-                );
+            );
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
