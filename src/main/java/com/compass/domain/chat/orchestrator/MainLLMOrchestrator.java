@@ -29,12 +29,8 @@ public class MainLLMOrchestrator {
 
     // 채팅 요청 처리
     public ChatResponse processChat(ChatRequest request) {
-        log.info("╔══════════════════════════════════════════════════════════════");
-        log.info("║ 채팅 요청 처리 시작");
-        log.info("║ Thread ID: {}", request.getThreadId());
-        log.info("║ User ID: {}", request.getUserId());
-        log.info("║ Message: {}", request.getMessage());
-        log.info("╚══════════════════════════════════════════════════════════════");
+        log.info("채팅 요청 처리 - Thread: {}, User: {}, Message: {}",
+            request.getThreadId(), request.getUserId(), request.getMessage());
 
         // 0. 빠른입력폼 데이터 처리 체크
         if (request.getMetadata() != null && request.getMetadata() instanceof java.util.Map) {
@@ -43,10 +39,7 @@ public class MainLLMOrchestrator {
             var type = metadata.get("type");
 
             if ("TRAVEL_FORM_SUBMIT".equals(type) && metadata.get("formData") != null) {
-                log.info("╔══════════════════════════════════════════════════════════════");
-                log.info("║ 🎯 빠른입력폼 제출 감지 - 여행 정보 수집 완료");
-                log.info("║ FormData: {}", metadata.get("formData"));
-                log.info("╚══════════════════════════════════════════════════════════════");
+                log.info("빠른입력폼 제출 감지 - FormData: {}", metadata.get("formData"));
 
                 try {
                     // 컨텍스트 조회 또는 생성
@@ -66,10 +59,10 @@ public class MainLLMOrchestrator {
                     // DB에 여행 정보 저장
                     try {
                         travelInfoService.saveTravelInfo(request.getThreadId(), travelFormRequest);
-                        log.info("║ ✅ TravelInfo DB 저장 성공 - ThreadId: {}", request.getThreadId());
+                        log.info("TravelInfo DB 저장 성공 - ThreadId: {}", request.getThreadId());
                     } catch (Exception dbError) {
                         // DB 저장 실패해도 프로세스는 계속 진행 (메모리에는 저장됨)
-                        log.error("║ ⚠️ TravelInfo DB 저장 실패 (프로세스는 계속): {}", dbError.getMessage());
+                        log.error("TravelInfo DB 저장 실패 (프로세스는 계속): {}", dbError.getMessage());
                     }
 
                     context.setWaitingForTravelConfirmation(false);
@@ -95,7 +88,7 @@ public class MainLLMOrchestrator {
                     summary.append("- 여행 스타일: ").append(travelFormRequest.travelStyle()).append("\n");
                     summary.append("- 동반자: ").append(travelFormRequest.companions()).append("\n");
 
-                    log.info("║ {}", summary.toString().replace("\n", "\n║ "));
+                    log.debug("수집된 정보: {}", summary.toString().replace("\n", ", "));
 
                     // 실제 계획 생성을 위해 ResponseGenerator 호출
                     // 폼 제출 확인 메시지 먼저 저장
@@ -145,11 +138,11 @@ public class MainLLMOrchestrator {
 
         // 4. 대화 히스토리 로드 (최근 10개)
         var history = chatThreadService.getHistory(request.getThreadId());
-        log.info("║ 대화 히스토리: {}개 메시지", history.size());
+        log.debug("대화 히스토리: {}개 메시지", history.size());
 
         // 5. 현재 Phase 확인 (먼저 확인)
         var currentPhase = TravelPhase.valueOf(context.getCurrentPhase());
-        log.info("║ 현재 Phase: {}", currentPhase);
+        log.info("현재 Phase: {}", currentPhase);
 
         // 5-1. 구체적인 여행 질문 감지 (LLM 기반) - 일시적으로 비활성화
         // 일반 인사를 여행 질문으로 잘못 판단하는 문제 때문에 비활성화
@@ -157,7 +150,7 @@ public class MainLLMOrchestrator {
         /*
         boolean isSpecificTravelQuery = intentClassifier.isSpecificTravelQuery(request.getMessage());
         if (isSpecificTravelQuery && currentPhase == TravelPhase.INITIALIZATION) {
-            log.info("║ 🎯 구체적인 여행 질문 감지 - 바로 INFORMATION_COLLECTION으로 전환");
+            log.info("구체적인 여행 질문 감지 - INFORMATION_COLLECTION으로 전환");
             context.setWaitingForTravelConfirmation(false);
             // Intent를 CONFIRMATION으로 설정하여 바로 전환되도록
             var intent = Intent.CONFIRMATION;
@@ -177,8 +170,7 @@ public class MainLLMOrchestrator {
             request.getMessage(),
             context.isWaitingForTravelConfirmation()
         );
-        log.info("║ 분류된 Intent: {}", intent);
-        log.info("║ 여행 확인 대기 상태: {}", context.isWaitingForTravelConfirmation());
+        log.info("Intent: {}, 여행 확인 대기: {}", intent, context.isWaitingForTravelConfirmation());
 
         // 7. Phase 전환 처리 (waitingForTravelConfirmation 플래그를 유지한 상태로)
         var nextPhase = handlePhaseTransition(currentPhase, intent, context);
@@ -187,12 +179,12 @@ public class MainLLMOrchestrator {
         if (context.isWaitingForTravelConfirmation()) {
             if (intent == Intent.CONFIRMATION) {
                 // 사용자가 확인한 경우 - Phase 전환 후 플래그 리셋
-                log.info("║ 여행 계획 시작 확인 응답 감지 - Phase 전환 후 플래그 리셋");
+                log.debug("여행 계획 시작 확인 - 플래그 리셋");
                 context.setWaitingForTravelConfirmation(false);
                 contextManager.updateContext(context, context.getUserId());
             } else if (intent != Intent.TRAVEL_PLANNING) {
                 // 사용자가 다른 의도를 보인 경우 (거부 또는 주제 변경) - 확인 대기 상태 해제
-                log.info("║ 사용자가 다른 의도를 보임 (Intent: {}) - 확인 대기 상태 해제", intent);
+                log.debug("다른 의도 감지 (Intent: {}) - 확인 대기 해제", intent);
                 context.setWaitingForTravelConfirmation(false);
                 contextManager.updateContext(context, context.getUserId());
             }
@@ -200,10 +192,7 @@ public class MainLLMOrchestrator {
         }
 
         // 9. 응답 생성 - ResponseGenerator에 PromptBuilder 전달
-        log.info("╔══════════════════════════════════════════════════════════════");
-        log.info("║ 응답 생성 시작");
-        log.info("║ Intent: {}, Phase: {}", intent, nextPhase);
-        log.info("╚══════════════════════════════════════════════════════════════");
+        log.debug("응답 생성 - Intent: {}, Phase: {}", intent, nextPhase);
 
         var response = responseGenerator.generateResponse(request, intent, nextPhase, context, promptBuilder);
 
@@ -262,11 +251,7 @@ public class MainLLMOrchestrator {
         var nextPhase = phaseManager.transitionPhase(context.getThreadId(), intent, context);
 
         if (nextPhase != currentPhase) {
-            log.info("╔══════════════════════════════════════════════════════════════");
-            log.info("║ 🔄 Phase 전환 감지!");
-            log.info("║ 이전 Phase: {}", currentPhase);
-            log.info("║ 새로운 Phase: {}", nextPhase);
-            log.info("╚══════════════════════════════════════════════════════════════");
+            log.info("Phase 전환: {} → {}", currentPhase, nextPhase);
             context.setCurrentPhase(nextPhase.name());
             contextManager.updateContext(context, context.getUserId());
         }

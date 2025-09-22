@@ -32,26 +32,22 @@ public class ResponseGenerator {
     // 통합 응답 생성 (PromptBuilder 추가)
     public ChatResponse generateResponse(ChatRequest request, Intent intent, TravelPhase phase,
                                         TravelContext context, PromptBuilder promptBuilder) {
-        log.info("╔══════════════════════════════════════════════════════════════");
-        log.info("║ 🚀 ResponseGenerator.generateResponse 시작");
-        log.info("║ Intent: {}, Phase: {}", intent, phase);
-        log.info("║ Message: {}", request.getMessage());
-        log.info("╚══════════════════════════════════════════════════════════════");
+        log.info("응답 생성 시작 - Intent: {}, Phase: {}, Message: {}", intent, phase, request.getMessage());
 
         // 응답 타입 먼저 결정
         var responseType = determineResponseType(intent, phase, context);
-        log.info("║ 📋 결정된 ResponseType: {}", responseType);
+        log.debug("ResponseType 결정: {}", responseType);
 
         // QUICK_FORM인 경우 간단한 폼 안내 메시지만 생성 (LLM 호출 안 함)
         String content;
         boolean requiresConfirmation = shouldAskForConfirmation(phase);
 
         if ("QUICK_FORM".equals(responseType)) {
-            log.info("║ ✅ QUICK_FORM 타입 확인 - 폼 안내 메시지 반환");
+            log.debug("QUICK_FORM 타입 - 폼 안내 메시지 반환");
             // QUICK_FORM인 경우 폼 작성 안내 메시지만
             content = "좋습니다! 아래 폼에 여행 정보를 입력해주세요. 빠르고 간편하게 맞춤형 여행 계획을 만들어드릴게요! 🎯";
         } else {
-            log.info("║ 📝 일반 응답 생성 (ResponseType: {})", responseType);
+            log.debug("일반 응답 생성 - ResponseType: {}", responseType);
             // QUICK_FORM이 아닌 경우에만 LLM 응답 생성
             content = generateContent(request, intent, phase, context, promptBuilder);
 
@@ -64,7 +60,7 @@ public class ResponseGenerator {
 
         // 응답 데이터 구성
         var responseData = buildResponseData(intent, phase, context);
-        log.info("║ 📦 ResponseData 존재: {}", responseData != null);
+        log.debug("ResponseData 존재: {}", responseData != null);
 
         // 다음 액션 결정
         var nextAction = determineNextAction(intent, phase);
@@ -78,10 +74,7 @@ public class ResponseGenerator {
             .requiresConfirmation(requiresConfirmation)
             .build();
 
-        log.info("╔══════════════════════════════════════════════════════════════");
-        log.info("║ ✅ 최종 응답 생성 완료");
-        log.info("║ Type: {}, Phase: {}", response.getType(), response.getPhase());
-        log.info("╚══════════════════════════════════════════════════════════════");
+        log.info("응답 생성 완료 - Type: {}, Phase: {}", response.getType(), response.getPhase());
 
         return response;
     }
@@ -96,9 +89,9 @@ public class ResponseGenerator {
                                   TravelContext context, PromptBuilder promptBuilder) {
         // QUICK_FORM 타입인 경우 간단한 안내 메시지만 반환
         String responseType = determineResponseType(intent, phase, context);
-        log.info("║ 🎨 Content 생성 - ResponseType: {}", responseType);
+        log.debug("Content 생성 - ResponseType: {}", responseType);
         if ("QUICK_FORM".equals(responseType)) {
-            log.info("║ ✅ QUICK_FORM 타입 확인 - 폼 안내 메시지 반환");
+            log.debug("QUICK_FORM 타입 - 폼 안내 메시지 반환");
             return "좋습니다! 아래 폼에 여행 정보를 입력해주세요. 빠르고 간편하게 맞춤형 여행 계획을 만들어드릴게요! 🎯";
         }
 
@@ -237,66 +230,59 @@ public class ResponseGenerator {
 
     // 응답 타입 결정
     public String determineResponseType(Intent intent, TravelPhase phase, TravelContext context) {
-        log.info("╔══════════════════════════════════════════════════════════════");
-        log.info("║ 🔍 응답 타입 결정");
-        log.info("║ Phase: {}, Intent: {}", phase, intent);
-        log.info("║ Context 존재: {}, CollectedInfo 존재: {}",
-            context != null, context != null ? context.getCollectedInfo() != null : false);
-        if (context != null && context.getCollectedInfo() != null) {
-            log.info("║ CollectedInfo: {}", context.getCollectedInfo());
-        }
-        log.info("╚══════════════════════════════════════════════════════════════");
+        log.debug("응답 타입 결정 - Phase: {}, Intent: {}, Context: {}, CollectedInfo: {}",
+            phase, intent, context != null, context != null && context.getCollectedInfo() != null);
 
         // Phase에 따른 응답 타입 결정
         if (phase == TravelPhase.PLAN_GENERATION) {
-            log.info("║ → PLAN_GENERATION 단계: ITINERARY 반환");
+            log.debug("PLAN_GENERATION 단계 - ITINERARY 반환");
             return "ITINERARY";
         }
 
         // INFORMATION_COLLECTION 단계에서는 Intent와 컨텍스트를 확인하여 결정
         if (phase == TravelPhase.INFORMATION_COLLECTION) {
-            log.info("║ 📋 INFORMATION_COLLECTION 단계 진입");
+            log.debug("INFORMATION_COLLECTION 단계 진입");
 
             // 이미 폼 데이터가 저장되어 있고 충분한 정보가 있으면 TEXT로 다음 액션 유도
             if (context != null && context.getCollectedInfo() != null) {
                 Map<String, Object> info = (Map<String, Object>) context.getCollectedInfo();
-                log.info("║ CollectedInfo 존재 - 크기: {}", info.size());
+                log.debug("CollectedInfo 크기: {}", info.size());
 
                 // CollectedInfo가 빈 Map인 경우에도 QUICK_FORM 표시 필요
                 if (info.isEmpty()) {
-                    log.info("║ CollectedInfo가 비어있음 - Intent 확인: {}", intent);
+                    log.debug("CollectedInfo 비어있음 - Intent: {}", intent);
                     // Intent가 TRAVEL_PLANNING 또는 CONFIRMATION일 때만 QUICK_FORM 표시
                     if (intent == Intent.TRAVEL_PLANNING || intent == Intent.CONFIRMATION) {
-                        log.info("║ 🎯 빈 CollectedInfo + TRAVEL_PLANNING Intent: QUICK_FORM 반환!");
+                        log.debug("QUICK_FORM 반환 - 빈 CollectedInfo + TRAVEL_PLANNING Intent");
                         return "QUICK_FORM";
                     }
                 }
 
                 // 필수 정보가 모두 있으면 여행 계획 생성 준비
                 if (hasRequiredTravelInfo(info)) {
-                    log.info("║ → 필수 정보 모두 수집됨: TEXT 반환");
+                    log.debug("필수 정보 모두 수집됨 - TEXT 반환");
                     return "TEXT";  // 계획 생성 안내 메시지
                 }
                 // 정보가 부족하면 추가 수집 필요
-                log.info("║ → 정보 부족으로 추가 수집 필요: TEXT 반환");
+                log.debug("정보 부족 - TEXT 반환");
                 return "TEXT";  // 추가 질문 메시지
             }
 
-            log.info("║ CollectedInfo가 null - Intent 확인: {}", intent);
+            log.debug("CollectedInfo null - Intent: {}", intent);
 
             // Intent가 TRAVEL_PLANNING 또는 CONFIRMATION일 때만 QUICK_FORM 표시
             // 일반 대화(GENERAL_QUESTION)에서는 폼을 표시하지 않음
             if (intent == Intent.TRAVEL_PLANNING || intent == Intent.CONFIRMATION) {
-                log.info("║ 🎯 TRAVEL_PLANNING/CONFIRMATION Intent 감지: QUICK_FORM 반환!");
+                log.debug("QUICK_FORM 반환 - TRAVEL_PLANNING/CONFIRMATION Intent");
                 return "QUICK_FORM";
             }
             // DESTINATION_SEARCH나 구체적인 여행 관련 Intent도 폼 표시
             if (intent == Intent.DESTINATION_SEARCH || intent == Intent.INFORMATION_COLLECTION) {
-                log.info("║ 🎯 여행 관련 Intent 감지: QUICK_FORM 반환!");
+                log.debug("QUICK_FORM 반환 - 여행 관련 Intent");
                 return "QUICK_FORM";
             }
             // 그 외의 경우는 TEXT 응답
-            log.info("║ → Intent가 {}이므로 TEXT 반환", intent);
+            log.debug("TEXT 반환 - Intent: {}", intent);
             return "TEXT";
         }
 
