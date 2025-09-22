@@ -16,6 +16,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 // Intent 분류기 테스트 (단순화된 3가지 Intent - 분류만 담당)
 @ExtendWith(MockitoExtension.class)
@@ -230,9 +231,9 @@ class IntentClassifierTest {
     // 헬퍼 메서드: LLM 응답 설정
     private void setupLLMResponse(String intentName) {
         AssistantMessage assistantMessage = mock(AssistantMessage.class);
-        when(assistantMessage.getContent()).thenReturn(intentName);
-        when(generation.getOutput()).thenReturn(assistantMessage);
-        when(chatResponse.getResult()).thenReturn(generation);
-        when(chatModel.call(any(Prompt.class))).thenReturn(chatResponse);
+        lenient().when(assistantMessage.getContent()).thenReturn(intentName);
+        lenient().when(generation.getOutput()).thenReturn(assistantMessage);
+        lenient().when(chatResponse.getResult()).thenReturn(generation);
+        lenient().when(chatModel.call(any(Prompt.class))).thenReturn(chatResponse);
     }
 }
