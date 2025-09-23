@@ -4,7 +4,7 @@ import lombok.Data;
 import lombok.Builder;
 
 /**
- * TODO: 구현 필요
+ * 통합 채팅 응답 모델
  * 담당: Trip 개발자
  */
 @Data

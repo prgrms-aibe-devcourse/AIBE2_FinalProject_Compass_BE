@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class TravelInfoCacheServiceTest {
@@ -30,8 +31,8 @@ class TravelInfoCacheServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Mockito의 when().thenReturn()을 사용하여 ValueOperations를 반환하도록 설정
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        // Mockito의 lenient()를 사용하여 UnnecessaryStubbingException 방지
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         cacheService = new TravelInfoCacheService(redisTemplate);
     }
 

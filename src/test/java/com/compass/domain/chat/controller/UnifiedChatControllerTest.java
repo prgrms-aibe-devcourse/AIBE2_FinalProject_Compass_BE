@@ -12,6 +12,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -22,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // UnifiedChatController 테스트
 @WebMvcTest(UnifiedChatController.class)
+@ActiveProfiles("test")
 class UnifiedChatControllerTest {
 
     @Autowired
@@ -38,8 +41,7 @@ class UnifiedChatControllerTest {
 
     @BeforeEach
     void setUp() {
-        validRequest = new ChatRequest();
-        validRequest.setMessage("부산 여행 계획을 세우고 싶어");
+        validRequest = new ChatRequest("부산 여행 계획을 세우고 싶어", "test-thread-1", "test-user-1");
 
         successResponse = ChatResponse.builder()
                 .content("부산 여행 계획을 도와드리겠습니다.")
@@ -96,8 +98,7 @@ class UnifiedChatControllerTest {
     @WithMockUser(username = "testuser")
     void processChat_EmptyMessage() throws Exception {
         // given
-        var emptyRequest = new ChatRequest();
-        emptyRequest.setMessage("");
+        var emptyRequest = new ChatRequest("", "test-thread-1", "test-user-1");
 
         // when & then
         mockMvc.perform(post("/api/chat/unified")
@@ -116,8 +117,7 @@ class UnifiedChatControllerTest {
     @WithMockUser(username = "testuser")
     void processChat_NullMessage() throws Exception {
         // given
-        var nullRequest = new ChatRequest();
-        nullRequest.setMessage(null);
+        var nullRequest = new ChatRequest(null, "test-thread-1", "test-user-1");
 
         // when & then
         mockMvc.perform(post("/api/chat/unified")

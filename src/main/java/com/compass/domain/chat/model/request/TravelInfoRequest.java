@@ -7,5 +7,5 @@ import lombok.Data;
  */
 @Data
 public class TravelInfoRequest {
-    // TODO: Add travel information fields
+    // 여행 정보 요청 모델 (향후 확장 예정)
 }

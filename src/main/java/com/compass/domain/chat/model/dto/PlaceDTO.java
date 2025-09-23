@@ -7,5 +7,5 @@ import lombok.Data;
  */
 @Data
 public class PlaceDTO {
-    // TODO: Add fields for place information
+    // 장소 정보 DTO (향후 필드 추가 예정)
 }
