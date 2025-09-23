@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 프로파일별 설정 -->
+    <springProfile name="local">
+        <property name="LOG_LEVEL" value="DEBUG"/>
+    </springProfile>
+
+    <springProfile name="dev,rds,docker">
+        <property name="LOG_LEVEL" value="INFO"/>
+    </springProfile>
+
+    <springProfile name="prod">
+        <property name="LOG_LEVEL" value="WARN"/>
+    </springProfile>
+
+    <!-- 콘솔 출력 패턴 - MDC 포함 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- MDC 값들을 패턴에 포함 -->
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{userId}/%X{threadId}] [%X{phase}:%X{intent}] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 파일 출력 (선택사항) -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/compass.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/compass-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <!-- 파일에는 더 상세한 정보 포함 -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger [userId=%X{userId}] [threadId=%X{threadId}] [phase=%X{phase}] [intent=%X{intent}] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 로거 설정 -->
+    <logger name="com.compass.domain.chat" level="DEBUG"/>
+    <logger name="com.compass.common" level="INFO"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+    <logger name="org.hibernate.type" level="TRACE"/>
+
+    <!-- 루트 로거 -->
+    <root level="${LOG_LEVEL:-INFO}">
+        <appender-ref ref="CONSOLE"/>
+        <!-- 운영 환경에서만 파일 로깅 활성화 -->
+        <springProfile name="prod">
+            <appender-ref ref="FILE"/>
+        </springProfile>
+    </root>
+</configuration>

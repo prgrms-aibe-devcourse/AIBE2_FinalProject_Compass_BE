@@ -24,10 +24,7 @@ public class SpringAIFunctionCallLogger implements ApplicationListener<ContextRe
 
     @PostConstruct
     public void init() {
-        log.info("╔══════════════════════════════════════════════════════════════");
-        log.info("║ Spring AI Function Call 로깅 시스템 초기화");
-        log.info("║ LLM Function Calling 이벤트를 모니터링합니다");
-        log.info("╚══════════════════════════════════════════════════════════════");
+        log.info("Spring AI Function Call 로깅 시스템 초기화 - LLM Function Calling 모니터링 시작");
     }
 
     @Override
@@ -43,36 +40,17 @@ public class SpringAIFunctionCallLogger implements ApplicationListener<ContextRe
     public static void logFunctionCall(String functionName, Object request, Object response) {
         int callNumber = functionCallCounter.incrementAndGet();
 
-        log.info("╔══════════════════════════════════════════════════════════════");
-        log.info("║ [LLM Function Calling Event #{}]", callNumber);
-        log.info("║ Function Name: {}", functionName);
-        log.info("║ Request: {}", request != null ? request.toString() : "null");
-
-        if (response != null) {
-            String responseStr = response.toString();
-            if (responseStr.length() <= 200) {
-                log.info("║ Response: {}", responseStr);
-            } else {
-                log.info("║ Response: [{}자 - 너무 길어서 생략]", responseStr.length());
-            }
-        }
-
-        log.info("║ Total Function Calls: {}", callNumber);
-        log.info("╚══════════════════════════════════════════════════════════════");
+        log.info("[LLM Function Call #{}] Function: {}, Request: {}, Response: {}, Total: {}",
+            callNumber, functionName,
+            request != null ? request.toString() : "null",
+            response != null ? (response.toString().length() <= 200 ? response.toString() : "[" + response.toString().length() + "자 생략]") : "null",
+            callNumber);
     }
 
     // Prompt 실행 전 로깅
     public static void logPromptExecution(Prompt prompt) {
-        log.debug("╔══════════════════════════════════════════════════════════════");
-        log.debug("║ LLM Prompt 실행");
-
-        if (prompt.getOptions() != null) {
-            log.debug("║ ChatOptions 설정됨: {}", prompt.getOptions().getClass().getSimpleName());
-        } else {
-            log.debug("║ Function Calling 비활성화 상태");
-        }
-
-        log.debug("╚══════════════════════════════════════════════════════════════");
+        log.debug("LLM Prompt 실행 - ChatOptions: {}",
+            prompt.getOptions() != null ? prompt.getOptions().getClass().getSimpleName() : "Function Calling 비활성화");
     }
 
     // ChatResponse 후 로깅
@@ -81,19 +59,13 @@ public class SpringAIFunctionCallLogger implements ApplicationListener<ContextRe
             var result = response.getResult();
 
             if (result.getMetadata() != null && result.getMetadata().containsKey("functions")) {
-                log.info("╔══════════════════════════════════════════════════════════════");
-                log.info("║ LLM이 Function을 호출했습니다!");
-                log.info("║ 호출된 Functions: {}", result.getMetadata().get("functions").toString());
-                log.info("╚══════════════════════════════════════════════════════════════");
+                log.info("LLM Function 호출 - Functions: {}", result.getMetadata().get("functions").toString());
             }
         }
     }
 
     // 통계 정보 제공
     public static void printStatistics() {
-        log.info("╔══════════════════════════════════════════════════════════════");
-        log.info("║ LLM Function Call 통계");
-        log.info("║ 총 Function 호출 횟수: {}", functionCallCounter.get());
-        log.info("╚══════════════════════════════════════════════════════════════");
+        log.info("LLM Function Call 통계 - 총 호출 횟수: {}", functionCallCounter.get());
     }
 }

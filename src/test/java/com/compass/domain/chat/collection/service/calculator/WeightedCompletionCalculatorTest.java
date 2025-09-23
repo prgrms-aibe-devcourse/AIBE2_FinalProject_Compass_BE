@@ -28,6 +28,8 @@ class WeightedCompletionCalculatorTest {
                 List.of("서울", "부산"),
                 "인천",
                 new TravelFormSubmitRequest.DateRange(LocalDate.now(), LocalDate.now().plusDays(3)),
+                null,  // departureTime
+                null,  // endTime
                 "친구와",
                 1000000L,
                 List.of("맛집", "관광"),
@@ -53,6 +55,8 @@ class WeightedCompletionCalculatorTest {
                 List.of("제주도"),
                 null,
                 new TravelFormSubmitRequest.DateRange(LocalDate.now(), LocalDate.now().plusDays(2)),
+                null,  // departureTime
+                null,  // endTime
                 null,
                 null,
                 null,
@@ -73,7 +77,7 @@ class WeightedCompletionCalculatorTest {
     @DisplayName("정보가 전혀 없으면 진행률은 0%가 되어야 한다")
     void calculate_shouldReturn0_whenNoInfoIsProvided() {
         // given
-        var emptyInfo = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null);
+        var emptyInfo = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
 
         // when
         int progress = calculator.calculate(emptyInfo);

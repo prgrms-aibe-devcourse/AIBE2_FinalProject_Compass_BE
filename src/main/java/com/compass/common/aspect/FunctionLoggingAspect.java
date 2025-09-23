@@ -28,13 +28,8 @@ public class FunctionLoggingAspect {
         Object[] args = joinPoint.getArgs();
 
         // 시작 로그
-        log.info("╔══════════════════════════════════════════════════════════════");
-        log.info("║ LLM Function 호출 시작");
-        log.info("║ Function: {}", className);
-        log.info("║ Method: {}", methodName);
-        log.info("║ 입력 파라미터: {}", Arrays.toString(args));
-        log.info("║ 호출 시간: {}", new java.util.Date());
-        log.info("╚══════════════════════════════════════════════════════════════");
+        log.info("LLM Function 호출 시작 - Function: {}.{}, 파라미터: {}, 시간: {}",
+            className, methodName, Arrays.toString(args), new java.util.Date());
 
         // 실행 시간 측정
         StopWatch stopWatch = new StopWatch();
@@ -54,26 +49,18 @@ public class FunctionLoggingAspect {
             stopWatch.stop();
 
             // 종료 로그
-            log.info("╔══════════════════════════════════════════════════════════════");
-            log.info("║ LLM Function 호출 완료");
-            log.info("║ Function: {}", className);
-            log.info("║ 실행 시간: {} ms", stopWatch.getTotalTimeMillis());
-
             if (exception != null) {
-                log.error("║ 에러 발생: {}", exception.getMessage());
+                log.error("LLM Function 호출 실패 - Function: {}, 실행시간: {}ms, 에러: {}",
+                    className, stopWatch.getTotalTimeMillis(), exception.getMessage());
             } else {
-                log.info("║ 성공적으로 완료");
-                // 결과가 너무 크지 않으면 로깅
+                String resultInfo = "";
                 if (result != null) {
                     String resultStr = result.toString();
-                    if (resultStr.length() <= 200) {
-                        log.info("║ 반환 값: {}", resultStr);
-                    } else {
-                        log.info("║ 반환 값: [{}자 - 크기 때문에 생략]", resultStr.length());
-                    }
+                    resultInfo = resultStr.length() <= 200 ? resultStr : "[" + resultStr.length() + "자 생략]";
                 }
+                log.info("LLM Function 호출 완료 - Function: {}, 실행시간: {}ms, 결과: {}",
+                    className, stopWatch.getTotalTimeMillis(), resultInfo);
             }
-            log.info("╚══════════════════════════════════════════════════════════════");
 
             // 간략 요약 로그 (분석용)
             if (exception == null) {

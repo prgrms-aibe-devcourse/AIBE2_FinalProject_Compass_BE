@@ -33,6 +33,8 @@ public class TravelContext implements Serializable {
     public static final String KEY_DEPARTURE = "departureLocation";
     public static final String KEY_START_DATE = "startDate";
     public static final String KEY_END_DATE = "endDate";
+    public static final String KEY_DEPARTURE_TIME = "departureTime";  // 출발 시간 추가
+    public static final String KEY_END_TIME = "endTime";              // 종료 시간 추가
     public static final String KEY_BUDGET = "budget";
     public static final String KEY_TRAVEL_STYLE = "travelStyle";
     public static final String KEY_COMPANIONS = "companions";
@@ -155,6 +157,12 @@ public class TravelContext implements Serializable {
                 updateCollectedInfo(KEY_END_DATE, request.travelDates().endDate());
             }
         }
+        if (request.departureTime() != null) {
+            updateCollectedInfo(KEY_DEPARTURE_TIME, request.departureTime());
+        }
+        if (request.endTime() != null) {
+            updateCollectedInfo(KEY_END_TIME, request.endTime());
+        }
         if (request.budget() != null) {
             updateCollectedInfo(KEY_BUDGET, request.budget());
         }
@@ -195,6 +203,8 @@ public class TravelContext implements Serializable {
     public TravelFormSubmitRequest toTravelFormSubmitRequest() {
         java.time.LocalDate startDate = (java.time.LocalDate) collectedInfo.get(KEY_START_DATE);
         java.time.LocalDate endDate = (java.time.LocalDate) collectedInfo.get(KEY_END_DATE);
+        java.time.LocalTime departureTime = (java.time.LocalTime) collectedInfo.get(KEY_DEPARTURE_TIME);
+        java.time.LocalTime endTime = (java.time.LocalTime) collectedInfo.get(KEY_END_TIME);
 
         TravelFormSubmitRequest.DateRange dateRange = null;
         if (startDate != null && endDate != null) {
@@ -206,6 +216,8 @@ public class TravelContext implements Serializable {
             (List<String>) collectedInfo.getOrDefault(KEY_DESTINATIONS, List.of()),
             (String) collectedInfo.get(KEY_DEPARTURE),
             dateRange,
+            departureTime,   // 출발 시간 추가
+            endTime,         // 종료 시간 추가
             (String) collectedInfo.get(KEY_COMPANIONS),
             collectedInfo.get(KEY_BUDGET) != null ?
                 Long.valueOf(String.valueOf(collectedInfo.get(KEY_BUDGET))) : null,
