@@ -7,6 +7,7 @@ import com.compass.domain.chat.model.enums.TravelPhase;
 import com.compass.domain.chat.model.request.ChatRequest;
 import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.service.ChatThreadService;
+import com.compass.domain.chat.service.TravelInfoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,9 @@ class MainLLMOrchestratorTest {
     @Mock
     private FormDataConverter formDataConverter;
 
+    @Mock
+    private TravelInfoService travelInfoService;
+
     @BeforeEach
     void setUp() {
         orchestrator = new MainLLMOrchestrator(
@@ -56,7 +60,8 @@ class MainLLMOrchestratorTest {
             responseGenerator,
             chatThreadService,
             promptBuilder,
-            formDataConverter
+            formDataConverter,
+            travelInfoService
         );
 
         // 기본 Mock 설정 - 모든 테스트에서 사용할 기본값
