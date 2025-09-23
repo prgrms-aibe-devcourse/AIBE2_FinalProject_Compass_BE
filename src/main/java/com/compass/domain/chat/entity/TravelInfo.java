@@ -11,7 +11,7 @@ import java.util.List;
 @Entity
 @Table(name = "collected_travel_info")
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class TravelInfo{

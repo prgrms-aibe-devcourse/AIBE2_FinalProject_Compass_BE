@@ -32,19 +32,21 @@ public class RecommendDestinationsFunction implements Function<TravelFormSubmitR
             // 1. 프롬프트 생성
             String prompt = createRecommendationPrompt(request.departureLocation(), request.travelStyle());
 
-            // 2. PerplexityClient를 통해 간단하게 API 호출
-            // PerplexityClient가 이미 응답의 content 부분만 깔끔하게 추출해서 반환.
-            String contentJson = perplexityClient.search(prompt);
+            // 2. PerplexityClient를 통해 API 호출
+            String rawContent = perplexityClient.search(prompt);
 
-            // 3. 클라이언트가 반환한 JSON 배열 문자열을 DTO 리스트로 파싱
-            recommendedDestinations = objectMapper.readValue(contentJson, new TypeReference<>() {});
+            // 3. LLM 응답에서 Markdown 코드 블록 등을 제거하여 순수한 JSON만 추출
+            String cleanedJson = cleanJsonString(rawContent);
+
+            // 4. 정리된 JSON 배열 문자열을 DTO 리스트로 파싱
+            recommendedDestinations = objectMapper.readValue(cleanedJson, new TypeReference<>() {});
 
         } catch (Exception e) {
             log.error("PerplexityClient 사용 중 오류 발생. 빈 추천 목록을 반환합니다. userId: {}", request.userId(), e);
             recommendedDestinations = Collections.emptyList();
         }
 
-        // 4. 최종 결과 DTO 생성
+        // 5. 최종 결과 DTO 생성
         return new DestinationRecommendationDto(
                 "이런 곳은 어떠세요? 🗺️",
                 "출발지와 선호하는 여행 스타일에 맞춰 추천해 드려요.",
@@ -56,8 +58,14 @@ public class RecommendDestinationsFunction implements Function<TravelFormSubmitR
     // Perplexity API에 맞는 프롬프트를 생성하는 헬퍼 메서드
     private String createRecommendationPrompt(String departure, List<String> styles) {
         String stylesText = String.join(", ", styles);
+        // [수정] LLM이 우리 DTO 필드명(cityName, country, description, imageUrl, tags)에 맞춰 응답하도록 프롬프트를 매우 구체적으로 변경합니다.
         return String.format(
-                "%s에서 출발하며, %s 스타일의 여행을 즐기는 사람에게 어울리는 국내 여행지 3곳을 추천해줘. 각 장소의 특징과 추천 이유를 간단히 설명하고, 대표 이미지 URL과 관련된 태그를 포함해줘. 반드시 JSON 배열 형식으로만 응답해줘. 다른 부가 설명은 절대 붙이지마.",
+                "당신은 여행지 추천 전문가입니다. 사용자의 출발지와 여행 스타일에 맞춰 대한민국 국내 여행지 3곳을 추천해주세요. " +
+                "당신의 답변은 반드시 순수한 JSON 배열 형식이어야 하며, 다른 어떤 텍스트나 마크다운도 포함해서는 안 됩니다. " +
+                "배열의 각 객체는 반드시 \"cityName\", \"country\", \"description\", \"imageUrl\", \"tags\" 라는 정확한 키를 가져야 합니다. " +
+                "\"country\" 키의 값은 항상 \"대한민국\"으로 해주세요. " +
+                "\"description\" 키에는 그 장소의 특징과 추천 이유를 합쳐서 자연스러운 문장으로 작성해주세요. " +
+                "사용자 출발지: %s. 사용자 여행 스타일: %s.",
                 departure, stylesText
         );
     }
@@ -66,4 +74,19 @@ public class RecommendDestinationsFunction implements Function<TravelFormSubmitR
     private List<String> createDistanceOptions() {
         return List.of("가까운 곳으로", "2~3시간 거리", "비행기 타고 멀리");
     }
+
+/**
+ * LLM 응답에서 Markdown 코드 블록(`
+ * @param response LLM의 원본 응답 문자열
+ * @return 정리된 JSON 배열 문자열
+ */
+private String cleanJsonString(String response) {
+    // 응답에서 첫 '['와 마지막 ']'를 찾아 그 사이의 문자열을 추출합니다. (JSON 배열을 가정)
+    int firstBracket = response.indexOf('[');
+    int lastBracket = response.lastIndexOf(']');
+    if (firstBracket != -1 && lastBracket != -1 && lastBracket > firstBracket) {
+        return response.substring(firstBracket, lastBracket + 1);
+    }
+    return response; // JSON 마커를 찾지 못하면 원본 반환
+}
 }

@@ -9,7 +9,7 @@ import org.springframework.util.CollectionUtils;
 public class DestinationValidationRule implements ValidationRule {
     @Override
     public void apply(TravelFormSubmitRequest info) {
-        if (CollectionUtils.isEmpty(info.destinations()) || info.destinations().stream().anyMatch("목적지 미정"::equalsIgnoreCase)) {
+        if (CollectionUtils.isEmpty(info.destinations())) {
             throw new IllegalArgumentException("여행 목적지를 입력해주세요.");
         }
     }
