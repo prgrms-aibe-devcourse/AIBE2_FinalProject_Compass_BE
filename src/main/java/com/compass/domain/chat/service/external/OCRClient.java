@@ -83,6 +83,10 @@ public class OCRClient {
     }
 
     public String extractText(byte[] data) {
+        return extractDetailed(data).text();
+    }
+
+    public OcrResult extractDetailed(byte[] data) {
         if (data == null || data.length == 0) {
             throw new IllegalArgumentException("이미지 데이터가 비어 있습니다.");
         }
@@ -92,6 +96,10 @@ public class OCRClient {
     }
 
     public String extractTextFromUrl(String imageUrl) {
+        return extractDetailedFromUrl(imageUrl).text();
+    }
+
+    public OcrResult extractDetailedFromUrl(String imageUrl) {
         if (imageUrl == null || imageUrl.isBlank()) {
             throw new IllegalArgumentException("이미지 URL이 필요합니다.");
         }
@@ -115,7 +123,7 @@ public class OCRClient {
         return DocumentType.UNKNOWN;
     }
 
-    private String annotate(Image image, String cacheKey) {
+    private OcrResult annotate(Image image, String cacheKey) {
         var cached = getCached(cacheKey);
         if (cached != null) {
             return cached;
@@ -126,10 +134,10 @@ public class OCRClient {
             try {
                 var request = buildRequest(image);
                 var response = client.batchAnnotateImages(List.of(request)).getResponses(0);
-                var text = parseResponse(response);
-                if (text.length() > MIN_ACCEPTABLE_LENGTH || attempt == MAX_ATTEMPTS) {
-                    cache(cacheKey, text);
-                    return text;
+                var result = parseResponse(response);
+                if (result.text().length() > MIN_ACCEPTABLE_LENGTH || attempt == MAX_ATTEMPTS) {
+                    cache(cacheKey, result);
+                    return result;
                 }
                 log.debug("OCR 텍스트 길이가 짧아 재시도합니다. attempt={}", attempt);
             } catch (Exception ex) {
@@ -141,7 +149,7 @@ public class OCRClient {
             sleep(backoff);
             backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
         }
-        return "";
+        return new OcrResult("", 0f);
     }
 
     private AnnotateImageRequest buildRequest(Image image) {
@@ -158,13 +166,25 @@ public class OCRClient {
                 .build();
     }
 
-    private String parseResponse(AnnotateImageResponse response) {
+    private OcrResult parseResponse(AnnotateImageResponse response) {
         if (response.hasError()) {
             log.warn("OCR 오류: {}", response.getError().getMessage());
-            return "";
+            return new OcrResult("", 0f);
         }
         var annotation = response.getFullTextAnnotation();
-        return annotation == null ? "" : annotation.getText().trim();
+        if (annotation == null) {
+            return new OcrResult("", 0f);
+        }
+        var text = annotation.getText() == null ? "" : annotation.getText().trim();
+        float confidenceSum = 0f;
+        int pages = annotation.getPagesCount();
+        if (pages > 0) {
+            for (var page : annotation.getPagesList()) {
+                confidenceSum += page.getConfidence();
+            }
+        }
+        float confidence = pages > 0 ? confidenceSum / pages : 0f;
+        return new OcrResult(text, confidence);
     }
 
     private void acquirePermit() {
@@ -194,7 +214,7 @@ public class OCRClient {
         }
     }
 
-    private String getCached(String cacheKey) {
+    private OcrResult getCached(String cacheKey) {
         if (cacheKey == null) {
             return null;
         }
@@ -206,14 +226,14 @@ public class OCRClient {
             cache.remove(cacheKey);
             return null;
         }
-        return entry.text();
+        return entry.result();
     }
 
-    private void cache(String cacheKey, String text) {
-        if (cacheKey == null || text == null) {
+    private void cache(String cacheKey, OcrResult result) {
+        if (cacheKey == null || result == null) {
             return;
         }
-        cache.put(cacheKey, new CacheEntry(text, System.currentTimeMillis() + CACHE_TTL_MILLIS));
+        cache.put(cacheKey, new CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MILLIS));
         evictionQueue.add(cacheKey);
         if (cache.size() > MAX_CACHE_ENTRIES) {
             var evictKey = evictionQueue.poll();
@@ -237,5 +257,7 @@ public class OCRClient {
         }
     }
 
-    private record CacheEntry(String text, long expiresAt) {}
+    private record CacheEntry(OcrResult result, long expiresAt) {}
+
+    public record OcrResult(String text, float confidence) {}
 }
