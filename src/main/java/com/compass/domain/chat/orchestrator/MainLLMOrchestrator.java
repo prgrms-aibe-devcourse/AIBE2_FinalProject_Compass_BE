@@ -39,8 +39,7 @@ public class MainLLMOrchestrator {
     private final StartFollowUpFunction startFollowUpFunction;
     private final RecommendDestinationsFunction recommendDestinationsFunction;
     private final ContinueFollowUpFunction continueFollowUpFunction;
-    // AnalyzeUserInputFunction은 현재 직접 사용되지 않으므로, 필요시 주입
-    // private final AnalyzeUserInputFunction analyzeUserInputFunction;
+
 
 
 
@@ -88,12 +87,17 @@ public class MainLLMOrchestrator {
             ChatResponse validationResponse = submitTravelFormFunction.apply(travelFormRequest);
             saveSystemMessage(request.getThreadId(), validationResponse.getContent());
 
-            //  폼에서 받은 정보를 DB에 즉시 저장/업데이트
-            // 이렇게 하면 대화가 중간에 끊겨도 정보가 보존되며, DB가 항상 최신 상태를 유지
-            travelInfoService.saveTravelInfo(request.getThreadId(), travelFormRequest);
-
             // SubmitTravelFormFunction의 판단(nextAction)에 따라 후속 Function을 호출
             String nextAction = validationResponse.getNextAction();
+
+            // 유효성 검사를 통과한 경우에만 DB에 저장합니다.
+            // 'START_FOLLOW_UP'은 유효성 검사 실패를 의미하므로, 이때는 저장하지 않습니다.
+            if (!"START_FOLLOW_UP".equals(nextAction)) {
+                log.info("유효성 검사 통과 또는 목적지 미정 확인. DB에 정보를 저장합니다.");
+                travelInfoService.saveTravelInfo(request.getThreadId(), travelFormRequest);
+            } else {
+                log.warn("유효성 검사 실패. DB에 정보를 저장하지 않습니다.");
+            }
 
             if ("RECOMMEND_DESTINATIONS".equals(nextAction)) {
                 log.info("✅ '목적지 미정' 시나리오 -> RecommendDestinationsFunction 호출");
@@ -111,7 +115,7 @@ public class MainLLMOrchestrator {
 
             } else if ("TRIGGER_PLAN_GENERATION".equals(nextAction)) {
                 log.info("✅ 정보 수집 완료 시나리오 -> PLAN_GENERATION으로 전환"); 
-                // DB 저장은 이미 위에서 완료되었으므로, 여기서는 Phase 전환만 담당합니다.
+                // DB 저장은 위에서 이미 완료되었으므로, 여기서는 Phase 전환만 담당
                 phaseManager.savePhase(request.getThreadId(), TravelPhase.PLAN_GENERATION);
                 context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
                 contextManager.updateContext(context, context.getUserId());

@@ -5,7 +5,6 @@ import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.model.enums.TravelPhase;
 import com.compass.domain.chat.model.response.FollowUpResponse;
 import com.compass.domain.chat.orchestrator.PhaseManager;
-import com.compass.domain.chat.service.TravelInfoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -17,7 +16,6 @@ import java.util.function.Function;
 public class ContinueFollowUpFunction implements Function<FollowUpResponse, ChatResponse> {
 
     private final TravelInfoCollectionService collectionService; // 정보 수집 파이프라인
-    private final TravelInfoService travelInfoService;           // 최종 정보 DB 저장
     private final PhaseManager phaseManager;                     // Phase 전환 관리
 
     @Override
@@ -46,8 +44,6 @@ public class ContinueFollowUpFunction implements Function<FollowUpResponse, Chat
                 .orElseGet(() -> {
                     log.info("모든 필수 정보 수집 완료. DB 저장 후 여행 계획 생성 단계로 전환합니다.");
 
-                    // 4. 정보 수집 완료 시 후처리 (DB 저장 및 Phase 전환)
-                    travelInfoService.saveTravelInfo(response.threadId(), result.collectedInfo());
                     phaseManager.savePhase(response.threadId(), TravelPhase.PLAN_GENERATION);
 
                     return ChatResponse.builder()
