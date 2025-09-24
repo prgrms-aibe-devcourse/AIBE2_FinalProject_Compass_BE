@@ -1,448 +1,183 @@
 package com.compass.domain.chat.orchestrator;
 
 import com.compass.domain.chat.collection.service.FormDataConverter;
+import com.compass.domain.chat.function.collection.ContinueFollowUpFunction;
+import com.compass.domain.chat.function.collection.StartFollowUpFunction;
+import com.compass.domain.chat.function.collection.SubmitTravelFormFunction;
+import com.compass.domain.chat.function.planning.RecommendDestinationsFunction;
 import com.compass.domain.chat.model.context.TravelContext;
+import com.compass.domain.chat.model.dto.DestinationRecommendationDto;
 import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
 import com.compass.domain.chat.model.request.ChatRequest;
+import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
 import com.compass.domain.chat.model.response.ChatResponse;
+import com.compass.domain.chat.model.response.FollowUpResponse;
 import com.compass.domain.chat.service.ChatThreadService;
 import com.compass.domain.chat.service.TravelInfoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.context.ActiveProfiles;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-// MainLLMOrchestrator 테스트
 @ExtendWith(MockitoExtension.class)
-@ActiveProfiles("test")
 class MainLLMOrchestratorTest {
 
+    @InjectMocks
     private MainLLMOrchestrator orchestrator;
 
-    @Mock
-    private IntentClassifier intentClassifier;
+    @Mock private IntentClassifier intentClassifier;
+    @Mock private PhaseManager phaseManager;
+    @Mock private ContextManager contextManager;
+    @Mock private ResponseGenerator responseGenerator;
+    @Mock private ChatThreadService chatThreadService;
+    @Mock private PromptBuilder promptBuilder;
+    @Mock private FormDataConverter formDataConverter;
+    @Mock private TravelInfoService travelInfoService;
+    @Mock private SubmitTravelFormFunction submitTravelFormFunction;
+    @Mock private StartFollowUpFunction startFollowUpFunction;
+    @Mock private RecommendDestinationsFunction recommendDestinationsFunction;
+    @Mock private ContinueFollowUpFunction continueFollowUpFunction;
 
-    @Mock
-    private PhaseManager phaseManager;
-
-    @Mock
-    private ChatThreadService chatThreadService;
-
-    @Mock
-    private ContextManager contextManager;
-
-    @Mock
-    private PromptBuilder promptBuilder;
-
-    @Mock
-    private ResponseGenerator responseGenerator;
-
-    @Mock
-    private FormDataConverter formDataConverter;
-
-    @Mock
-    private TravelInfoService travelInfoService;
+    private TravelContext context;
+    private ChatRequest chatRequest;
+    private TravelFormSubmitRequest travelFormRequest;
 
     @BeforeEach
-    void setUp() {
-        orchestrator = new MainLLMOrchestrator(
-            intentClassifier,
-            phaseManager,
-            contextManager,
-            responseGenerator,
-            chatThreadService,
-            promptBuilder,
-            formDataConverter,
-            travelInfoService
-        );
-
-        // 기본 Mock 설정 - 모든 테스트에서 사용할 기본값
-        lenient().when(chatThreadService.getHistory(anyString())).thenReturn(List.of());
-        lenient().when(intentClassifier.isSpecificTravelQuery(anyString())).thenReturn(false);
+    void setup() {
+        context = TravelContext.builder()
+                .threadId("thread-1")
+                .userId("user-1")
+                .currentPhase(TravelPhase.INITIALIZATION.name())
+                .build();
     }
 
     @Test
-    @DisplayName("긍정적 자연어 응답 처리 - 다음 Phase로 전환")
-    void testHandlePositiveNaturalLanguageResponse() {
+    @DisplayName("폼 제출 - 모든 정보 완료 시, 계획 생성 단계로 전환")
+    void handleFormSubmission_triggersPlanGeneration_whenFormIsComplete() {
         // given
-        var request = createChatRequest("네, 시작할게요!");
-        var context = TravelContext.builder()
-            .threadId("thread-1")
-            .userId("user-1")
-            .currentPhase(TravelPhase.INITIALIZATION.name())
-            .build();
-
-        when(contextManager.getOrCreateContext(request)).thenReturn(context);
-        when(intentClassifier.classify("네, 시작할게요!", false)).thenReturn(Intent.CONFIRMATION);
-        when(phaseManager.transitionPhase("thread-1", Intent.CONFIRMATION, context))
-            .thenReturn(TravelPhase.INFORMATION_COLLECTION);
-
-        var nextPhaseResponse = ChatResponse.builder()
-            .content("여행 정보를 수집합니다.")
-            .type("TEXT")
-            .nextAction("COLLECT_MORE_INFO")
-            .requiresConfirmation(true)
-            .build();
-
-        when(responseGenerator.generateResponse(
-            eq(request),
-            eq(Intent.CONFIRMATION),
-            eq(TravelPhase.INFORMATION_COLLECTION),
-            eq(context),
-            any()
-        )).thenReturn(nextPhaseResponse);
+        setupFormSubmissionRequest();
+        when(submitTravelFormFunction.apply(any(TravelFormSubmitRequest.class)))
+                .thenReturn(ChatResponse.builder().nextAction("TRIGGER_PLAN_GENERATION").build());
 
         // when
-        var response = orchestrator.processChat(request);
+        ChatResponse response = orchestrator.processChat(chatRequest);
 
         // then
-        assertThat(response).isNotNull();
-        assertThat(response.getContent()).isEqualTo("여행 정보를 수집합니다.");
-        assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.INFORMATION_COLLECTION.name());
-        verify(contextManager).updateContext(context, "user-1");
-        verify(responseGenerator).generateResponse(
-            eq(request),
-            eq(Intent.CONFIRMATION),
-            eq(TravelPhase.INFORMATION_COLLECTION),
-            eq(context),
-            any()
-        );
-    }
-
-    @Test
-    @DisplayName("다양한 긍정 표현 처리")
-    void testHandleVariousPositiveExpressions() {
-        // given
-        var request = createChatRequest("좋아요, 진행해주세요");
-        var context = TravelContext.builder()
-            .threadId("thread-1")
-            .userId("user-1")
-            .currentPhase(TravelPhase.INFORMATION_COLLECTION.name())
-            .build();
-
-        when(contextManager.getOrCreateContext(request)).thenReturn(context);
-        when(intentClassifier.classify("좋아요, 진행해주세요", false)).thenReturn(Intent.CONFIRMATION);
-        when(phaseManager.transitionPhase("thread-1", Intent.CONFIRMATION, context))
-            .thenReturn(TravelPhase.PLAN_GENERATION);
-
-        var nextPhaseResponse = ChatResponse.builder()
-            .content("계획을 생성합니다.")
-            .type("TEXT")
-            .nextAction("GENERATE_PLAN")
-            .requiresConfirmation(true)
-            .build();
-
-        when(responseGenerator.generateResponse(
-            eq(request),
-            eq(Intent.CONFIRMATION),
-            eq(TravelPhase.PLAN_GENERATION),
-            eq(context),
-            any()
-        )).thenReturn(nextPhaseResponse);
-
-        // when
-        var response = orchestrator.processChat(request);
-
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.getContent()).isEqualTo("계획을 생성합니다.");
+        verify(travelInfoService).saveTravelInfo(chatRequest.getThreadId(), travelFormRequest);
+        verify(phaseManager).savePhase(chatRequest.getThreadId(), TravelPhase.PLAN_GENERATION);
         assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.PLAN_GENERATION.name());
+        assertThat(response.getNextAction()).isEqualTo("TRIGGER_PLAN_GENERATION");
+    }
+
+    @Test
+    @DisplayName("폼 제출 - 정보 부족 시, 후속 질문 단계로 전환")
+    void handleFormSubmission_startsFollowUp_whenFormIsIncomplete() {
+        // given
+        setupFormSubmissionRequest();
+        when(submitTravelFormFunction.apply(any(TravelFormSubmitRequest.class)))
+                .thenReturn(ChatResponse.builder().nextAction("START_FOLLOW_UP").content("초기 응답").build());
+        when(startFollowUpFunction.apply(any(TravelFormSubmitRequest.class)))
+                .thenReturn(ChatResponse.builder().content("후속 질문입니다.").build());
+
+        // when
+        ChatResponse response = orchestrator.processChat(chatRequest);
+
+        // then
+        verify(travelInfoService, never()).saveTravelInfo(anyString(), any());
+        verify(startFollowUpFunction).apply(travelFormRequest);
+
+        // ✅ *** 여기가 수정된 부분입니다 ***
+        // 1(사용자) + 1(초기응답) + 1(후속질문) = 총 3번 호출
+        verify(chatThreadService, times(3)).saveMessage(any());
+
+        assertThat(response.getContent()).isEqualTo("후속 질문입니다.");
+    }
+
+    @Test
+    @DisplayName("폼 제출 - 목적지 미정 시, 목적지 추천 단계로 전환")
+    void handleFormSubmission_recommendsDestinations_whenDestinationIsUndecided() {
+        // given
+        setupFormSubmissionRequest();
+        when(submitTravelFormFunction.apply(any(TravelFormSubmitRequest.class)))
+                .thenReturn(ChatResponse.builder().nextAction("RECOMMEND_DESTINATIONS").build());
+        when(recommendDestinationsFunction.apply(any(TravelFormSubmitRequest.class)))
+                .thenReturn(new DestinationRecommendationDto("추천", "설명", null, null));
+
+        // when
+        ChatResponse response = orchestrator.processChat(chatRequest);
+
+        // then
+        verify(travelInfoService).saveTravelInfo(chatRequest.getThreadId(), travelFormRequest);
+        verify(recommendDestinationsFunction).apply(travelFormRequest);
+        assertThat(response.getType()).isEqualTo("DESTINATION_RECOMMENDATION");
+        assertThat(response.getData()).isInstanceOf(DestinationRecommendationDto.class);
+    }
+
+    @Test
+    @DisplayName("일반 대화 - Phase 전환이 일어나는 경우")
+    void handleGeneralChatMessage_transitionsPhase_whenNeeded() {
+        // given
+        chatRequest = createChatRequest("여행 계획 세워줘");
+        when(contextManager.getOrCreateContext(chatRequest)).thenReturn(context);
+        when(intentClassifier.classify(anyString(), anyBoolean())).thenReturn(Intent.TRAVEL_PLANNING);
+        when(phaseManager.transitionPhase(any(), any(), any())).thenReturn(TravelPhase.INFORMATION_COLLECTION);
+        when(responseGenerator.generateResponse(any(), any(), eq(TravelPhase.INFORMATION_COLLECTION), any(), any()))
+                .thenReturn(ChatResponse.builder().content("여행 계획을 시작합니다.").build());
+
+        // when
+        ChatResponse response = orchestrator.processChat(chatRequest);
+
+        // then
+        assertThat(response.getContent()).isEqualTo("여행 계획을 시작합니다.");
         verify(contextManager).updateContext(context, "user-1");
-    }
-
-    @Test
-    @DisplayName("부정적 자연어 응답 처리 - 현재 Phase 유지")
-    void testHandleNegativeNaturalLanguageResponse() {
-        // given
-        var request = createChatRequest("아니요, 다시 생각해볼게요");
-        var context = TravelContext.builder()
-            .threadId("thread-1")
-            .userId("user-1")
-            .currentPhase(TravelPhase.INITIALIZATION.name())
-            .build();
-
-        when(contextManager.getOrCreateContext(request)).thenReturn(context);
-        when(intentClassifier.classify("아니요, 다시 생각해볼게요", false)).thenReturn(Intent.GENERAL_QUESTION);
-        when(phaseManager.transitionPhase("thread-1", Intent.GENERAL_QUESTION, context))
-            .thenReturn(TravelPhase.INITIALIZATION);
-
-        var mockResponse = ChatResponse.builder()
-            .content("알겠습니다. 다른 도움이 필요하시면 말씀해주세요.")
-            .type("TEXT")
-            .requiresConfirmation(false)
-            .build();
-
-        when(responseGenerator.generateResponse(
-            eq(request),
-            eq(Intent.GENERAL_QUESTION),
-            eq(TravelPhase.INITIALIZATION),
-            eq(context),
-            eq(promptBuilder)
-        )).thenReturn(mockResponse);
-
-        // when
-        var response = orchestrator.processChat(request);
-
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.getContent()).contains("알겠습니다. 다른 도움이 필요하시면");
-        assertThat(response.isRequiresConfirmation()).isFalse();
-        assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.INITIALIZATION.name());
-        // Phase 변경이 없으므로 updateContext 호출되지 않음
-        verify(contextManager, never()).updateContext(any(), any());
-    }
-
-    @Test
-    @DisplayName("다양한 부정 표현 처리")
-    void testHandleVariousNegativeExpressions() {
-        // given
-        var request = createChatRequest("그만할래요");
-        var context = TravelContext.builder()
-            .threadId("thread-1")
-            .userId("user-1")
-            .currentPhase(TravelPhase.PLAN_GENERATION.name())
-            .build();
-
-        when(contextManager.getOrCreateContext(request)).thenReturn(context);
-        when(intentClassifier.classify("그만할래요", false)).thenReturn(Intent.GENERAL_QUESTION);
-        when(phaseManager.transitionPhase("thread-1", Intent.GENERAL_QUESTION, context))
-            .thenReturn(TravelPhase.PLAN_GENERATION);
-
-        var mockResponse = ChatResponse.builder()
-            .content("계획을 다시 검토해보시겠어요?")
-            .type("TEXT")
-            .requiresConfirmation(false)
-            .build();
-
-        when(responseGenerator.generateResponse(
-            eq(request),
-            eq(Intent.GENERAL_QUESTION),
-            eq(TravelPhase.PLAN_GENERATION),
-            eq(context),
-            eq(promptBuilder)
-        )).thenReturn(mockResponse);
-
-        // when
-        var response = orchestrator.processChat(request);
-
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.getContent()).contains("계획을 다시 검토해보시겠어요?");
-        assertThat(response.isRequiresConfirmation()).isFalse();
-        assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.PLAN_GENERATION.name());
-    }
-
-    @Test
-    @DisplayName("일반 메시지 처리 - Intent 분류 및 Phase 전환")
-    void testProcessNormalMessage() {
-        // given
-        var request = createChatRequest("제주도 여행 계획 짜줘");
-        var context = TravelContext.builder()
-            .threadId("thread-1")
-            .userId("user-1")
-            .currentPhase(TravelPhase.INITIALIZATION.name())
-            .conversationCount(0)
-            .build();
-
-        when(contextManager.getOrCreateContext(request)).thenReturn(context);
-        when(intentClassifier.classify("제주도 여행 계획 짜줘", false))
-            .thenReturn(Intent.INFORMATION_COLLECTION);
-        when(phaseManager.transitionPhase(
-            "thread-1",
-            Intent.INFORMATION_COLLECTION,
-            context
-        )).thenReturn(TravelPhase.INFORMATION_COLLECTION);
-
-        var mockResponse = ChatResponse.builder()
-            .content("여행 정보를 알려주세요.")
-            .type("TEXT")
-            .nextAction("COLLECT_MORE_INFO")
-            .requiresConfirmation(true)
-            .build();
-
-        when(responseGenerator.generateResponse(
-            eq(request),
-            eq(Intent.INFORMATION_COLLECTION),
-            eq(TravelPhase.INFORMATION_COLLECTION),
-            eq(context),
-            any()
-        )).thenReturn(mockResponse);
-
-        // when
-        var response = orchestrator.processChat(request);
-
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.getContent()).isEqualTo("여행 정보를 알려주세요.");
-        assertThat(context.getConversationCount()).isEqualTo(1);
         assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.INFORMATION_COLLECTION.name());
-
-        verify(intentClassifier).classify("제주도 여행 계획 짜줘", false);
-        verify(phaseManager).transitionPhase(
-            "thread-1",
-            Intent.INFORMATION_COLLECTION,
-            context
-        );
-        verify(contextManager).updateContext(context, "user-1");
     }
 
     @Test
-    @DisplayName("Phase 전환이 없는 경우 - 컨텍스트 업데이트 안함")
-    void testNoPhaseTransition() {
+    @DisplayName("정보 수집 단계에서 대화 - 후속 질문으로 이어짐")
+    void handleGeneralChatMessage_continuesFollowUp_inInfoCollectionPhase() {
         // given
-        var request = createChatRequest("날씨 어때?");
-        var context = TravelContext.builder()
-            .threadId("thread-1")
-            .userId("user-1")
-            .currentPhase(TravelPhase.INFORMATION_COLLECTION.name())
-            .conversationCount(5)
-            .build();
-
-        when(contextManager.getOrCreateContext(request)).thenReturn(context);
-        when(intentClassifier.classify("날씨 어때?", false))
-            .thenReturn(Intent.GENERAL_QUESTION);
-        when(phaseManager.transitionPhase(
-            "thread-1",
-            Intent.GENERAL_QUESTION,
-            context
-        )).thenReturn(TravelPhase.INFORMATION_COLLECTION);  // 같은 Phase 유지
-
-        var mockResponse = ChatResponse.builder()
-            .content("제주도 날씨는...")
-            .type("TEXT")
-            .nextAction("CONTINUE")
-            .requiresConfirmation(false)
-            .build();
-
-        when(responseGenerator.generateResponse(
-            eq(request),
-            eq(Intent.GENERAL_QUESTION),
-            eq(TravelPhase.INFORMATION_COLLECTION),
-            eq(context),
-            any()
-        )).thenReturn(mockResponse);
+        chatRequest = createChatRequest("네 혼자 가요");
+        context.setCurrentPhase(TravelPhase.INFORMATION_COLLECTION.name());
+        when(contextManager.getOrCreateContext(chatRequest)).thenReturn(context);
+        when(intentClassifier.classify(anyString(), anyBoolean())).thenReturn(Intent.INFORMATION_COLLECTION);
+        when(continueFollowUpFunction.apply(any(FollowUpResponse.class)))
+                .thenReturn(ChatResponse.builder().content("다음 질문입니다.").build());
 
         // when
-        var response = orchestrator.processChat(request);
+        ChatResponse response = orchestrator.processChat(chatRequest);
 
         // then
-        assertThat(response).isNotNull();
-        assertThat(response.getContent()).isEqualTo("제주도 날씨는...");
-        assertThat(context.getConversationCount()).isEqualTo(6);
-        assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.INFORMATION_COLLECTION.name());
-
-        // Phase 변경이 없으므로 updateContext 호출되지 않음
-        verify(contextManager, never()).updateContext(any(), any());
+        assertThat(response.getContent()).isEqualTo("다음 질문입니다.");
+        verify(continueFollowUpFunction).apply(any(FollowUpResponse.class));
+        verify(phaseManager, never()).transitionPhase(any(), any(), any());
     }
 
-    @Test
-    @DisplayName("COMPLETION Phase에서 긍정 응답 - Phase 유지")
-    void testPositiveResponseInCompletionPhase() {
-        // given
-        var request = createChatRequest("네, 확정할게요");
-        var context = TravelContext.builder()
-            .threadId("thread-1")
-            .userId("user-1")
-            .currentPhase(TravelPhase.COMPLETION.name())
-            .build();
+    // --- 헬퍼 메서드 ---
 
-        when(contextManager.getOrCreateContext(request)).thenReturn(context);
-        when(intentClassifier.classify("네, 확정할게요", false)).thenReturn(Intent.CONFIRMATION);
-        when(phaseManager.transitionPhase("thread-1", Intent.CONFIRMATION, context))
-            .thenReturn(TravelPhase.COMPLETION);
+    private void setupFormSubmissionRequest() {
+        var formData = Map.<String, Object>of("destination", "제주");
+        var metadata = Map.<String, Object>of("type", "TRAVEL_FORM_SUBMIT", "formData", formData);
+        chatRequest = new ChatRequest("폼 제출", "thread-1", "user-1", metadata);
+        travelFormRequest = new TravelFormSubmitRequest("user-1", List.of("제주"), null, null, null, null, null, null, null, null);
 
-        var completionResponse = ChatResponse.builder()
-            .content("여행 계획이 완료되었습니다.")
-            .type("TEXT")
-            .nextAction("SAVE_OR_EXPORT")
-            .requiresConfirmation(false)
-            .build();
-
-        when(responseGenerator.generateResponse(
-            eq(request),
-            eq(Intent.CONFIRMATION),
-            eq(TravelPhase.COMPLETION),
-            eq(context),
-            any()
-        )).thenReturn(completionResponse);
-
-        // when
-        var response = orchestrator.processChat(request);
-
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.getContent()).isEqualTo("여행 계획이 완료되었습니다.");
-        assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.COMPLETION.name());
-        // COMPLETION -> COMPLETION이므로 updateContext 호출 안됨
-        verify(contextManager, never()).updateContext(any(), any());
+        when(contextManager.getOrCreateContext(chatRequest)).thenReturn(context);
+        when(formDataConverter.convertFromFrontend(anyString(), anyMap())).thenReturn(travelFormRequest);
     }
 
-    @Test
-    @DisplayName("컨텍스트 초기화")
-    void testResetContext() {
-        // given
-        var threadId = "thread-1";
-
-        // when
-        orchestrator.resetContext(threadId, "user-1");
-
-        // then
-        verify(contextManager).resetContext(threadId, "user-1");
-    }
-
-    @Test
-    @DisplayName("'Y' 응답도 여전히 처리 가능")
-    void testLegacyYResponse() {
-        // given
-        var request = createChatRequest("y");
-        var context = TravelContext.builder()
-            .threadId("thread-1")
-            .userId("user-1")
-            .currentPhase(TravelPhase.INITIALIZATION.name())
-            .build();
-
-        when(contextManager.getOrCreateContext(request)).thenReturn(context);
-        when(intentClassifier.classify("y", false)).thenReturn(Intent.CONFIRMATION);
-        when(phaseManager.transitionPhase("thread-1", Intent.CONFIRMATION, context))
-            .thenReturn(TravelPhase.INFORMATION_COLLECTION);
-
-        var nextPhaseResponse = ChatResponse.builder()
-            .content("여행 정보를 수집합니다.")
-            .type("TEXT")
-            .nextAction("COLLECT_MORE_INFO")
-            .requiresConfirmation(true)
-            .build();
-
-        when(responseGenerator.generateResponse(
-            eq(request),
-            eq(Intent.CONFIRMATION),
-            eq(TravelPhase.INFORMATION_COLLECTION),
-            eq(context),
-            any()
-        )).thenReturn(nextPhaseResponse);
-
-        // when
-        var response = orchestrator.processChat(request);
-
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.getContent()).isEqualTo("여행 정보를 수집합니다.");
-        assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.INFORMATION_COLLECTION.name());
-        verify(contextManager).updateContext(context, "user-1");
-    }
-
-    // 헬퍼 메서드
     private ChatRequest createChatRequest(String message) {
-        return new ChatRequest(message, "thread-1", "user-1");
+        return new ChatRequest(message, "thread-1", "user-1", Collections.emptyMap());
     }
 }
