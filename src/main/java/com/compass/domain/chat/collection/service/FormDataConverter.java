@@ -37,6 +37,7 @@ public class FormDataConverter {
      *   "specialRequests": "특별 요청사항"
      * }
      */
+    @SuppressWarnings("unchecked")
     public TravelFormSubmitRequest convertFromFrontend(String userId, Map<String, Object> formData) {
         try {
             List<String> destinations = null;
@@ -49,10 +50,7 @@ public class FormDataConverter {
                 }
             }
 
-            // [수정] 날짜와 시간을 분리하여 파싱
             TravelFormSubmitRequest.DateRange dateRange = null;
-            LocalTime departureTime = null;
-            LocalTime endTime = null;
             if (formData.containsKey("travelDates")) {
                 var dates = (Map<String, Object>) formData.get("travelDates");
                 if (dates != null && dates.containsKey("startDate") && dates.containsKey("endDate")) {
@@ -60,16 +58,28 @@ public class FormDataConverter {
                         var startDate = LocalDate.parse(dates.get("startDate").toString());
                         var endDate = LocalDate.parse(dates.get("endDate").toString());
                         dateRange = new TravelFormSubmitRequest.DateRange(startDate, endDate);
-
-                        if (dates.containsKey("startTime")) {
-                            departureTime = LocalTime.parse(dates.get("startTime").toString());
-                        }
-                        if (dates.containsKey("endTime")) {
-                            endTime = LocalTime.parse(dates.get("endTime").toString());
-                        }
                     } catch (Exception e) {
-                        log.error("날짜/시간 파싱 실패: {}", e.getMessage());
+                        log.error("날짜 파싱 실패: {}", e.getMessage());
                     }
+                }
+            }
+
+            // [수정] travelDates 객체 바깥에서 departureTime과 endTime을 직접 읽어옵니다.
+            LocalTime departureTime = null;
+            if (formData.containsKey("departureTime") && formData.get("departureTime") != null) {
+                try {
+                    departureTime = LocalTime.parse(formData.get("departureTime").toString());
+                } catch (Exception e) {
+                    log.error("출발 시간 파싱 실패: {}", e.getMessage());
+                }
+            }
+
+            LocalTime endTime = null;
+            if (formData.containsKey("endTime") && formData.get("endTime") != null) {
+                try {
+                    endTime = LocalTime.parse(formData.get("endTime").toString());
+                } catch (Exception e) {
+                    log.error("종료 시간 파싱 실패: {}", e.getMessage());
                 }
             }
 
@@ -89,14 +99,13 @@ public class FormDataConverter {
                 }
             }
 
-            String companions = formData.containsKey("companionType") ?
-                    formData.get("companionType").toString() : null;
+            String companions = formData.containsKey("companions") ?
+                    formData.get("companions").toString() : null;
             String departureLocation = formData.containsKey("departureLocation") ?
                     formData.get("departureLocation").toString() : null;
             String reservationDocument = formData.containsKey("reservationDocument") ?
                     (String) formData.get("reservationDocument") : null;
 
-            // [수정] 새로운 생성자 호출
             return new TravelFormSubmitRequest(
                     userId,
                     destinations,
@@ -116,29 +125,14 @@ public class FormDataConverter {
         }
     }
 
-
-    /**
-     * 예산 문자열을 숫자로 변환
-     */
     private Long parseBudgetString(String budgetStr) {
-        if (budgetStr == null || budgetStr.isEmpty()) {
+        if (budgetStr == null || budgetStr.isEmpty() || "무관".equals(budgetStr)) {
             return null;
         }
-
-        // "50만원 이하", "50-100만원" 등의 문자열 처리
-        if (budgetStr.contains("50만원 이하")) {
-            return 500000L;
-        } else if (budgetStr.contains("50-100만원")) {
-            return 750000L;
-        } else if (budgetStr.contains("100-200만원")) {
-            return 1500000L;
-        } else if (budgetStr.contains("200만원 이상")) {
-            return 3000000L;
-        } else if (budgetStr.contains("무관")) {
-            return null; // 예산 무관
-        }
-
-        // 숫자만 있는 경우 시도
+        if (budgetStr.contains("50만원 이하")) return 500000L;
+        if (budgetStr.contains("50-100만원")) return 750000L;
+        if (budgetStr.contains("100-200만원")) return 1500000L;
+        if (budgetStr.contains("200만원 이상")) return 3000000L;
         try {
             return Long.parseLong(budgetStr.replaceAll("[^0-9]", ""));
         } catch (NumberFormatException e) {
