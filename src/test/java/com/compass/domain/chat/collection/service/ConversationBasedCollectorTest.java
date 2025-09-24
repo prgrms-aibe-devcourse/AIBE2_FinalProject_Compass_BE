@@ -1,4 +1,4 @@
-package com.compass.domain.chat.collection.service; // 이 패키지 경로가 올바른지 다시 한번 확인해주세요.
+package com.compass.domain.chat.collection.service;
 
 import com.compass.domain.chat.collection.service.validator.TravelInfoValidator;
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
@@ -35,18 +35,18 @@ class ConversationBasedCollectorTest {
     @Test
     @DisplayName("collect - TravelInfoParser의 parse 메서드를 정확히 호출하여 책임을 위임한다")
     void collect_shouldDelegateToParser() {
-        // given: 사용자 입력과 현재 정보
+        // given
         String userInput = "제주도로 갈래요";
-        var currentInfo = new TravelFormSubmitRequest("user-123", null, null, null, null, null, null, null);
-        var expectedParsedInfo = new TravelFormSubmitRequest("user-123", List.of("제주도"), null, null, null, null, null, null);
+        // ✅ 수정: 생성자에 null 2개 추가
+        var currentInfo = new TravelFormSubmitRequest("user-123", null, null, null, null, null, null, null, null, null);
+        var expectedParsedInfo = new TravelFormSubmitRequest("user-123", List.of("제주도"), null, null, null, null, null, null, null, null);
 
-        // Mocking: parser.parse()가 호출되면, 예상되는 파싱 결과를 반환하도록 설정
         when(parser.parse(userInput, currentInfo)).thenReturn(expectedParsedInfo);
 
-        // when: collect 메서드 호출
+        // when
         TravelFormSubmitRequest result = conversationBasedCollector.collect(userInput, currentInfo);
 
-        // then: parser.parse()가 호출되었고, 그 결과가 그대로 반환되었는지 검증
+        // then
         verify(parser).parse(userInput, currentInfo);
         assertThat(result).isSameAs(expectedParsedInfo);
     }
@@ -54,13 +54,14 @@ class ConversationBasedCollectorTest {
     @Test
     @DisplayName("validate - TravelInfoValidator의 validate 메서드를 정확히 호출하여 책임을 위임한다")
     void validate_shouldDelegateToValidator() {
-        // given: 검증할 여행 정보 객체
-        var info = new TravelFormSubmitRequest("user-123", List.of("부산"), null, null, null, null, null, null);
+        // given
+        // ✅ 수정: 생성자에 null 2개 추가
+        var info = new TravelFormSubmitRequest("user-123", List.of("부산"), null, null, null, null, null, null, null, null);
 
-        // when: validate 메서드 호출
+        // when
         conversationBasedCollector.validate(info);
 
-        // then: validator.validate()가 정확히 1번, 올바른 인자와 함께 호출되었는지 검증
+        // then
         verify(validator).validate(info);
     }
 }

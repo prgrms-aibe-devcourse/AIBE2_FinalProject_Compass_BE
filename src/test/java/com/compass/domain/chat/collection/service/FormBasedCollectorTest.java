@@ -22,7 +22,6 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class FormBasedCollectorTest {
 
-    // 실제 ObjectMapper를 사용하여 JSON 파싱 로직을 직접 테스트.
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     @Mock
@@ -32,14 +31,13 @@ class FormBasedCollectorTest {
 
     @BeforeEach
     void setUp() {
-        // 테스트 대상 객체를 수동으로 생성하여 의존성을 명확히 하기.
         formBasedCollector = new FormBasedCollector(objectMapper, validator);
     }
 
     @Test
     @DisplayName("collect - 유효한 JSON 문자열이 주어지면, TravelFormSubmitRequest 객체로 성공적으로 파싱한다")
     void collect_shouldParseValidJson_whenGivenValidInput() throws JsonProcessingException {
-        // given: 유효한 JSON 형태의 사용자 입력
+        // given
         String validJsonInput = """
                 {
                   "userId": "user-123",
@@ -48,10 +46,10 @@ class FormBasedCollectorTest {
                 }
                 """;
 
-        // when: collect 메서드 호출
+        // when
         TravelFormSubmitRequest result = formBasedCollector.collect(validJsonInput, null);
 
-        // then: 결과 검증
+        // then
         assertThat(result).isNotNull();
         assertThat(result.userId()).isEqualTo("user-123");
         assertThat(result.destinations()).containsExactly("제주도");
@@ -61,15 +59,10 @@ class FormBasedCollectorTest {
     @Test
     @DisplayName("collect - 유효하지 않은 JSON 문자열이 주어지면, 예외를 던진다")
     void collect_shouldThrowException_whenGivenInvalidJson() {
-        // given: 유효하지 않은 JSON 형태의 사용자 입력
-        String invalidJsonInput = """
-                {
-                  "userId": "user-123",
-                  "destinations": ["제주도"],
-                  "travelDates": { "startDate": "2024-10-26", "endDate": "2024-10-30" }
-                """; // 닫는 중괄호가 없음
+        // given
+        String invalidJsonInput = "{ \"userId\": \"user-123\","; // Invalid JSON
 
-        // when & then: collect 메서드 호출 시 JsonProcessingException 또는 그 상위 예외가 발생하는지 검증
+        // when & then
         assertThatThrownBy(() -> formBasedCollector.collect(invalidJsonInput, null))
                 .isInstanceOf(JsonProcessingException.class);
     }
@@ -77,13 +70,14 @@ class FormBasedCollectorTest {
     @Test
     @DisplayName("validate - TravelInfoValidator의 validate 메서드를 정확히 호출하여 책임을 위임한다")
     void validate_shouldDelegateToValidator() {
-        // given: 검증할 여행 정보 객체
-        var info = new TravelFormSubmitRequest("user-123", List.of("부산"), null, null, null, null, null, null);
+        // given
+        // ✅ 수정: 생성자에 null 2개 추가
+        var info = new TravelFormSubmitRequest("user-123", List.of("부산"), null, null, null, null, null, null, null, null);
 
-        // when: validate 메서드 호출
+        // when
         formBasedCollector.validate(info);
 
-        // then: validator.validate()가 정확히 1번, 올바른 인자와 함께 호출되었는지 검증
+        // then
         verify(validator).validate(info);
     }
 }
