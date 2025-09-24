@@ -20,11 +20,13 @@ public class DefaultTravelInfoValidator implements TravelInfoValidator {
     public void validate(TravelFormSubmitRequest info) {
         errors.clear();
 
-        // 주입된 모든 규칙들을 순회하며, 적용 대상인 경우에만 검증을 실행합니다.
+        // 주입된 모든 규칙들을 순회하며 검증
         for (var rule : rules) {
-            if (rule.appliesTo(info)) {
-                // validate 메서드가 반환한 오류 메시지(Optional)가 존재할 경우에만 리스트에 추가합니다.
-                rule.validate(info).ifPresent(errors::add);
+            try {
+                rule.apply(info);
+            } catch (IllegalArgumentException e) {
+                // 규칙 위반 시, 오류 메시지를 리스트에 추가
+                errors.add(e.getMessage());
             }
         }
     }
