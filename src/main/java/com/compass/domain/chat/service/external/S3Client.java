@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
@@ -42,33 +44,61 @@ public class S3Client {
     private static final Duration PRESIGNED_URL_DURATION = Duration.ofDays(7);
     private static final DateTimeFormatter DATE_PATH_FORMAT = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
+    private String resolveProperty(String... keys) {
+        for (String key : keys) {
+            if (key == null) {
+                continue;
+            }
+            String value = environment.getProperty(key);
+            if (value == null || value.isBlank()) {
+                value = System.getProperty(key);
+            }
+            if (value == null || value.isBlank()) {
+                value = System.getenv(key);
+            }
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
     @PostConstruct
     void init() {
-        // Spring 설정에서 AWS S3 정보 가져오기
-        bucket = environment.getProperty("aws.s3.bucket-name");
+        bucket = resolveProperty("aws.s3.bucket-name", "AWS_S3_BUCKET_NAME", "S3_BUCKET", "AWS_BUCKET");
         if (bucket == null || bucket.isBlank()) {
-            // 대체 환경변수로 시도
-            bucket = environment.getProperty("AWS_S3_BUCKET_NAME");
+            throw new IllegalStateException("S3 버킷 설정이 없습니다. aws.s3.bucket-name 또는 AWS_S3_BUCKET_NAME을 설정해주세요.");
         }
-        
-        if (bucket == null || bucket.isBlank()) {
-            throw new IllegalStateException("S3 버킷이 설정되지 않았습니다. aws.s3.bucket-name 또는 AWS_S3_BUCKET_NAME을 설정해주세요.");
+
+        var regionId = resolveProperty("aws.s3.region", "AWS_S3_REGION", "AWS_REGION", "AMAZON_REGION");
+        if (regionId == null || regionId.isBlank()) {
+            regionId = "ap-northeast-2";
         }
-        
-        var regionId = environment.getProperty("aws.s3.region", 
-                      environment.getProperty("AWS_S3_REGION", "ap-northeast-2"));
         region = Region.of(regionId);
-        
-        log.info("S3 클라이언트 초기화: bucket={}, region={}", bucket, regionId);
-        
-        // 기본 자격 증명 체인으로 클라이언트 초기화
+
+        var accessKeyId = resolveProperty("AWS_ACCESS_KEY_ID", "aws.accessKeyId");
+        var secretAccessKey = resolveProperty("AWS_SECRET_ACCESS_KEY", "aws.secretAccessKey");
+
+        if (accessKeyId == null || secretAccessKey == null) {
+            throw new IllegalStateException("AWS 자격 증명이 설정되지 않았습니다. AWS_ACCESS_KEY_ID와 AWS_SECRET_ACCESS_KEY를 설정해주세요.");
+        }
+
+        var credentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
+        var credentialsProvider = StaticCredentialsProvider.create(credentials);
+
+        var maskedKeyId = accessKeyId.length() <= 4 ? "****" : accessKeyId.substring(0, Math.min(8, accessKeyId.length())) + "****";
+        log.info("S3 클라이언트 초기화: bucket={}, region={}, accessKeyId={}",
+                bucket, regionId, maskedKeyId);
+
         delegate = software.amazon.awssdk.services.s3.S3Client.builder()
                 .region(region)
+                .credentialsProvider(credentialsProvider)
                 .build();
         presigner = S3Presigner.builder()
                 .region(region)
+                .credentialsProvider(credentialsProvider)
                 .build();
-        cdnDomain = environment.getProperty("AWS_CLOUDFRONT_DOMAIN");
+        cdnDomain = resolveProperty("AWS_CLOUDFRONT_DOMAIN", "aws.cloudfront.domain");
     }
 
     public S3UploadResult upload(byte[] data, String directory, String originalFileName, String contentType) {

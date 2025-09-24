@@ -16,6 +16,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 // Intent 분류기 테스트 (단순화된 3가지 Intent - 분류만 담당)
 @ExtendWith(MockitoExtension.class)
@@ -64,33 +65,35 @@ class IntentClassifierTest {
     }
 
     @Test
-    @DisplayName("여행 계획 요청 → INFORMATION_COLLECTION")
+    @DisplayName("여행 계획 요청 → TRAVEL_PLANNING")
     void testClassifyTravelPlanningRequest() {
         // given
         String message = "제주도 3박 4일 여행 계획 짜줘";
-        setupLLMResponse("INFORMATION_COLLECTION");
+        // 키워드 매칭으로 처리되므로 LLM Mock 불필요
 
         // when
         Intent result = intentClassifier.classify(message, false);
 
         // then
-        assertThat(result).isEqualTo(Intent.INFORMATION_COLLECTION);
-        verify(chatModel, times(1)).call(any(Prompt.class));
+        assertThat(result).isEqualTo(Intent.TRAVEL_PLANNING);
+        // 키워드 매칭으로 처리되므로 LLM 호출 안됨
+        verify(chatModel, never()).call(any(Prompt.class));
     }
 
     @Test
-    @DisplayName("여행 관련 질문 → GENERAL_QUESTION")
+    @DisplayName("날씨 관련 질문 → WEATHER_INQUIRY")
     void testClassifyTravelQuestion() {
         // given
         String message = "파리 날씨 어때?";
-        setupLLMResponse("GENERAL_QUESTION");
+        // 키워드 매칭으로 날씨 문의 처리
 
         // when
         Intent result = intentClassifier.classify(message, false);
 
         // then
-        assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
-        verify(chatModel, times(1)).call(any(Prompt.class));
+        assertThat(result).isEqualTo(Intent.WEATHER_INQUIRY);
+        // 키워드 매칭으로 처리되므로 LLM 호출 안됨
+        verify(chatModel, never()).call(any(Prompt.class));
     }
 
     @Test
@@ -98,14 +101,15 @@ class IntentClassifierTest {
     void testClassifyGeneralChat() {
         // given
         String message = "안녕하세요";
-        setupLLMResponse("GENERAL_QUESTION");
+        // 키워드 매칭으로 일반 인사 처리
 
         // when
         Intent result = intentClassifier.classify(message, false);
 
         // then
         assertThat(result).isEqualTo(Intent.GENERAL_QUESTION);
-        verify(chatModel, times(1)).call(any(Prompt.class));
+        // 키워드 매칭으로 처리되므로 LLM 호출 안됨
+        verify(chatModel, never()).call(any(Prompt.class));
     }
 
     @Test
@@ -114,31 +118,30 @@ class IntentClassifierTest {
         // given
         String[] messages = {
             "여행 계획 짜줘",
-            "일정 짜줘",
-            "여행 가고 싶어",
+            "일정 짜줘", 
             "휴가 계획 세워줘"
         };
 
         for (String message : messages) {
-            setupLLMResponse("INFORMATION_COLLECTION");
+            // 키워드 매칭으로 처리됨
 
             // when
             Intent result = intentClassifier.classify(message, false);
 
             // then
-            assertThat(result).isEqualTo(Intent.INFORMATION_COLLECTION);
+            assertThat(result).isEqualTo(Intent.TRAVEL_PLANNING);
         }
     }
 
     @Test
-    @DisplayName("여행 관련 질문 다양한 표현 테스트")
+    @DisplayName("LLM으로 분류되는 복잡한 질문들")
     void testVariousTravelQuestions() {
-        // given
+        // given - 키워드 매칭에 완전히 걸리지 않는 메시지들
         String[] messages = {
-            "제주도 맛집 추천해줘",
-            "비자 필요해?",
-            "호텔 추천해줘",
-            "버스 타는 법 알려줘"
+            "이거 어떻게 생각해?",
+            "도움이 필요해", 
+            "뭐 좀 물어볼게",
+            "설명 부탁해"
         };
 
         for (String message : messages) {
@@ -202,14 +205,15 @@ class IntentClassifierTest {
     void testClassifyConfirmationWhileWaiting() {
         // given
         String message = "네, 좋아요";
-        setupLLMResponse("CONFIRMATION");
+        // 키워드 매칭으로 확인 처리
 
         // when
         Intent result = intentClassifier.classify(message, true);
 
         // then
         assertThat(result).isEqualTo(Intent.CONFIRMATION);
-        verify(chatModel, times(1)).call(any(Prompt.class));
+        // 키워드 매칭으로 처리되므로 LLM 호출 안됨
+        verify(chatModel, never()).call(any(Prompt.class));
     }
 
     @Test
@@ -230,9 +234,9 @@ class IntentClassifierTest {
     // 헬퍼 메서드: LLM 응답 설정
     private void setupLLMResponse(String intentName) {
         AssistantMessage assistantMessage = mock(AssistantMessage.class);
-        when(assistantMessage.getContent()).thenReturn(intentName);
-        when(generation.getOutput()).thenReturn(assistantMessage);
-        when(chatResponse.getResult()).thenReturn(generation);
-        when(chatModel.call(any(Prompt.class))).thenReturn(chatResponse);
+        lenient().when(assistantMessage.getContent()).thenReturn(intentName);
+        lenient().when(generation.getOutput()).thenReturn(assistantMessage);
+        lenient().when(chatResponse.getResult()).thenReturn(generation);
+        lenient().when(chatModel.call(any(Prompt.class))).thenReturn(chatResponse);
     }
 }

@@ -49,8 +49,8 @@ class TravelInfoCollectionServiceTest {
         String userInput = "{\"destinations\":[\"부산\"]}";
         String collectorType = "formBasedCollector";
 
-        var initialInfo = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null);
-        var updatedInfo = new TravelFormSubmitRequest(null, java.util.List.of("부산"), null, null, null, null, null, null);
+        var initialInfo = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
+        var updatedInfo = new TravelFormSubmitRequest(null, java.util.List.of("부산"), null, null, null, null, null, null, null, null);
 
         when(storage.load(threadId)).thenReturn(initialInfo);
         when(formBasedCollector.collect(userInput, initialInfo)).thenReturn(updatedInfo);

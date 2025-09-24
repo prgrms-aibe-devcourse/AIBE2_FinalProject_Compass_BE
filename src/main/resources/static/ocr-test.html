@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OCR 검사 도구</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: 'Pretendard', 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f3f4f6;
+            color: #1f2933;
+        }
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+        h1 {
+            margin-bottom: 0.5rem;
+            font-size: 1.8rem;
+        }
+        p.subtitle {
+            margin-top: 0;
+            margin-bottom: 2rem;
+            color: #52606d;
+        }
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+        @media (min-width: 960px) {
+            .grid {
+                grid-template-columns: 1.1fr 0.9fr;
+                align-items: start;
+            }
+        }
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 12px 20px -24px rgba(15, 23, 42, 0.4);
+            padding: 1.75rem;
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        h2 span {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #69707d;
+        }
+        .field {
+            margin-bottom: 1rem;
+        }
+        .field label {
+            display: block;
+            margin-bottom: 0.35rem;
+            font-weight: 600;
+        }
+        input[type="file"],
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            box-sizing: border-box;
+            font: inherit;
+            padding: 0.7rem 0.9rem;
+            border: 1px solid #d5dae1;
+            border-radius: 10px;
+            background: #f7f9fc;
+        }
+        small {
+            display: block;
+            margin-top: 0.35rem;
+            color: #7b8794;
+            font-size: 0.8rem;
+        }
+        textarea {
+            min-height: 160px;
+            resize: vertical;
+        }
+        .actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 0.7rem 1.4rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff;
+            box-shadow: 0 10px 20px -15px rgba(37, 99, 235, 0.8);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        button.secondary {
+            background: #ffffff;
+            color: #1f2933;
+            border: 1px solid #d5dae1;
+            box-shadow: none;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 30px -25px rgba(37, 99, 235, 0.8);
+        }
+        .result-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        .stat {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e5e9f2;
+        }
+        .stat label {
+            display: block;
+            font-size: 0.8rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+        .stat strong {
+            font-size: 1.2rem;
+            color: #111827;
+        }
+        .monospace {
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            white-space: pre-wrap;
+            background: #0f172a;
+            color: #e5e7eb;
+            border-radius: 12px;
+            padding: 1rem;
+            border: none;
+            min-height: 220px;
+            overflow-x: auto;
+        }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(59, 130, 246, 0.15);
+            color: #1d4ed8;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .divider {
+            height: 1px;
+            background: #e5e9f2;
+            margin: 1.5rem 0;
+        }
+        footer {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <h1>OCR 검사 도구</h1>
+    <p class="subtitle">이미지 또는 PDF를 업로드하거나 Base64 데이터를 붙여넣어 Vision OCR 결과를 확인하세요. 결과 텍스트, 문서 타입, 신뢰도(%), S3 링크까지 한 번에 확인할 수 있습니다.</p>
+
+    <div class="grid">
+        <section class="card" aria-labelledby="upload-heading">
+            <h2 id="upload-heading">파일 업로드 <span>이미지 · PDF 지원</span></h2>
+            <form id="upload-form">
+                <div class="field">
+                    <label for="file">파일 선택</label>
+                    <input id="file" name="file" type="file" accept="image/*,application/pdf" required />
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" id="upload-to-s3" name="upload" />
+                        결과 파일을 S3에도 업로드
+                    </label>
+                    <input type="text" id="directory" name="directory" placeholder="저장 디렉터리 (선택)" />
+                </div>
+                <div class="field">
+                    <label for="ocr-mode">OCR 모드</label>
+                    <select id="ocr-mode" name="ocrMode">
+                        <option value="bytes" selected>바이너리(로컬) OCR</option>
+                        <option value="url">S3 URL 기반 OCR</option>
+                    </select>
+                    <small>URL 모드는 업로드 후 발급되는 프리사인드 URL을 Vision API에 전달합니다.</small>
+                </div>
+                <div class="actions">
+                    <button type="submit">OCR 실행</button>
+                    <button type="button" class="secondary" id="reset-upload">초기화</button>
+                    <span id="upload-status" class="tag hidden">처리 중...</span>
+                </div>
+            </form>
+            <div class="divider"></div>
+            <h2>Base64 데이터 테스트</h2>
+            <div class="field">
+                <label for="base64-input">Data URI 또는 순수 Base64</label>
+                <textarea id="base64-input" placeholder="data:image/png;base64,iVBORw0... 또는 AAAA... 형태로 붙여 넣어 주세요."></textarea>
+            </div>
+            <div class="field">
+                <label for="base64-ocr-mode">OCR 모드</label>
+                <select id="base64-ocr-mode">
+                    <option value="bytes" selected>바이너리(로컬) OCR</option>
+                    <option value="url">S3 URL 기반 OCR (업로드 후 사용)</option>
+                </select>
+            </div>
+            <div class="actions">
+                <button type="button" id="run-base64">OCR 실행</button>
+                <button type="button" class="secondary" id="reset-base64">지우기</button>
+                <span id="base64-status" class="tag hidden">처리 중...</span>
+            </div>
+        </section>
+
+        <section class="card" aria-labelledby="result-heading">
+            <h2 id="result-heading">결과 미리보기 <span>응답 JSON & 분석</span></h2>
+            <div class="result-grid">
+                <div class="stat">
+                    <label>문서 유형 추정</label>
+                    <strong id="doc-type">-</strong>
+                </div>
+                <div class="stat">
+                    <label>추출 신뢰도</label>
+                    <strong id="confidence">-</strong>
+                </div>
+                <div class="stat">
+                    <label>텍스트 길이</label>
+                    <strong id="text-length">-</strong>
+                </div>
+                <div class="stat hidden" id="s3-links">
+                    <label>S3 업로드</label>
+                    <div id="s3-info">-</div>
+                </div>
+            </div>
+            <div class="divider"></div>
+            <label for="json-output">응답 JSON</label>
+            <pre id="json-output" class="monospace">{
+  "status": "결과를 기다리는 중"
+}</pre>
+        </section>
+    </div>
+
+    <footer>
+        OCR Test Console · Vision OCR + S3 업로드 실시간 점검 도구
+    </footer>
+</main>
+
+<script>
+    const uploadForm = document.getElementById('upload-form');
+    const uploadStatus = document.getElementById('upload-status');
+    const base64Btn = document.getElementById('run-base64');
+    const base64Status = document.getElementById('base64-status');
+    const base64Input = document.getElementById('base64-input');
+    const uploadMode = document.getElementById('ocr-mode');
+    const base64Mode = document.getElementById('base64-ocr-mode');
+    const resetUploadBtn = document.getElementById('reset-upload');
+    const resetBase64Btn = document.getElementById('reset-base64');
+
+    const jsonOutput = document.getElementById('json-output');
+    const docType = document.getElementById('doc-type');
+    const confidence = document.getElementById('confidence');
+    const textLength = document.getElementById('text-length');
+    const s3Links = document.getElementById('s3-links');
+    const s3Info = document.getElementById('s3-info');
+
+    const formatPercent = (value, fallbackPercent) => {
+        if (fallbackPercent) {
+            return `${fallbackPercent}%`;
+        }
+        if (value === undefined || value === null || Number.isNaN(value)) {
+            return '-';
+        }
+        return `${(value * 100).toFixed(2)}%`;
+    };
+
+    const updateResult = (data) => {
+        jsonOutput.textContent = JSON.stringify(data, null, 2);
+        docType.textContent = data.documentType || '-';
+        confidence.textContent = formatPercent(data.confidence, data.confidencePercent);
+        textLength.textContent = data.textLength ?? '-';
+
+        if (data.imageUrl || data.objectKey || data.presignedUrl) {
+            s3Links.classList.remove('hidden');
+            const parts = [];
+            if (data.imageUrl) {
+                parts.push(`<a href="${data.imageUrl}" target="_blank" rel="noopener">공개 URL 열기</a>`);
+            }
+            if (data.presignedUrl) {
+                parts.push(`<a href="${data.presignedUrl}" target="_blank" rel="noopener">프리사인드 URL</a>`);
+            }
+            if (data.objectKey) {
+                parts.push(`<code>${data.objectKey}</code>`);
+            }
+            s3Info.innerHTML = parts.join('<br/>');
+        } else {
+            s3Links.classList.add('hidden');
+            s3Info.textContent = '-';
+        }
+    };
+
+    const setBusy = (statusEl, busy) => {
+        if (busy) {
+            statusEl.classList.remove('hidden');
+            statusEl.textContent = '처리 중...';
+        } else {
+            statusEl.classList.add('hidden');
+        }
+    };
+
+    uploadForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new FormData(uploadForm);
+        setBusy(uploadStatus, true);
+        try {
+            const response = await fetch('/api/test/ocr/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const json = await response.json();
+            updateResult(json);
+        } catch (error) {
+            updateResult({ error: error.message || '요청 실패' });
+        } finally {
+            setBusy(uploadStatus, false);
+        }
+    });
+
+    base64Btn.addEventListener('click', async () => {
+        const payload = base64Input.value.trim();
+        if (!payload) {
+            alert('Base64 데이터를 입력해 주세요.');
+            return;
+        }
+        setBusy(base64Status, true);
+        try {
+            const response = await fetch('/api/test/ocr/text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageData: payload, ocrMode: base64Mode.value })
+            });
+            const json = await response.json();
+            updateResult(json);
+        } catch (error) {
+            updateResult({ error: error.message || '요청 실패' });
+        } finally {
+            setBusy(base64Status, false);
+        }
+    });
+
+    resetUploadBtn.addEventListener('click', () => {
+        uploadForm.reset();
+        uploadMode.value = 'bytes';
+    });
+
+    resetBase64Btn.addEventListener('click', () => {
+        base64Input.value = '';
+        base64Mode.value = 'bytes';
+    });
+</script>
+</body>
+</html>

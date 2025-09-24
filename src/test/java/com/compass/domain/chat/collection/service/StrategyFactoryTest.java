@@ -31,7 +31,7 @@ class StrategyFactoryTest {
     @DisplayName("getStrategy - 필수 정보가 누락되면 MissingFieldStrategy를 반환한다")
     void getStrategy_shouldReturnMissingFieldStrategy_whenFieldsAreMissing() {
         // given
-        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null);
+        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
         when(missingFieldStrategy.findNextQuestion(info)).thenReturn(Optional.of("목적지 질문"));
 
         // when
@@ -45,7 +45,7 @@ class StrategyFactoryTest {
     @DisplayName("getStrategy - 필수 정보는 있지만 정보가 모호하면 ClarificationStrategy를 반환한다")
     void getStrategy_shouldReturnClarificationStrategy_whenInfoIsAmbiguous() {
         // given
-        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null);
+        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
         when(missingFieldStrategy.findNextQuestion(info)).thenReturn(Optional.empty());
         when(clarificationStrategy.findNextQuestion(info)).thenReturn(Optional.of("목적지 구체화 질문"));
 
@@ -60,7 +60,7 @@ class StrategyFactoryTest {
     @DisplayName("getStrategy - 적용할 전략이 없으면 비어있는 Optional을 반환한다")
     void getStrategy_shouldReturnEmpty_whenNoStrategyIsApplicable() {
         // given
-        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null);
+        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
         when(missingFieldStrategy.findNextQuestion(info)).thenReturn(Optional.empty());
         when(clarificationStrategy.findNextQuestion(info)).thenReturn(Optional.empty());
 

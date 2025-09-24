@@ -7,5 +7,5 @@ import lombok.Data;
  */
 @Data
 public class ItineraryDTO {
-    // TODO: Add fields for itinerary
+    // 일정 DTO (향후 필드 추가 예정)
 }
