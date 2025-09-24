@@ -37,9 +37,9 @@ public class FormDataConverter {
      *   "specialRequests": "특별 요청사항"
      * }
      */
-    @SuppressWarnings("unchecked")
     public TravelFormSubmitRequest convertFromFrontend(String userId, Map<String, Object> formData) {
         try {
+            // destinations 처리 - 배열이지만 단일 값으로 들어올 수 있음
             List<String> destinations = null;
             if (formData.containsKey("destinations")) {
                 var destValue = formData.get("destinations");
@@ -50,6 +50,7 @@ public class FormDataConverter {
                 }
             }
 
+            // travelDates 처리
             TravelFormSubmitRequest.DateRange dateRange = null;
             if (formData.containsKey("travelDates")) {
                 var dates = (Map<String, Object>) formData.get("travelDates");
@@ -64,31 +65,14 @@ public class FormDataConverter {
                 }
             }
 
-            // [수정] travelDates 객체 바깥에서 departureTime과 endTime을 직접 읽어옵니다.
-            LocalTime departureTime = null;
-            if (formData.containsKey("departureTime") && formData.get("departureTime") != null) {
-                try {
-                    departureTime = LocalTime.parse(formData.get("departureTime").toString());
-                } catch (Exception e) {
-                    log.error("출발 시간 파싱 실패: {}", e.getMessage());
-                }
-            }
-
-            LocalTime endTime = null;
-            if (formData.containsKey("endTime") && formData.get("endTime") != null) {
-                try {
-                    endTime = LocalTime.parse(formData.get("endTime").toString());
-                } catch (Exception e) {
-                    log.error("종료 시간 파싱 실패: {}", e.getMessage());
-                }
-            }
-
+            // budget 처리 - 문자열을 숫자로 변환
             Long budget = null;
             if (formData.containsKey("budget") && formData.get("budget") != null) {
                 String budgetStr = formData.get("budget").toString();
                 budget = parseBudgetString(budgetStr);
             }
 
+            // travelStyle 처리 - 단일 값을 리스트로 변환
             List<String> travelStyle = null;
             if (formData.containsKey("travelStyle") && formData.get("travelStyle") != null) {
                 var styleValue = formData.get("travelStyle");
@@ -99,24 +83,48 @@ public class FormDataConverter {
                 }
             }
 
-            String companions = formData.containsKey("companions") ?
-                    formData.get("companions").toString() : null;
+            // companions 처리 - companionType 필드에서 가져옴
+            String companions = formData.containsKey("companionType") ?
+                formData.get("companionType").toString() : null;
+
+            // departureLocation 처리
             String departureLocation = formData.containsKey("departureLocation") ?
-                    formData.get("departureLocation").toString() : null;
-            String reservationDocument = formData.containsKey("reservationDocument") ?
-                    (String) formData.get("reservationDocument") : null;
+                formData.get("departureLocation").toString() : null;
+
+            // specialRequests를 reservationDocument로 매핑
+            String reservationDocument = formData.containsKey("specialRequests") ?
+                formData.get("specialRequests").toString() : null;
+
+            // 출발 시간과 종료 시간 처리
+            LocalTime departureTime = null;
+            if (formData.containsKey("departureTime")) {
+                try {
+                    departureTime = LocalTime.parse(formData.get("departureTime").toString());
+                } catch (Exception e) {
+                    log.warn("출발 시간 파싱 실패: {}", formData.get("departureTime"));
+                }
+            }
+
+            LocalTime endTime = null;
+            if (formData.containsKey("endTime")) {
+                try {
+                    endTime = LocalTime.parse(formData.get("endTime").toString());
+                } catch (Exception e) {
+                    log.warn("종료 시간 파싱 실패: {}", formData.get("endTime"));
+                }
+            }
 
             return new TravelFormSubmitRequest(
-                    userId,
-                    destinations,
-                    departureLocation,
-                    dateRange,
-                    departureTime,
-                    endTime,
-                    companions,
-                    budget,
-                    travelStyle,
-                    reservationDocument
+                userId,
+                destinations,
+                departureLocation,
+                dateRange,
+                departureTime,    // 출발 시간 추가
+                endTime,          // 종료 시간 추가
+                companions,
+                budget,
+                travelStyle,
+                reservationDocument
             );
 
         } catch (Exception e) {
@@ -125,14 +133,28 @@ public class FormDataConverter {
         }
     }
 
+    /**
+     * 예산 문자열을 숫자로 변환
+     */
     private Long parseBudgetString(String budgetStr) {
-        if (budgetStr == null || budgetStr.isEmpty() || "무관".equals(budgetStr)) {
+        if (budgetStr == null || budgetStr.isEmpty()) {
             return null;
         }
-        if (budgetStr.contains("50만원 이하")) return 500000L;
-        if (budgetStr.contains("50-100만원")) return 750000L;
-        if (budgetStr.contains("100-200만원")) return 1500000L;
-        if (budgetStr.contains("200만원 이상")) return 3000000L;
+
+        // "50만원 이하", "50-100만원" 등의 문자열 처리
+        if (budgetStr.contains("50만원 이하")) {
+            return 500000L;
+        } else if (budgetStr.contains("50-100만원")) {
+            return 750000L;
+        } else if (budgetStr.contains("100-200만원")) {
+            return 1500000L;
+        } else if (budgetStr.contains("200만원 이상")) {
+            return 3000000L;
+        } else if (budgetStr.contains("무관")) {
+            return null; // 예산 무관
+        }
+
+        // 숫자만 있는 경우 시도
         try {
             return Long.parseLong(budgetStr.replaceAll("[^0-9]", ""));
         } catch (NumberFormatException e) {
