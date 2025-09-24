@@ -24,6 +24,9 @@ public class TravelInfoService {
                 .departureLocation(info.departureLocation())
                 .startDate(info.travelDates() != null ? info.travelDates().startDate() : null)
                 .endDate(info.travelDates() != null ? info.travelDates().endDate() : null)
+                // [수정] 시간 필드 추가
+                .departureTime(info.departureTime())
+                .endTime(info.endTime())
                 .companions(info.companions())
                 .budget(info.budget())
                 .travelStyle(info.travelStyle())
@@ -37,7 +40,8 @@ public class TravelInfoService {
     public TravelFormSubmitRequest loadTravelInfo(String threadId) {
         return travelInfoRepository.findByThreadId(threadId)
                 .map(this::convertToDto)
-                .orElse(new TravelFormSubmitRequest(null, null, null, null, null, null, null, null)); // 정보가 없으면 빈 DTO 반환
+                // [수정] 새로운 생성자에 맞게 null 인자 추가
+                .orElse(new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null)); // 정보가 없으면 빈 DTO 반환
     }
 
     private TravelFormSubmitRequest convertToDto(TravelInfo entity) {
@@ -45,12 +49,14 @@ public class TravelInfoService {
                 ? new TravelFormSubmitRequest.DateRange(entity.getStartDate(), entity.getEndDate())
                 : null;
 
-        // .builder() 대신 record의 생성자를 직접 사용합니다.
+        // [수정] 새로운 생성자에 맞게 시간 필드 추가
         return new TravelFormSubmitRequest(
                 entity.getUserId(),
                 entity.getDestinations(),
                 entity.getDepartureLocation(),
                 dateRange,
+                entity.getDepartureTime(),
+                entity.getEndTime(),
                 entity.getCompanions(),
                 entity.getBudget(),
                 entity.getTravelStyle(),

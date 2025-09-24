@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
+import java.time.LocalTime; // LocalTime import 추가
 import java.util.List;
 
 @Entity
@@ -24,6 +25,8 @@ public class TravelInfo{
     private String departureLocation;
     private LocalDate startDate;
     private LocalDate endDate;
+    private LocalTime departureTime; // 출발 시간 필드 추가
+    private LocalTime endTime;       // 종료 시간 필드 추가
     private String companions;
     private Long budget;
     private List<String> travelStyle;
