@@ -2,8 +2,8 @@ package com.compass.domain.chat.collection.service;
 
 import com.compass.domain.chat.collection.service.calculator.CompletionCalculator;
 import com.compass.domain.chat.collection.service.notifier.ProgressNotifier;
-import com.compass.domain.chat.collection.service.storage.TravelInfoStorage;
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
+import com.compass.domain.chat.service.TravelInfoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,15 +16,15 @@ import java.util.Optional;
 public class TravelInfoCollectionService {
 
     private final Map<String, TravelInfoCollector> collectors; // "formBasedCollector", "conversationBasedCollector"
-    private final TravelInfoStorage storage;
+    private final TravelInfoService travelInfoService; // DB 서비스를 직접 사용
     private final FollowUpOrchestrator followUpOrchestrator;
     private final CompletionCalculator calculator;
     private final ProgressNotifier notifier;
 
     // 정보 수집 전체 프로세스를 담당하는 메인 메서드
     public CollectionResult collectInfo(String threadId, String userInput, String collectorType) {
-        // 1. 이전 정보 로드
-        TravelFormSubmitRequest currentInfo = storage.load(threadId);
+        // 1. DB에서 이전 정보 로드
+        TravelFormSubmitRequest currentInfo = travelInfoService.loadTravelInfo(threadId);
 
         // 2. 적절한 Collector(폼/대화)로 정보 수집(업데이트)
         TravelInfoCollector collector = collectors.get(collectorType);
@@ -36,8 +36,8 @@ public class TravelInfoCollectionService {
         // 3. 수집된 정보 검증
         collector.validate(updatedInfo);
 
-        // 4. 업데이트된 정보 저장
-        storage.save(threadId, updatedInfo);
+        // 4. 업데이트된 정보를 DB에 저장
+        travelInfoService.saveTravelInfo(threadId, updatedInfo);
 
         // 5. 진행률 계산 및 알림
         int progress = calculator.calculate(updatedInfo);

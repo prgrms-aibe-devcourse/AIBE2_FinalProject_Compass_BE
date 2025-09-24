@@ -73,6 +73,11 @@ public class IntentClassifier {
             }
         }
 
+        // 폼 제출 메시지 명시적 처리
+        if ("form_submit".equalsIgnoreCase(lowerMessage)) {
+            return Intent.INFORMATION_COLLECTION;
+        }
+
         // 명확한 여행 계획 요청 키워드 (더 포괄적으로 수정)
         if (lowerMessage.matches(".*(여행\\s*계획|일정\\s*짜|여행\\s*일정|계획\\s*세워|계획\\s*만들|여행\\s*짜|코스\\s*짜).*") ||
             lowerMessage.matches(".*(여행계획|일정계획|여행일정).*만들어.*") ||
