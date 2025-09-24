@@ -35,6 +35,7 @@ public class FormDataConverter {
      *   "travelers": 2,
      *   "companionType": "커플",
      *   "specialRequests": "특별 요청사항"
+     *   t
      * }
      */
     @SuppressWarnings("unchecked")
