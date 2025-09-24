@@ -24,20 +24,19 @@ public class NaturalLanguageParser implements TravelInfoParser {
 
     // LLM 역할 정의 프롬프트 (한글 버전)
     private static final String PROMPT_TEMPLATE = """
-            You are a factual information extractor. Your task is to update a JSON object based on new user input.
-            - ONLY extract explicit facts from the user input.
-            - DO NOT infer, guess, or interpret ambiguous information. (e.g., If the user says "next week", do not calculate the date. If they say "a cheap trip", do not estimate a budget.)
-            - The "destinations" key MUST always be an array of strings, for example: ["Seoul"] or ["Seoul", "Busan"]. Even for a single destination, it must be in an array.
-            - Your output MUST be a pure JSON object without any explanations or markdown.
+            당신은 여행 정보 추출 전문가입니다. 사용자가 제공한 새로운 정보를 바탕으로 기존 JSON 객체를 업데이트하는 것이 당신의 임무입니다.
+            현재 날짜는 {currentDate}입니다. "다음 주 금요일"이나 "이번 주말" 같은 상대적인 날짜를 해석할 때 이 정보를 사용하세요.
 
-            Current Date: {currentDate}
-            Existing JSON:
+            현재까지 수집된 여행 정보는 다음과 같습니다:
+            ---
             {currentInfo}
+            ---
+            사용자가 방금 다음과 같은 새로운 정보를 입력했습니다: "{userInput}"
 
-            User Input:
-            "{userInput}"
-
-            Updated JSON:
+            사용자의 입력을 분석하여 현재 여행 정보를 업데이트하세요.
+            - 사용자의 입력에 명확하게 언급된 필드만 업데이트하세요.
+            - 언급되지 않은 정보는 임의로 만들지 마세요.
+            - 최종 결과는 반드시 JSON 객체 형식으로만 반환해야 하며, 다른 부가 설명은 절대 추가하지 마세요.
             """;
 
     @Override
@@ -46,7 +45,7 @@ public class NaturalLanguageParser implements TravelInfoParser {
             var currentInfoJson = objectMapper.writeValueAsString(currentInfo);
             var chatClient = chatClientBuilder.build();
 
-            var llmResponseString = chatClient.prompt()
+            var llmResponse = chatClient.prompt()
                     .user(p -> p.text(PROMPT_TEMPLATE)
                             .param("currentDate", LocalDate.now().toString())
                             .param("currentInfo", currentInfoJson)
@@ -54,23 +53,12 @@ public class NaturalLanguageParser implements TravelInfoParser {
                     .call()
                     .content();
 
-            String cleanedJson = cleanJsonString(llmResponseString);
-
-            return objectMapper.readValue(cleanedJson, TravelFormSubmitRequest.class);
+            return objectMapper.readValue(llmResponse, TravelFormSubmitRequest.class);
 
         } catch (Exception e) {
             // LLM 파싱 실패 시, 대화 흐름이 끊기지 않도록 원본 정보 반환
-            log.error("LLM 파싱 오류: {}", e.getMessage(), e);
+            log.error("LLM 파싱 오류: {}", e.getMessage());
             return currentInfo;
         }
-    }
-
-    private String cleanJsonString(String response) {
-        int firstBrace = response.indexOf('{');
-        int lastBrace = response.lastIndexOf('}');
-        if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
-            return response.substring(firstBrace, lastBrace + 1);
-        }
-        return response;
     }
 }

@@ -1,24 +1,18 @@
 package com.compass.domain.chat.orchestrator;
 
-import com.compass.domain.chat.function.collection.ContinueFollowUpFunction;
-import com.compass.domain.chat.function.collection.StartFollowUpFunction;
-import com.compass.domain.chat.function.collection.SubmitTravelFormFunction;
-import com.compass.domain.chat.function.planning.RecommendDestinationsFunction;
 import com.compass.domain.chat.model.context.TravelContext;
-import com.compass.domain.chat.model.dto.DestinationRecommendationDto;
 import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
 import com.compass.domain.chat.model.request.ChatRequest;
-import com.compass.domain.chat.model.response.FollowUpResponse;
 import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.service.ChatThreadService;
 import com.compass.domain.chat.service.TravelInfoService;
-import com.compass.domain.chat.collection.service.FormDataConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
+// 메인 오케스트레이터 서비스
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -30,204 +24,266 @@ public class MainLLMOrchestrator {
     private final ResponseGenerator responseGenerator;
     private final ChatThreadService chatThreadService;
     private final PromptBuilder promptBuilder;
-    private final FormDataConverter formDataConverter;
+    private final com.compass.domain.chat.collection.service.FormDataConverter formDataConverter;
     private final TravelInfoService travelInfoService;
 
-    private final SubmitTravelFormFunction submitTravelFormFunction;
-    private final StartFollowUpFunction startFollowUpFunction;
-    private final RecommendDestinationsFunction recommendDestinationsFunction;
-    private final ContinueFollowUpFunction continueFollowUpFunction;
 
-    /**
-     * 모든 채팅 요청의 메인 진입점.
-     * 요청에 폼 데이터가 포함되어 있는지 여부에 따라 처리를 분기합니다.
-     */
+    // 채팅 요청 처리
     public ChatResponse processChat(ChatRequest request) {
-        // MDC를 사용하여 로그에 컨텍스트 정보(threadId, userId)를 추가합니다.
+        // MDC에 컨텍스트 정보 설정
         MDC.put("threadId", request.getThreadId());
         MDC.put("userId", request.getUserId());
 
         try {
-            log.info("╔══════════════════════════════════════════════════════════════");
-            log.info("║ 채팅 요청 처리 시작: Message = '{}'", request.getMessage());
-            log.info("╚══════════════════════════════════════════════════════════════");
+            log.info("채팅 요청 처리 시작 - Message: {}", request.getMessage());
 
-            // 모든 요청이 시작될 때 스레드 존재를 보장하고 사용자 메시지를 기록합니다.
-            ensureChatThreadExists(request);
-            saveUserMessage(request);
-
-            // 1. 폼 데이터가 포함된 특별 요청인지 확인합니다.
-            if (isFormSubmission(request)) {
-                return handleFormSubmission(request);
-            }
-
-            // 2. 폼 데이터가 없는 일반 대화 요청을 처리합니다.
-            return handleGeneralChatMessage(request);
-
-        } finally {
-            // 요청 처리가 끝나면 MDC에서 정보를 제거합니다.
-            MDC.clear();
-        }
-    }
-
-    /**
-     * 요청이 폼 제출인지 확인하는 헬퍼 메소드입니다.
-     */
-    private boolean isFormSubmission(ChatRequest request) {
-        if (request.getMetadata() instanceof java.util.Map) {
+        // 0. 빠른입력폼 데이터 처리 체크
+        if (request.getMetadata() != null && request.getMetadata() instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
             var metadata = (java.util.Map<String, Object>) request.getMetadata();
-            return "TRAVEL_FORM_SUBMIT".equals(metadata.get("type"));
-        }
-        return false;
-    }
+            var type = metadata.get("type");
 
-    /**
-     * 빠른 입력 폼 제출 요청을 전문적으로 처리하는 메서드입니다.
-     */
-    private ChatResponse handleFormSubmission(ChatRequest request) {
-        log.info("🎯 빠른입력폼 제출 감지 -> 처리를 시작합니다.");
-        try {
-            var context = contextManager.getOrCreateContext(request);
-            var metadata = (java.util.Map<String, Object>) request.getMetadata();
-            var formDataMap = (java.util.Map<String, Object>) metadata.get("formData");
-            var travelFormRequest = formDataConverter.convertFromFrontend(request.getUserId(), formDataMap);
+            if ("TRAVEL_FORM_SUBMIT".equals(type) && metadata.get("formData") != null) {
+                log.info("빠른입력폼 제출 감지");
+                log.debug("FormData: {}", metadata.get("formData"));
 
-            context.updateFromFormSubmit(travelFormRequest);
-            contextManager.updateContext(context, context.getUserId());
+                try {
+                    // 컨텍스트 조회 또는 생성
+                    var context = contextManager.getOrCreateContext(request);
 
-            ChatResponse validationResponse = submitTravelFormFunction.apply(travelFormRequest);
-            saveSystemMessage(request.getThreadId(), validationResponse.getContent());
+                    // 폼 데이터를 Map으로 가져오기
+                    @SuppressWarnings("unchecked")
+                    var formDataMap = (java.util.Map<String, Object>) metadata.get("formData");
 
-            String nextAction = validationResponse.getNextAction();
+                    // FormDataConverter를 사용하여 폼 데이터 변환
+                    var travelFormRequest = formDataConverter.convertFromFrontend(
+                        request.getUserId(), formDataMap);
 
-            if (!"START_FOLLOW_UP".equals(nextAction)) {
-                log.info("유효성 검사 통과 또는 목적지 미정 확인. DB에 정보를 저장합니다.");
-                travelInfoService.saveTravelInfo(request.getThreadId(), travelFormRequest);
-            } else {
-                log.warn("유효성 검사 실패. DB에 정보를 저장하지 않습니다.");
-            }
+                    // updateFromFormSubmit 메서드를 사용하여 한 번에 모든 정보 업데이트
+                    context.updateFromFormSubmit(travelFormRequest);
 
-            return switch (nextAction) {
-                case "RECOMMEND_DESTINATIONS" -> {
-                    log.info("✅ '목적지 미정' 시나리오 -> RecommendDestinationsFunction 호출");
-                    DestinationRecommendationDto recommendations = recommendDestinationsFunction.apply(travelFormRequest);
-                    validationResponse.setData(recommendations);
-                    validationResponse.setType("DESTINATION_RECOMMENDATION");
-                    yield validationResponse;
-                }
-                case "START_FOLLOW_UP" -> {
-                    log.info("✅ 정보 부족 시나리오 -> StartFollowUpFunction 호출");
-                    ChatResponse followUpQuestionResponse = startFollowUpFunction.apply(travelFormRequest);
-                    saveSystemMessage(request.getThreadId(), followUpQuestionResponse.getContent());
-                    yield followUpQuestionResponse;
-                }
-                case "TRIGGER_PLAN_GENERATION" -> {
-                    log.info("✅ 정보 수집 완료 시나리오 -> PLAN_GENERATION으로 전환");
-                    phaseManager.savePhase(request.getThreadId(), TravelPhase.PLAN_GENERATION);
+                    // DB에 여행 정보 저장
+                    try {
+                        travelInfoService.saveTravelInfo(request.getThreadId(), travelFormRequest);
+                        log.info("TravelInfo DB 저장 성공");
+                    } catch (Exception dbError) {
+                        // DB 저장 실패해도 프로세스는 계속 진행 (메모리에는 저장됨)
+                        log.error("TravelInfo DB 저장 실패 (프로세스는 계속): {}", dbError.getMessage());
+                    }
+
+                    context.setWaitingForTravelConfirmation(false);
+
+                    // Phase를 PLAN_GENERATION으로 전환
                     context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
                     contextManager.updateContext(context, context.getUserId());
-                    yield validationResponse;
+                    phaseManager.savePhase(request.getThreadId(), TravelPhase.PLAN_GENERATION);
+
+                    // 메시지 저장
+                    ensureChatThreadExists(request);
+                    saveUserMessage(request);
+
+                    // 수집된 정보 요약 - TravelFormSubmitRequest에서 가져오기
+                    StringBuilder summary = new StringBuilder("수집된 여행 정보:\n");
+                    summary.append("- 목적지: ").append(travelFormRequest.destinations()).append("\n");
+                    summary.append("- 출발지: ").append(travelFormRequest.departureLocation()).append("\n");
+                    if (travelFormRequest.travelDates() != null) {
+                        summary.append("- 여행 기간: ").append(travelFormRequest.travelDates().startDate())
+                               .append(" ~ ").append(travelFormRequest.travelDates().endDate()).append("\n");
+                    }
+                    summary.append("- 예산: ").append(travelFormRequest.budget()).append("\n");
+                    summary.append("- 여행 스타일: ").append(travelFormRequest.travelStyle()).append("\n");
+                    summary.append("- 동반자: ").append(travelFormRequest.companions()).append("\n");
+
+                    log.debug("수집된 정보: {}", summary.toString().replace("\n", ", "));
+
+                    // 실제 계획 생성을 위해 ResponseGenerator 호출
+                    // 폼 제출 확인 메시지 먼저 저장
+                    String confirmMessage = "여행 정보를 모두 입력해주셔서 감사합니다! 🎉\n\n" +
+                            summary.toString() + "\n" +
+                            "입력하신 정보를 바탕으로 맞춤형 여행 계획을 생성하고 있습니다...\n" +
+                            "잠시만 기다려주세요! ⏳";
+                    saveSystemMessage(request.getThreadId(), confirmMessage);
+
+                    // 실제 계획 생성 (ResponseGenerator를 통해 LLM 호출)
+                    var planResponse = responseGenerator.generateResponse(
+                        request,
+                        Intent.CONFIRMATION,  // 계획 생성을 위한 Intent
+                        TravelPhase.PLAN_GENERATION,
+                        context,
+                        promptBuilder
+                    );
+
+                    // 계획 생성 응답 저장
+                    saveSystemMessage(request.getThreadId(), planResponse.getContent());
+
+                    return planResponse;
+
+                } catch (Exception e) {
+                    log.error("폼 데이터 처리 중 오류 발생: {}", e.getMessage(), e);
+                    return ChatResponse.builder()
+                        .content("폼 데이터 처리 중 오류가 발생했습니다. 다시 시도해주세요.")
+                        .type("ERROR")
+                        .phase(TravelPhase.INFORMATION_COLLECTION.name())
+                        .requiresConfirmation(false)
+                        .build();
                 }
-                default -> validationResponse;
-            };
-
-        } catch (Exception e) {
-            log.error("폼 데이터 처리 중 심각한 오류 발생: {}", e.getMessage(), e);
-            return createErrorResponse("폼 데이터를 처리하는 중 오류가 발생했습니다.");
+            }
         }
-    }
 
-    /**
-     * 일반적인 대화 메시지를 처리하는 메서드입니다.
-     */
-    private ChatResponse handleGeneralChatMessage(ChatRequest request) {
+        // 1. ChatThread 생성 또는 확인 (가장 먼저!)
+        ensureChatThreadExists(request);
+
+        // 2. 사용자 메시지 저장
+        saveUserMessage(request);
+
+        // 3. 컨텍스트 조회 또는 생성
         var context = contextManager.getOrCreateContext(request);
+
+        // 3. 대화 횟수 증가
         context.incrementConversation();
 
+        // 4. 대화 히스토리 로드 (최근 10개)
+        var history = chatThreadService.getHistory(request.getThreadId());
+        log.debug("대화 히스토리: {}개 메시지", history.size());
+
+        // 5. 현재 Phase 확인 (먼저 확인)
         var currentPhase = TravelPhase.valueOf(context.getCurrentPhase());
-        var intent = intentClassifier.classify(request.getMessage(), context.isWaitingForTravelConfirmation());
-
         MDC.put("phase", currentPhase.name());
-        MDC.put("intent", intent.name());
-        log.info("║ 현재 Phase: {} ║ 분류된 Intent: {}", currentPhase, intent);
+        log.info("현재 Phase: {}", currentPhase);
 
-        // 정보 수집 단계에서는 ContinueFollowUpFunction을 통해 대화형으로 정보를 수집합니다.
-        if (currentPhase == TravelPhase.INFORMATION_COLLECTION &&
-                (intent == Intent.INFORMATION_COLLECTION || intent == Intent.DESTINATION_SEARCH)) {
-
-            log.info("정보 수집 단계의 사용자 입력 감지 -> ContinueFollowUpFunction으로 처리 위임");
-            var followUpRequest = new FollowUpResponse(request.getThreadId(), request.getMessage());
-            ChatResponse functionResponse = continueFollowUpFunction.apply(followUpRequest);
-
-            if (TravelPhase.PLAN_GENERATION.name().equals(functionResponse.getPhase())) {
-                context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
-                contextManager.updateContext(context, context.getUserId());
-            }
-
-            saveSystemMessage(request.getThreadId(), functionResponse.getContent());
-            return functionResponse;
-        }
-
-        // 그 외 일반적인 대화 처리
-        var nextPhase = handlePhaseTransition(currentPhase, intent, context);
-        handleConfirmationStatus(intent, context);
-
-        var response = responseGenerator.generateResponse(request, intent, nextPhase, context, promptBuilder);
-        saveSystemMessage(request.getThreadId(), response.getContent());
-        return response;
-    }
-
-    private void handleConfirmationStatus(Intent intent, TravelContext context) {
-        if (context.isWaitingForTravelConfirmation()) {
-            if (intent == Intent.CONFIRMATION) {
-                log.info("║ 여행 계획 시작 확인 응답 감지 - 확인 대기 상태 해제");
-                context.setWaitingForTravelConfirmation(false);
-            } else if (intent != Intent.TRAVEL_PLANNING) {
-                log.info("║ 다른 의도 감지 (Intent: {}) - 확인 대기 상태 해제", intent);
-                context.setWaitingForTravelConfirmation(false);
-            }
+        // 5-1. 구체적인 여행 질문 감지 (LLM 기반) - 일시적으로 비활성화
+        // 일반 인사를 여행 질문으로 잘못 판단하는 문제 때문에 비활성화
+        // TODO: IntentClassifier의 정확도 개선 후 재활성화
+        /*
+        boolean isSpecificTravelQuery = intentClassifier.isSpecificTravelQuery(request.getMessage());
+        if (isSpecificTravelQuery && currentPhase == TravelPhase.INITIALIZATION) {
+            log.info("구체적인 여행 질문 감지 - INFORMATION_COLLECTION으로 전환");
+            context.setWaitingForTravelConfirmation(false);
+            // Intent를 CONFIRMATION으로 설정하여 바로 전환되도록
+            var intent = Intent.CONFIRMATION;
+            context.setWaitingForTravelConfirmation(true); // 일시적으로 true 설정
             contextManager.updateContext(context, context.getUserId());
-        }
-    }
-
-    private TravelPhase handlePhaseTransition(TravelPhase currentPhase, Intent intent, TravelContext context) {
-        var nextPhase = phaseManager.transitionPhase(context.getThreadId(), intent, context);
-        if (nextPhase != currentPhase) {
-            log.info("║ 🔄 Phase 전환 감지: {} → {}", currentPhase, nextPhase);
+            var nextPhase = phaseManager.transitionPhase(context.getThreadId(), intent, context);
             context.setCurrentPhase(nextPhase.name());
             contextManager.updateContext(context, context.getUserId());
+            var response = responseGenerator.generateResponse(request, intent, nextPhase, context, promptBuilder);
+            saveSystemMessage(request.getThreadId(), response.getContent());
+            return response;
         }
-        return nextPhase;
+        */
+
+        // 6. Intent 분류 (맥락 정보와 함께 LLM으로 분류)
+        var intent = intentClassifier.classify(
+            request.getMessage(),
+            context.isWaitingForTravelConfirmation()
+        );
+        MDC.put("intent", intent.name());
+        log.info("Intent 분류 완료: {}", intent);
+        log.debug("여행 확인 대기 상태: {}", context.isWaitingForTravelConfirmation());
+
+        // 7. Phase 전환 처리 (waitingForTravelConfirmation 플래그를 유지한 상태로)
+        var nextPhase = handlePhaseTransition(currentPhase, intent, context);
+
+        // 8. 여행 확인 대기 상태 처리
+        if (context.isWaitingForTravelConfirmation()) {
+            if (intent == Intent.CONFIRMATION) {
+                // 사용자가 확인한 경우 - Phase 전환 후 플래그 리셋
+                log.debug("여행 계획 시작 확인 - 플래그 리셋");
+                context.setWaitingForTravelConfirmation(false);
+                contextManager.updateContext(context, context.getUserId());
+            } else if (intent != Intent.TRAVEL_PLANNING) {
+                // 사용자가 다른 의도를 보인 경우 (거부 또는 주제 변경) - 확인 대기 상태 해제
+                log.debug("다른 의도 감지 (Intent: {}) - 확인 대기 해제", intent);
+                context.setWaitingForTravelConfirmation(false);
+                contextManager.updateContext(context, context.getUserId());
+            }
+            // TRAVEL_PLANNING인 경우는 계속 대기 상태 유지
+        }
+
+        // 9. 응답 생성 - ResponseGenerator에 PromptBuilder 전달
+        log.debug("응답 생성 - Intent: {}, Phase: {}", intent, nextPhase);
+
+        var response = responseGenerator.generateResponse(request, intent, nextPhase, context, promptBuilder);
+
+        // 10. 시스템 응답 저장
+        saveSystemMessage(request.getThreadId(), response.getContent());
+
+        return response;
+        } finally {
+            // MDC 정리
+            MDC.remove("threadId");
+            MDC.remove("userId");
+            MDC.remove("phase");
+            MDC.remove("intent");
+        }
     }
 
+    // ChatThread 존재 확인 및 생성
     private void ensureChatThreadExists(ChatRequest request) {
         try {
+            // ChatThreadService에서 Thread 존재 여부 확인하고 없으면 생성
             chatThreadService.ensureThreadExists(request.getThreadId(), request.getUserId());
+            log.debug("ChatThread 확인/생성 완료");
         } catch (Exception e) {
-            log.error("ChatThread 확인/생성 실패: {}", e.getMessage());
+            log.error("ChatThread 생성 실패: {}", e.getMessage());
             throw new RuntimeException("대화 스레드 생성에 실패했습니다.", e);
         }
     }
 
+    // 사용자 메시지 저장
     private void saveUserMessage(ChatRequest request) {
-        chatThreadService.saveMessage(new ChatThreadService.MessageSaveRequest(
-                request.getThreadId(), "user", request.getMessage()
-        ));
-    }
-
-    private void saveSystemMessage(String threadId, String content) {
-        if (content != null && !content.isBlank()) {
-            chatThreadService.saveMessage(new ChatThreadService.MessageSaveRequest(
-                    threadId, "assistant", content
-            ));
+        try {
+            var saveRequest = new ChatThreadService.MessageSaveRequest(
+                request.getThreadId(),
+                "user",
+                request.getMessage()
+            );
+            chatThreadService.saveMessage(saveRequest);
+            log.debug("사용자 메시지 저장 완료");
+        } catch (Exception e) {
+            log.error("사용자 메시지 저장 실패: {}", e.getMessage());
         }
     }
 
-    private ChatResponse createErrorResponse(String message) {
-        return ChatResponse.builder().content(message).type("ERROR").build();
+    // 시스템 메시지 저장
+    private void saveSystemMessage(String threadId, String content) {
+        try {
+            var saveRequest = new ChatThreadService.MessageSaveRequest(
+                threadId,
+                "assistant",
+                content
+            );
+            chatThreadService.saveMessage(saveRequest);
+            log.debug("시스템 메시지 저장 완료");
+        } catch (Exception e) {
+            log.error("시스템 메시지 저장 실패: {}", e.getMessage());
+        }
     }
 
+    // Phase 전환 처리
+    private TravelPhase handlePhaseTransition(TravelPhase currentPhase, Intent intent,
+                                              TravelContext context) {
+        // PhaseManager의 transitionPhase 메서드 사용
+        var nextPhase = phaseManager.transitionPhase(context.getThreadId(), intent, context);
+
+        if (nextPhase != currentPhase) {
+            log.info("Phase 전환: {} → {}", currentPhase, nextPhase);
+            context.setCurrentPhase(nextPhase.name());
+            contextManager.updateContext(context, context.getUserId());
+        }
+
+        return nextPhase;
+    }
+
+    // 컨텍스트 초기화
     public void resetContext(String threadId, String userId) {
-        contextManager.resetContext(threadId, userId);
+        MDC.put("threadId", threadId);
+        MDC.put("userId", userId);
+        try {
+            contextManager.resetContext(threadId, userId);
+        } finally {
+            MDC.remove("threadId");
+            MDC.remove("userId");
+        }
     }
 }

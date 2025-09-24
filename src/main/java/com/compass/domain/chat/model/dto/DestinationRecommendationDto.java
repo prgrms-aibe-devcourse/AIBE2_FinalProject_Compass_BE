@@ -1,7 +1,7 @@
 package com.compass.domain.chat.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-
+import lombok.Builder;
 
 import java.util.List;
 
@@ -22,6 +22,7 @@ public record DestinationRecommendationDto(
             String cityName,
             String country,
             String description,
+            String imageUrl,
             List<String> tags
     ) {}
 }
