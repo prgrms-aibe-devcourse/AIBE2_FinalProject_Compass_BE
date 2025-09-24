@@ -21,7 +21,7 @@ public class PerplexityClient {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${PERPLEXITY_API_KEY}")
+    @Value("${perplexity.api.key}")
     private String apiKey;
 
     @Value("${PERPLEXITY_API_URL:https://api.perplexity.ai/chat/completions}")
@@ -95,7 +95,7 @@ public class PerplexityClient {
     // 요청 본문 생성
     private Map<String, Object> createRequestBody(String query) {
         return Map.of(
-            "model", "llama-3.1-sonar-small-128k-online",
+            "model", "sonar",
             "messages", new Object[]{
                 Map.of("role", "user", "content", query)
             },
@@ -108,12 +108,17 @@ public class PerplexityClient {
     private String parseResponse(ResponseEntity<Map> response) {
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
             var body = response.getBody();
-            var choices = (Object[]) body.get("choices");
+            var choices = body.get("choices");
             
-            if (choices != null && choices.length > 0) {
-                var choice = (Map<String, Object>) choices[0];
-                var message = (Map<String, Object>) choice.get("message");
-                return (String) message.get("content");
+            if (choices instanceof java.util.List) {
+                @SuppressWarnings("unchecked")
+                var choicesList = (java.util.List<Object>) choices;
+                
+                if (!choicesList.isEmpty()) {
+                    var choice = (Map<String, Object>) choicesList.get(0);
+                    var message = (Map<String, Object>) choice.get("message");
+                    return (String) message.get("content");
+                }
             }
         }
 

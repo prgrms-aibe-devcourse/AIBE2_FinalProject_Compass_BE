@@ -60,6 +60,7 @@ public class OCRClient {
     @PostConstruct
     void init() {
         try {
+            log.info("OCRClient 초기화 시도 중...");
             var settingsBuilder = ImageAnnotatorSettings.newBuilder();
             RetrySettings retrySettings = settingsBuilder.batchAnnotateImagesSettings().getRetrySettings().toBuilder()
                     .setTotalTimeout(Duration.ofSeconds(30))
@@ -68,8 +69,10 @@ public class OCRClient {
                     .batchAnnotateImagesSettings()
                     .setRetrySettings(retrySettings);
             client = ImageAnnotatorClient.create(settingsBuilder.build());
+            log.info("OCRClient 초기화 성공");
         } catch (IOException e) {
-            throw new IllegalStateException("Vision API 클라이언트를 초기화하지 못했습니다.", e);
+            log.warn("Vision API 클라이언트 초기화 실패 - OCR 기능 비활성화: {}", e.getMessage());
+            client = null; // null로 설정하여 OCR 기능 비활성화
         }
         rateResetScheduler.scheduleAtFixedRate(this::resetRateLimiter, 1, 1, TimeUnit.MINUTES);
     }
@@ -116,6 +119,10 @@ public class OCRClient {
     }
 
     private String annotate(Image image, String cacheKey) {
+        if (client == null) {
+            log.warn("OCRClient가 초기화되지 않음 - OCR 기능 비활성화됨");
+            return "";
+        }
         var cached = getCached(cacheKey);
         if (cached != null) {
             return cached;

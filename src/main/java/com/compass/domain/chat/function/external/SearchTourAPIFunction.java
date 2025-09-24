@@ -22,7 +22,7 @@ public class SearchTourAPIFunction implements Function<SearchTourAPIFunction.Loc
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${TOUR_API_KEY}")
+    @Value("${tour.api.key}")
     private String tourApiKey;
 
     @Value("${TOUR_API_URL:http://apis.data.go.kr/B551011/KorService2}")

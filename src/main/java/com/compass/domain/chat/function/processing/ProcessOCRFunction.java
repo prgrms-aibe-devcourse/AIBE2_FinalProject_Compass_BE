@@ -12,11 +12,11 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ProcessOCRFunction implements Function<ImageUrlRequest, OCRResult> {
 
     private static final int MIN_TEXT_LENGTH = 100;
@@ -28,6 +28,10 @@ public class ProcessOCRFunction implements Function<ImageUrlRequest, OCRResult> 
     );
 
     private final OCRClient ocrClient;
+    
+    public ProcessOCRFunction(OCRClient ocrClient) {
+        this.ocrClient = ocrClient;
+    }
     private final Map<DocumentType, Function<OCRText, ?>> documentParsers = new EnumMap<>(DocumentType.class);
 
     @Override
