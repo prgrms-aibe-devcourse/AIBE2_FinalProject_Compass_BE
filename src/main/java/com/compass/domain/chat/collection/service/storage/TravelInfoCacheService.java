@@ -48,7 +48,7 @@ public class TravelInfoCacheService implements TravelInfoStorage {
         } catch (Exception e) {
             log.error("Redis 여행 정보 로드 실패: key='{}'", getKey(threadId), e);
         }
-        // [수정] 생성자 인자 개수를 10개로 맞춤
+        // 정보가 없거나 오류 발생 시, 비어있는 새 객체를 반환하여 NullPointerException 방지
         return new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
     }
 

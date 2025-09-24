@@ -95,7 +95,7 @@ public class PerplexityClient {
     // 요청 본문 생성
     private Map<String, Object> createRequestBody(String query) {
         return Map.of(
-            "model", "sonar", // Perplexity API 최신 온라인 모델
+            "model", "llama-3.1-sonar-small-128k-online",
             "messages", new Object[]{
                 Map.of("role", "user", "content", query)
             },
@@ -108,11 +108,10 @@ public class PerplexityClient {
     private String parseResponse(ResponseEntity<Map> response) {
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
             var body = response.getBody();
-            // Object[] 대신 List<?>를 사용하여 유연하게 타입을 처리합니다.
-            var choices = (java.util.List<?>) body.get("choices");
-
-            if (choices != null && !choices.isEmpty()) {
-                var choice = (Map<String, Object>) choices.get(0);
+            var choices = (Object[]) body.get("choices");
+            
+            if (choices != null && choices.length > 0) {
+                var choice = (Map<String, Object>) choices[0];
                 var message = (Map<String, Object>) choice.get("message");
                 return (String) message.get("content");
             }
