@@ -7,5 +7,5 @@ import lombok.Data;
  */
 @Data
 public class ItineraryResponse {
-    // TODO: Add itinerary response fields
+    // 일정 응답 모델 (향후 확장 예정)
 }

@@ -36,7 +36,7 @@ class FollowUpOrchestratorTest {
     @DisplayName("첫 번째 전략(MissingField)이 질문을 찾으면, 그 질문을 즉시 반환하고 다음 전략은 실행하지 않는다")
     void determineNextQuestion_shouldReturnFirstQuestion_whenFirstStrategyFindsOne() {
         // given
-        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null);
+        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
         String missingFieldQuestion = "목적지가 어디인가요?";
 
         when(missingFieldStrategy.findNextQuestion(info)).thenReturn(Optional.of(missingFieldQuestion));
@@ -55,7 +55,7 @@ class FollowUpOrchestratorTest {
     @DisplayName("첫 번째 전략이 질문을 못 찾으면, 두 번째 전략(Clarification)을 실행하여 질문을 찾는다")
     void determineNextQuestion_shouldUseSecondStrategy_whenFirstFindsNothing() {
         // given
-        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null);
+        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
         String clarificationQuestion = "목적지를 더 구체적으로 알려주세요.";
 
         when(missingFieldStrategy.findNextQuestion(info)).thenReturn(Optional.empty());
@@ -74,7 +74,7 @@ class FollowUpOrchestratorTest {
     @DisplayName("모든 전략이 질문을 찾지 못하면, 비어있는 Optional을 반환한다")
     void determineNextQuestion_shouldReturnEmpty_whenNoStrategyFindsQuestion() {
         // given
-        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null);
+        var info = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
 
         when(missingFieldStrategy.findNextQuestion(info)).thenReturn(Optional.empty());
         when(clarificationStrategy.findNextQuestion(info)).thenReturn(Optional.empty());

@@ -40,7 +40,7 @@ public class WeatherConsiderationService {
 
     // 날씨 예보 조회
     private WeatherInfo getWeatherForecast(String destination, LocalDate date) {
-        // TODO: WeatherAPIClient 구현 후 연동
+        // 기본 날씨 정보 반환 (향후 WeatherAPIClient 연동 예정)
         return new WeatherInfo(
             destination,
             date,

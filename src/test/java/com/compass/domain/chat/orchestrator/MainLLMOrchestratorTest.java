@@ -7,12 +7,14 @@ import com.compass.domain.chat.model.enums.TravelPhase;
 import com.compass.domain.chat.model.request.ChatRequest;
 import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.service.ChatThreadService;
+import com.compass.domain.chat.service.TravelInfoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 
@@ -22,6 +24,7 @@ import static org.mockito.Mockito.*;
 
 // MainLLMOrchestrator 테스트
 @ExtendWith(MockitoExtension.class)
+@ActiveProfiles("test")
 class MainLLMOrchestratorTest {
 
     private MainLLMOrchestrator orchestrator;
@@ -47,6 +50,9 @@ class MainLLMOrchestratorTest {
     @Mock
     private FormDataConverter formDataConverter;
 
+    @Mock
+    private TravelInfoService travelInfoService;
+
     @BeforeEach
     void setUp() {
         orchestrator = new MainLLMOrchestrator(
@@ -56,7 +62,8 @@ class MainLLMOrchestratorTest {
             responseGenerator,
             chatThreadService,
             promptBuilder,
-            formDataConverter
+            formDataConverter,
+            travelInfoService
         );
 
         // 기본 Mock 설정 - 모든 테스트에서 사용할 기본값
@@ -436,10 +443,6 @@ class MainLLMOrchestratorTest {
 
     // 헬퍼 메서드
     private ChatRequest createChatRequest(String message) {
-        var request = new ChatRequest();
-        request.setMessage(message);
-        request.setThreadId("thread-1");
-        request.setUserId("user-1");
-        return request;
+        return new ChatRequest(message, "thread-1", "user-1");
     }
 }

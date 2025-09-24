@@ -7,5 +7,5 @@ import lombok.Data;
  */
 @Data
 public class TravelContext {
-    // TODO: Add context fields for travel planning
+    // 여행 계획 컨텍스트 (향후 필드 추가 예정)
 }
