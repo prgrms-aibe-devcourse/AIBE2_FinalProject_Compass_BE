@@ -3,8 +3,10 @@ package com.compass.domain.chat.controller;
 import com.compass.domain.chat.entity.TourPlace;
 import com.compass.domain.chat.function.external.SearchKakaoPlacesFunction;
 import com.compass.domain.chat.repository.TourPlaceRepository;
+import com.compass.domain.chat.service.PlaceFilterService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,13 +15,15 @@ import java.util.*;
 /**
  * Kakao Places API를 사용한 장소 검색 컨트롤러
  */
-@Slf4j
 @RestController
 @RequestMapping("/api/kakao-places")
 @RequiredArgsConstructor
 public class KakaoPlacesController {
     
+    private static final Logger log = LoggerFactory.getLogger(KakaoPlacesController.class);
+    
     private final SearchKakaoPlacesFunction kakaoPlacesFunction;
+    private final PlaceFilterService placeFilterService;
     private final TourPlaceRepository tourPlaceRepository;
     
     /**
@@ -326,7 +330,7 @@ public class KakaoPlacesController {
         
         // 클러스터별 여행 스타일을 고려한 시간블록 분배
         String timeBlock = getTimeBlockByClusterAndIndex(clusterName, placeIndex, mappedCategory);
-        String recommendTime = getRecommendTimeByTimeBlock(timeBlock);
+        String recommendTime = placeFilterService.getRecommendTimeForPlace(timeBlock, mappedCategory, operatingHours);
         
         // 위도/경도 정보 파싱 (Kakao API: x=경도, y=위도)
         Double latitude = parseCoordinate(kakaoPlace.getY());
@@ -357,6 +361,17 @@ public class KakaoPlacesController {
         tourPlace.setThreadId("kakao-places-001");
         tourPlace.setLatitude(latitude);
         tourPlace.setLongitude(longitude);
+        
+        // Kakao API에서 가져온 추가 정보 설정
+        tourPlace.setTel(kakaoPlace.getPhone());
+        tourPlace.setHomepage(kakaoPlace.getUrl());
+        
+        // 기본값 설정
+        tourPlace.setReviewCount(getDefaultReviewCountByCategory(mappedCategory));
+        tourPlace.setPriceLevel(getDefaultPriceLevelByCategory(mappedCategory));
+        tourPlace.setParkingAvailable(getDefaultParkingByCategory(mappedCategory));
+        tourPlace.setPetAllowed(getDefaultPetAllowedByCategory(mappedCategory));
+        tourPlace.setUsageTip(generateUsageTip(kakaoPlace.getName(), mappedCategory, timeBlock));
         
         return tourPlace;
     }
@@ -491,6 +506,108 @@ public class KakaoPlacesController {
             default:
                 return "방문하기 좋은 장소";
         }
+    }
+    
+    /**
+     * 카테고리별 기본 리뷰 수
+     */
+    private Integer getDefaultReviewCountByCategory(String category) {
+        return switch (category) {
+            case "카페" -> 150;
+            case "맛집" -> 200;
+            case "관광지" -> 300;
+            case "문화시설" -> 100;
+            case "쇼핑" -> 120;
+            case "엔터테인먼트" -> 180;
+            default -> 100;
+        };
+    }
+    
+    /**
+     * 카테고리별 기본 가격 정보
+     */
+    private String getDefaultPriceLevelByCategory(String category) {
+        return switch (category) {
+            case "카페" -> "$$";
+            case "맛집" -> "$$$";
+            case "관광지" -> "$";
+            case "문화시설" -> "$";
+            case "쇼핑" -> "$$$";
+            case "엔터테인먼트" -> "$$";
+            default -> "$$";
+        };
+    }
+    
+    /**
+     * 카테고리별 기본 주차 가능 여부
+     */
+    private Boolean getDefaultParkingByCategory(String category) {
+        return switch (category) {
+            case "카페" -> false;
+            case "맛집" -> true;
+            case "관광지" -> true;
+            case "문화시설" -> true;
+            case "쇼핑" -> true;
+            case "엔터테인먼트" -> true;
+            default -> false;
+        };
+    }
+    
+    /**
+     * 카테고리별 기본 반려동물 동반 가능 여부
+     */
+    private Boolean getDefaultPetAllowedByCategory(String category) {
+        return switch (category) {
+            case "카페" -> false;
+            case "맛집" -> false;
+            case "관광지" -> true;
+            case "문화시설" -> false;
+            case "쇼핑" -> false;
+            case "엔터테인먼트" -> false;
+            default -> false;
+        };
+    }
+    
+    /**
+     * 이용 팁 생성
+     */
+    private String generateUsageTip(String placeName, String category, String timeBlock) {
+        StringBuilder tip = new StringBuilder();
+        
+        // 시간대별 팁
+        if (timeBlock.equals("BREAKFAST")) {
+            tip.append("아침 시간대에 방문하기 좋습니다. ");
+        } else if (timeBlock.equals("LUNCH")) {
+            tip.append("점심 시간대에 방문하기 좋습니다. ");
+        } else if (timeBlock.equals("DINNER")) {
+            tip.append("저녁 시간대에 방문하기 좋습니다. ");
+        }
+        
+        // 카테고리별 팁
+        switch (category) {
+            case "카페":
+                tip.append("조용한 분위기에서 커피를 즐기기 좋습니다.");
+                break;
+            case "맛집":
+                tip.append("맛있는 음식을 즐기기 좋습니다.");
+                break;
+            case "관광지":
+                tip.append("역사와 문화를 체험하기 좋습니다.");
+                break;
+            case "문화시설":
+                tip.append("문화 활동을 즐기기 좋습니다.");
+                break;
+            case "쇼핑":
+                tip.append("쇼핑을 즐기기 좋습니다.");
+                break;
+            case "엔터테인먼트":
+                tip.append("재미있는 활동을 즐기기 좋습니다.");
+                break;
+            default:
+                tip.append("방문하기 좋은 장소입니다.");
+        }
+        
+        return tip.toString();
     }
     
     /**
@@ -1067,18 +1184,6 @@ public class KakaoPlacesController {
     /**
      * 시간블록별 추천 시간 설정
      */
-    private String getRecommendTimeByTimeBlock(String timeBlock) {
-        return switch (timeBlock) {
-            case "BREAKFAST" -> "08:00-10:00";
-            case "MORNING_ACTIVITY" -> "10:00-12:00";
-            case "LUNCH" -> "12:00-14:00";
-            case "CAFE" -> "14:00-16:00";
-            case "AFTERNOON_ACTIVITY" -> "16:00-18:00";
-            case "DINNER" -> "18:00-20:00";
-            case "EVENING_ACTIVITY" -> "20:00-22:00";
-            default -> "시간 정보 없음";
-        };
-    }
     
     /**
      * Kakao Places 검색 요청 DTO
