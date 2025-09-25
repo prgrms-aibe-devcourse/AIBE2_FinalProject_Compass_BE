@@ -1,107 +1,52 @@
-name: Deploy to AWS Elastic Beanstalk
+# 워크플로우 이름
+name: Deploy to Elastic Beanstalk via OIDC
 
+# main 브랜치에 푸시될 때 실행
 on:
   push:
     branches:
       - main
-      - develop
-      - test/*
-  workflow_dispatch:
 
+# GitHub Actions가 OIDC 토큰을 요청할 수 있도록 권한 부여
 permissions:
-  id-token: write
-  contents: read
+  id-token: write # 필수
+  contents: read  # 필수
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-
-    - name: Run tests
-      run: ./gradlew test
-      env:
-        SPRING_PROFILES_ACTIVE: test
-
   build-and-deploy:
-    needs: test
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      # 1. 코드 체크아웃
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      # 2. JDK 17 설치
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      # 3. Gradle 빌드
+      - name: Build with Gradle
+        run: ./gradlew build
 
-    - name: Build with Gradle
-      run: ./gradlew clean build -x test
-      env:
-        SPRING_PROFILES_ACTIVE: production
+      # 4. AWS 자격 증명 구성 (OIDC 방식)
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }} # ❗️ GitHub Secret에 저장한 역할 ARN
+          aws-region: ap-northeast-2                      # ❗️ 본인의 AWS 리전으로 변경
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-        role-session-name: GitHubActions
-        aws-region: ap-northeast-2
-
-    - name: Generate deployment package
-      run: |
-        mkdir -p deploy
-        cp build/libs/compass-backend-0.0.1-SNAPSHOT.jar deploy/
-        cp Procfile deploy/
-        cp -r .ebextensions deploy/
-        cd deploy && zip -r ../compass-backend-${{ github.sha }}.zip .
-
-    - name: Get current time
-      uses: 1466587594/get-current-time@v2
-      id: current-time
-      with:
-        format: YYYY-MM-DDTHH-mm-ss
-        utcOffset: "+09:00"
-
-    - name: Deploy to Elastic Beanstalk
-      run: |
-        aws s3 cp compass-backend-${{ github.sha }}.zip s3://${{ secrets.S3_BUCKET_NAME }}/
-
-        aws elasticbeanstalk create-application-version \
-          --application-name ${{ secrets.EB_APPLICATION_NAME }} \
-          --version-label ${{ github.sha }} \
-          --source-bundle S3Bucket=${{ secrets.S3_BUCKET_NAME }},S3Key=compass-backend-${{ github.sha }}.zip \
-          --description "GitHub Actions deployment from ${{ github.ref }} at ${{ steps.current-time.outputs.formattedTime }}"
-
-        aws elasticbeanstalk update-environment \
-          --application-name ${{ secrets.EB_APPLICATION_NAME }} \
-          --environment-name ${{ secrets.EB_ENVIRONMENT_NAME }} \
-          --version-label ${{ github.sha }}
-
-    - name: Wait for deployment
-      run: |
-        echo "Waiting for deployment to complete..."
-        aws elasticbeanstalk wait environment-updated \
-          --application-name ${{ secrets.EB_APPLICATION_NAME }} \
-          --environment-names ${{ secrets.EB_ENVIRONMENT_NAME }} \
-          --version-label ${{ github.sha }}
-
-        # 환경 상태 확인
-        aws elasticbeanstalk describe-environments \
-          --application-name ${{ secrets.EB_APPLICATION_NAME }} \
-          --environment-names ${{ secrets.EB_ENVIRONMENT_NAME }} \
-          --query "Environments[0].Health" \
-          --output text
+      # 5. Elastic Beanstalk에 배포
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          application_name: Aibe2-team3-compass # ❗️ 본인의 EB 애플리케이션 이름으로 변경
+          environment_name: Aibe2-team3-compass-env-1   # ❗️ 본인의 EB 환경 이름으로 변경
+          version_label: "v${{ github.run_number }}"
+          region: ap-northeast-2            # ❗️ 본인의 AWS 리전으로 변경
+          deployment_package: build/libs/your-app-name-0.0.1-SNAPSHOT.jar # ❗️ 빌드된 JAR 파일 경로로 변경
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID}}
