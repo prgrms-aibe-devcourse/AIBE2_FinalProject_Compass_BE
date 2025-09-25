@@ -87,13 +87,20 @@ public class SecurityConfig {
             .httpBasic(httpBasic -> httpBasic.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
+                .requestMatchers("/").permitAll()  // 루트 경로 허용
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/static/**", "/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()  // Static resources
+                .requestMatchers("/*.html", "/*.css", "/*.js").permitAll()  // HTML, CSS, JS files
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()  // Authentication endpoints
                 .requestMatchers("/api/users/**").permitAll()
                 .requestMatchers("/api/test/**").permitAll()
                 .requestMatchers("/api/debug/**").permitAll()  // Debug endpoints for testing
                 .requestMatchers("/api/chat/**", "/api/v1/chat/**").permitAll()  // Chat endpoints
+                .requestMatchers("/api/stage1/**").permitAll()  // Stage1 endpoints
+                .requestMatchers("/api/tourplace/**").permitAll()  // TourPlace endpoints
+                .requestMatchers("/api/cluster/**").permitAll()  // Cluster endpoints
+                .requestMatchers("/api/kakao-places/**").permitAll()  // Kakao Places API endpoints
                 .requestMatchers("/api/trips/**").permitAll()  // Trips endpoints for testing
                 .requestMatchers("/api/tour/**").permitAll()  // Tour API endpoints for testing
                 .requestMatchers("/api/search/**").permitAll()  // Search API endpoints
@@ -109,13 +116,14 @@ public class SecurityConfig {
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
+        // OAuth2 설정 비활성화 (ClientRegistrationRepository 빈이 없어서 오류 발생)
         // OAuth2는 docker 프로필이 아닐 때만 활성화
-        if (!"docker".equals(activeProfile) && customOAuth2UserService != null) {
-            http.oauth2Login(oauth2 -> oauth2
-                    .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                    .successHandler(oAuth2AuthenticationSuccessHandler)
-                    .failureHandler(oAuth2AuthenticationFailureHandler));
-        }
+        // if (!"docker".equals(activeProfile) && customOAuth2UserService != null) {
+        //     http.oauth2Login(oauth2 -> oauth2
+        //             .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+        //             .successHandler(oAuth2AuthenticationSuccessHandler)
+        //             .failureHandler(oAuth2AuthenticationFailureHandler));
+        // }
 
         return http.build();
     }

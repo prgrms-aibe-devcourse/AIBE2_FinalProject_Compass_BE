@@ -1,11 +1,14 @@
 package com.compass.domain.chat.function.planning;
 
+import com.compass.domain.chat.entity.TourPlace;
 import com.compass.domain.chat.model.request.TravelPlanRequest;
 import com.compass.domain.chat.model.response.TravelPlanResponse;
+import com.compass.domain.chat.service.PlaceFilterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -15,6 +18,8 @@ import java.util.function.Function;
 @Component
 @RequiredArgsConstructor
 public class GenerateTravelPlanFunction implements Function<TravelPlanRequest, TravelPlanResponse> {
+
+    private final PlaceFilterService placeFilterService;
 
     @Override
     public TravelPlanResponse apply(TravelPlanRequest request) {
@@ -45,16 +50,20 @@ public class GenerateTravelPlanFunction implements Function<TravelPlanRequest, T
     }
 
     // DB에서 기존 장소 정보 검색
-    private CompletableFuture<List<Object>> searchInDatabase() {
+    private CompletableFuture<List<TourPlace>> searchInDatabase() {
         return CompletableFuture.supplyAsync(() -> {
-            return List.of();
+            // TODO: 실제 DB에서 장소 검색 구현
+            // 현재는 빈 리스트 반환
+            return List.<TourPlace>of();
         });
     }
 
     // Perplexity로 트렌디한 장소 검색
-    private CompletableFuture<List<Object>> searchTrendyPlaces() {
+    private CompletableFuture<List<TourPlace>> searchTrendyPlaces() {
         return CompletableFuture.supplyAsync(() -> {
-            return List.of();
+            // TODO: Perplexity API로 트렌디한 장소 검색 구현
+            // 현재는 빈 리스트 반환
+            return List.<TourPlace>of();
         });
     }
 
@@ -65,9 +74,26 @@ public class GenerateTravelPlanFunction implements Function<TravelPlanRequest, T
         });
     }
 
-    // LLM으로 일정 생성
-    private Object generateItinerary(List<Object> dbPlaces, List<Object> trendyPlaces, Object weather) {
-        return new Object();
+    // Stage 1: 클러스터링을 적용한 장소 선별 및 일정 생성
+    private Object generateItinerary(List<TourPlace> dbPlaces, List<TourPlace> trendyPlaces, Object weather) {
+        log.info("Stage 1: 장소 선별 및 일정 생성 시작");
+        
+        // 1. 모든 장소 통합
+        List<TourPlace> allPlaces = new ArrayList<>();
+        allPlaces.addAll(dbPlaces);
+        allPlaces.addAll(trendyPlaces);
+        
+        // 2. 사용자 선호도 추출 (request에서)
+        // TODO: TravelPlanRequest에서 사용자 선호도 정보 추출
+        
+        // 3. 클러스터링 적용된 장소 선별
+        // TODO: 실제 사용자 선호도 정보를 사용하여 클러스터링 적용
+        // List<TourPlace> selectedPlaces = placeFilterService.filterByPreferencesWithClustering(
+        //     allPlaces, userPreferences);
+        
+        log.info("Stage 1 완료: {} 개 장소에서 선별 완료", allPlaces.size());
+        
+        return new Object(); // 임시 반환
     }
 
     // 성공 응답 생성
