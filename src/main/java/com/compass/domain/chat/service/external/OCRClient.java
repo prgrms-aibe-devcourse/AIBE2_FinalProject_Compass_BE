@@ -34,8 +34,13 @@ import org.threeten.bp.Duration;
 public class OCRClient {
 
     private static final Pattern FLIGHT_CODE = Pattern.compile("\\b[A-Z]{2}\\d{2,4}\\b");
-    private static final Pattern AIRLINE_KEYWORD = Pattern.compile("BOARDING PASS|E-TICKET", Pattern.CASE_INSENSITIVE);
-    private static final Pattern HOTEL_KEYWORD = Pattern.compile("hotel|check[- ]?in|check[- ]?out|room|reservation|confirmation", Pattern.CASE_INSENSITIVE);
+    private static final Pattern AIRLINE_KEYWORD = Pattern.compile("BOARDING PASS|E-TICKET|FLIGHT|DEPARTURE|ARRIVAL|GATE", Pattern.CASE_INSENSITIVE);
+    private static final Pattern HOTEL_KEYWORD = Pattern.compile("hotel|check[- ]?in|check[- ]?out|room|reservation|confirmation|accommodation", Pattern.CASE_INSENSITIVE);
+    private static final Pattern TRAIN_KEYWORD = Pattern.compile("train|railway|KTX|SRT|무궁화|새마을|ITX|platform|departure", Pattern.CASE_INSENSITIVE);
+    private static final Pattern EVENT_KEYWORD = Pattern.compile("concert|show|performance|ticket|seat|row|공연|콘서트|좌석|열|번", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CAR_KEYWORD = Pattern.compile("car rental|rent[- ]?a[- ]?car|vehicle|pickup|drop[- ]?off|렌터카|대여", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ATTRACTION_KEYWORD = Pattern.compile("admission|entrance|museum|park|tower|palace|입장|관람|티켓", Pattern.CASE_INSENSITIVE);
+    private static final Pattern RESTAURANT_KEYWORD = Pattern.compile("restaurant|dining|reservation|table|예약|식당|레스토랑", Pattern.CASE_INSENSITIVE);
     private static final List<String> LANGUAGE_HINTS = List.of("ko", "en", "ja", "zh");
     private static final int RATE_LIMIT_PER_MINUTE = 1800;
     private static final int MAX_ATTEMPTS = 4;
@@ -106,12 +111,30 @@ public class OCRClient {
         if (text == null || text.isBlank()) {
             return DocumentType.UNKNOWN;
         }
+
+        // 우선순위 순서대로 검사 (더 구체적인 패턴 먼저)
         if (AIRLINE_KEYWORD.matcher(text).find() || FLIGHT_CODE.matcher(text).find()) {
             return DocumentType.FLIGHT_RESERVATION;
+        }
+        if (TRAIN_KEYWORD.matcher(text).find()) {
+            return DocumentType.TRAIN_TICKET;
+        }
+        if (EVENT_KEYWORD.matcher(text).find()) {
+            return DocumentType.EVENT_TICKET;
         }
         if (HOTEL_KEYWORD.matcher(text).find()) {
             return DocumentType.HOTEL_RESERVATION;
         }
+        if (CAR_KEYWORD.matcher(text).find()) {
+            return DocumentType.CAR_RENTAL;
+        }
+        if (ATTRACTION_KEYWORD.matcher(text).find()) {
+            return DocumentType.ATTRACTION_TICKET;
+        }
+        if (RESTAURANT_KEYWORD.matcher(text).find()) {
+            return DocumentType.RESTAURANT_RESERVATION;
+        }
+
         return DocumentType.UNKNOWN;
     }
 
