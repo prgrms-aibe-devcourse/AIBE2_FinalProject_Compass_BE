@@ -9,6 +9,7 @@ import com.compass.domain.chat.route_optimization.repository.TravelItineraryRepo
 import com.compass.domain.chat.route_optimization.repository.TravelPlaceCandidateRepository;
 import com.compass.domain.chat.route_optimization.repository.TravelPlaceRepository;
 import com.compass.domain.chat.route_optimization.service.ItineraryPersistenceService;
+import com.compass.domain.chat.route_optimization.service.MultiPathOptimizationService;
 import com.compass.domain.chat.route_optimization.service.RouteOptimizationService;
 import com.compass.domain.chat.route_optimization.service.RouteOptimizationOrchestrationService;
 import com.compass.domain.chat.route_optimization.strategy.*;
@@ -116,19 +117,30 @@ public class RouteOptimizationTestConfig {
     }
 
     @Bean
+    public MultiPathOptimizationService multiPathOptimizationService(
+        KakaoMobilityClient kakaoMobilityClient
+    ) {
+        return new MultiPathOptimizationService(kakaoMobilityClient);
+    }
+
+    @Bean
     public RouteOptimizationOrchestrationService routeOptimizationOrchestrationService(
         ChatThreadRepository threadRepository,
         ObjectMapper objectMapper,
         ContextManager contextManager,
         ItineraryPersistenceService persistenceService,
-        OptimizationStrategyFactory strategyFactory
+        OptimizationStrategyFactory strategyFactory,
+        MultiPathOptimizationService multiPathOptimizationService,
+        KakaoMobilityClient kakaoMobilityClient
     ) {
         return new RouteOptimizationOrchestrationService(
             threadRepository,
             objectMapper,
             contextManager,
             persistenceService,
-            strategyFactory
+            strategyFactory,
+            multiPathOptimizationService,
+            kakaoMobilityClient
         );
     }
 }

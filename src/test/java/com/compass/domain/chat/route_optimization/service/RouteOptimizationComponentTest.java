@@ -4,12 +4,16 @@ import com.compass.domain.chat.function.processing.phase3.date_selection.model.*
 import com.compass.domain.chat.model.dto.ConfirmedSchedule;
 import com.compass.domain.chat.orchestrator.ContextManager;
 import com.compass.domain.chat.repository.ChatThreadRepository;
+import com.compass.domain.chat.route_optimization.client.KakaoMobilityClient;
 import com.compass.domain.chat.route_optimization.entity.TravelItinerary;
 import com.compass.domain.chat.route_optimization.model.RouteOptimizationRequest;
 import com.compass.domain.chat.route_optimization.model.RouteOptimizationResponse;
 import com.compass.domain.chat.route_optimization.repository.TravelItineraryRepository;
 import com.compass.domain.chat.route_optimization.repository.TravelPlaceCandidateRepository;
 import com.compass.domain.chat.route_optimization.repository.TravelPlaceRepository;
+import com.compass.domain.chat.route_optimization.service.ItineraryPersistenceService;
+import com.compass.domain.chat.route_optimization.service.MultiPathOptimizationService;
+import com.compass.domain.chat.route_optimization.service.RouteOptimizationOrchestrationService;
 import com.compass.domain.chat.route_optimization.strategy.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +50,10 @@ class RouteOptimizationComponentTest {
     private TravelPlaceCandidateRepository candidateRepository;
     @Mock
     private ContextManager contextManager;
+    @Mock
+    private MultiPathOptimizationService multiPathOptimizationService;
+    @Mock
+    private KakaoMobilityClient kakaoMobilityClient;
 
     private ObjectMapper objectMapper;
     private Long sessionId;
@@ -76,7 +84,9 @@ class RouteOptimizationComponentTest {
             objectMapper,
             contextManager,
             persistenceService,
-            strategyFactory
+            strategyFactory,
+            multiPathOptimizationService,
+            kakaoMobilityClient
         );
         sessionId = 1L;
         testDateSelectionOutput = createTestDateSelectionOutput();

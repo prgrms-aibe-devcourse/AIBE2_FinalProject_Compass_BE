@@ -5,10 +5,13 @@ import com.compass.domain.chat.model.dto.ConfirmedSchedule;
 import com.compass.domain.chat.model.enums.DocumentType;
 import com.compass.domain.chat.orchestrator.ContextManager;
 import com.compass.domain.chat.repository.ChatThreadRepository;
+import com.compass.domain.chat.route_optimization.client.KakaoMobilityClient;
 import com.compass.domain.chat.route_optimization.model.RouteOptimizationRequest;
 import com.compass.domain.chat.route_optimization.model.RouteOptimizationResponse;
 import com.compass.domain.chat.route_optimization.model.RouteOptimizationResponse.RouteInfo;
 import com.compass.domain.chat.route_optimization.service.ItineraryPersistenceService;
+import com.compass.domain.chat.route_optimization.service.MultiPathOptimizationService;
+import com.compass.domain.chat.route_optimization.service.RouteOptimizationOrchestrationService;
 import com.compass.domain.chat.route_optimization.strategy.OptimizationStrategyFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,13 +47,20 @@ class RouteOptimizationUnitTest {
     @Mock
     private OptimizationStrategyFactory strategyFactory;
 
+    @Mock
+    private MultiPathOptimizationService multiPathOptimizationService;
+
+    @Mock
+    private KakaoMobilityClient kakaoMobilityClient;
+
     private Long sessionId;
     private DateSelectionOutput testDateSelectionOutput;
 
     @BeforeEach
     void setUp() {
         orchestrationService = new RouteOptimizationOrchestrationService(
-            threadRepository, objectMapper, contextManager, persistenceService, strategyFactory
+            threadRepository, objectMapper, contextManager, persistenceService, strategyFactory,
+            multiPathOptimizationService, kakaoMobilityClient
         );
         sessionId = 1L;
         testDateSelectionOutput = createTestDateSelectionOutput();
