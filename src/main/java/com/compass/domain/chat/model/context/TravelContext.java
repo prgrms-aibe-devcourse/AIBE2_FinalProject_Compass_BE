@@ -1,5 +1,7 @@
 package com.compass.domain.chat.model.context;
 
+import com.compass.domain.chat.model.dto.ConfirmedSchedule;
+import com.compass.domain.chat.model.enums.DocumentType;
 import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -15,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
 import com.compass.domain.chat.model.request.TravelPlanRequest;
 
@@ -80,6 +83,14 @@ public class TravelContext implements Serializable {
     // 여행 계획 확인 대기 상태
     @Builder.Default
     private boolean waitingForTravelConfirmation = false;
+
+    // OCR로 확인된 확정 일정 목록 (Phase 2에서 수집, Phase 3에서 사용)
+    @Builder.Default
+    private List<ConfirmedSchedule> ocrConfirmedSchedules = new CopyOnWriteArrayList<>();
+
+    // OCR 처리된 원본 텍스트 저장 (파싱 실패 시 참조용)
+    @Builder.Default
+    private Map<DocumentType, String> ocrRawTexts = new ConcurrentHashMap<>();
 
     // 대화 횟수 증가
     public void incrementConversation() {
@@ -258,6 +269,47 @@ public class TravelContext implements Serializable {
         if (collectedInfo.containsKey(KEY_TRANSPORTATION_TYPE)) collectedFields++;
 
         return (double) collectedFields / totalFields * 100;
+    }
+
+    // OCR 확정 일정 추가
+    public void addOcrSchedule(ConfirmedSchedule schedule) {
+        if (ocrConfirmedSchedules == null) {
+            ocrConfirmedSchedules = new CopyOnWriteArrayList<>();
+        }
+        // 중복 체크 (같은 시간대, 같은 타입)
+        boolean isDuplicate = ocrConfirmedSchedules.stream()
+                .anyMatch(existing ->
+                    existing.documentType() == schedule.documentType() &&
+                    existing.startTime().equals(schedule.startTime()));
+
+        if (!isDuplicate) {
+            ocrConfirmedSchedules.add(schedule);
+            this.updatedAt = LocalDateTime.now();
+        }
+    }
+
+    // OCR 원본 텍스트 저장
+    public void addOcrRawText(DocumentType type, String text) {
+        if (ocrRawTexts == null) {
+            ocrRawTexts = new ConcurrentHashMap<>();
+        }
+        ocrRawTexts.put(type, text);
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // 고정 일정만 필터링 (Phase 3에서 사용)
+    public List<ConfirmedSchedule> getFixedSchedules() {
+        if (ocrConfirmedSchedules == null) {
+            return new ArrayList<>();
+        }
+        return ocrConfirmedSchedules.stream()
+                .filter(ConfirmedSchedule::isFixed)
+                .toList();
+    }
+
+    // OCR 확정 일정이 있는지 확인
+    public boolean hasOcrSchedules() {
+        return ocrConfirmedSchedules != null && !ocrConfirmedSchedules.isEmpty();
     }
 
     // 내부 클래스: 메시지 히스토리

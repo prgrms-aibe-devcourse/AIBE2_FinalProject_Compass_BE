@@ -24,7 +24,12 @@ public class ProcessOCRFunction implements Function<ImageUrlRequest, OCRResult> 
 
     private static final Map<DocumentType, Pattern> QUALITY_PATTERNS = Map.of(
             DocumentType.FLIGHT_RESERVATION, Pattern.compile("BOARDING PASS|FLIGHT|DEPARTURE", Pattern.CASE_INSENSITIVE),
-            DocumentType.HOTEL_RESERVATION, Pattern.compile("CHECK[- ]?IN|CHECK[- ]?OUT|RESERVATION", Pattern.CASE_INSENSITIVE)
+            DocumentType.HOTEL_RESERVATION, Pattern.compile("CHECK[- ]?IN|CHECK[- ]?OUT|RESERVATION", Pattern.CASE_INSENSITIVE),
+            DocumentType.TRAIN_TICKET, Pattern.compile("TRAIN|DEPARTURE|ARRIVAL|PLATFORM", Pattern.CASE_INSENSITIVE),
+            DocumentType.EVENT_TICKET, Pattern.compile("TICKET|SEAT|DATE|TIME", Pattern.CASE_INSENSITIVE),
+            DocumentType.CAR_RENTAL, Pattern.compile("RENTAL|PICKUP|RETURN", Pattern.CASE_INSENSITIVE),
+            DocumentType.ATTRACTION_TICKET, Pattern.compile("ADMISSION|ENTRANCE|VALID", Pattern.CASE_INSENSITIVE),
+            DocumentType.RESTAURANT_RESERVATION, Pattern.compile("RESERVATION|TABLE|TIME", Pattern.CASE_INSENSITIVE)
     );
 
     private final OCRClient ocrClient;
