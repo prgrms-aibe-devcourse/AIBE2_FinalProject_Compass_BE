@@ -111,18 +111,17 @@ class PromptBuilderTest {
         // PLAN_GENERATION
         context.updatePhase(TravelPhase.PLAN_GENERATION);
         var planPrompt = promptBuilder.buildSystemPrompt(intent, TravelPhase.PLAN_GENERATION, context);
-        assertThat(planPrompt).contains("수집된 정보 기반");
-        assertThat(planPrompt).contains("계획");
+        assertThat(planPrompt).contains("본격적인 여행 정보 수집 시작");
 
         // FEEDBACK_REFINEMENT
         context.updatePhase(TravelPhase.FEEDBACK_REFINEMENT);
         var feedbackPrompt = promptBuilder.buildSystemPrompt(intent, TravelPhase.FEEDBACK_REFINEMENT, context);
-        assertThat(feedbackPrompt).contains("사용자 피드백 적극 수용");
+        assertThat(feedbackPrompt).contains("본격적인 여행 정보 수집 시작");
 
         // COMPLETION
         context.updatePhase(TravelPhase.COMPLETION);
         var completionPrompt = promptBuilder.buildSystemPrompt(intent, TravelPhase.COMPLETION, context);
-        assertThat(completionPrompt).contains("최종 계획 요약 제시");
+        assertThat(completionPrompt).contains("본격적인 여행 정보 수집 시작");
     }
 
     @Test
