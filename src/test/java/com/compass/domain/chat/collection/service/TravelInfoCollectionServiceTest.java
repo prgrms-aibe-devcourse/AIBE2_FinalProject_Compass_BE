@@ -2,13 +2,12 @@ package com.compass.domain.chat.collection.service;
 
 import com.compass.domain.chat.collection.service.calculator.CompletionCalculator;
 import com.compass.domain.chat.collection.service.notifier.ProgressNotifier;
-import com.compass.domain.chat.collection.service.storage.TravelInfoStorage;
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
+import com.compass.domain.chat.service.TravelInfoService; // ✅ TravelInfoService를 import
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -23,8 +22,11 @@ class TravelInfoCollectionServiceTest {
 
     @Mock
     private TravelInfoCollector formBasedCollector;
+
+    // ✅ 수정: 타입을 TravelInfoService로 변경하고, 변수명도 역할에 맞게 변경
     @Mock
-    private TravelInfoStorage storage;
+    private TravelInfoService travelInfoService;
+
     @Mock
     private FollowUpOrchestrator followUpOrchestrator;
     @Mock
@@ -36,9 +38,9 @@ class TravelInfoCollectionServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Mock 객체들을 Map에 담아 주입
         Map<String, TravelInfoCollector> collectors = Map.of("formBasedCollector", formBasedCollector);
-        collectionService = new TravelInfoCollectionService(collectors, storage, followUpOrchestrator, calculator, notifier);
+        // ✅ 수정: 생성자에 travelInfoService를 전달
+        collectionService = new TravelInfoCollectionService(collectors, travelInfoService, followUpOrchestrator, calculator, notifier);
     }
 
     @Test
@@ -52,7 +54,8 @@ class TravelInfoCollectionServiceTest {
         var initialInfo = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
         var updatedInfo = new TravelFormSubmitRequest(null, java.util.List.of("부산"), null, null, null, null, null, null, null, null);
 
-        when(storage.load(threadId)).thenReturn(initialInfo);
+        // ✅ 수정: storage.load() -> travelInfoService.loadTravelInfo()
+        when(travelInfoService.loadTravelInfo(threadId)).thenReturn(initialInfo);
         when(formBasedCollector.collect(userInput, initialInfo)).thenReturn(updatedInfo);
         when(calculator.calculate(updatedInfo)).thenReturn(30);
         when(followUpOrchestrator.determineNextQuestion(updatedInfo)).thenReturn(Optional.of("다음 질문"));
@@ -61,11 +64,11 @@ class TravelInfoCollectionServiceTest {
         var result = collectionService.collectInfo(threadId, userInput, collectorType);
 
         // then
-        // 각 컴포넌트가 올바른 순서와 값으로 호출되었는지 검증
-        verify(storage).load(threadId);
+        // ✅ 수정: storage -> travelInfoService로 검증 대상 변경
+        verify(travelInfoService).loadTravelInfo(threadId);
         verify(formBasedCollector).collect(userInput, initialInfo);
         verify(formBasedCollector).validate(updatedInfo);
-        verify(storage).save(threadId, updatedInfo);
+        verify(travelInfoService).saveTravelInfo(threadId, updatedInfo);
         verify(calculator).calculate(updatedInfo);
         verify(notifier).notify(threadId, 30);
         verify(followUpOrchestrator).determineNextQuestion(updatedInfo);

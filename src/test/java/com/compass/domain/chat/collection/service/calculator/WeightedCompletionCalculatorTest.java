@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,13 +24,14 @@ class WeightedCompletionCalculatorTest {
     @DisplayName("모든 정보가 입력되면 진행률은 100%가 되어야 한다")
     void calculate_shouldReturn100_whenAllInfoIsProvided() {
         // given
+        // ✅ 수정: 생성자에 LocalTime.now() 2개 추가
         var completeInfo = new TravelFormSubmitRequest(
                 "user-1",
                 List.of("서울", "부산"),
                 "인천",
                 new TravelFormSubmitRequest.DateRange(LocalDate.now(), LocalDate.now().plusDays(3)),
-                null,  // departureTime
-                null,  // endTime
+                LocalTime.now(),
+                LocalTime.now().plusHours(1),
                 "친구와",
                 1000000L,
                 List.of("맛집", "관광"),
@@ -40,7 +42,6 @@ class WeightedCompletionCalculatorTest {
         int progress = calculator.calculate(completeInfo);
         List<String> missingFields = calculator.getRequiredFields(completeInfo);
 
-
         // then
         assertThat(progress).isEqualTo(100);
         assertThat(missingFields).isEmpty();
@@ -50,13 +51,14 @@ class WeightedCompletionCalculatorTest {
     @DisplayName("목적지와 날짜만 입력되면 진행률은 60%가 되어야 한다")
     void calculate_shouldReturn60_whenOnlyDestinationAndDatesAreProvided() {
         // given
+        // ✅ 수정: 생성자에 null 2개 추가
         var partialInfo = new TravelFormSubmitRequest(
                 "user-1",
                 List.of("제주도"),
                 null,
                 new TravelFormSubmitRequest.DateRange(LocalDate.now(), LocalDate.now().plusDays(2)),
-                null,  // departureTime
-                null,  // endTime
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -67,7 +69,6 @@ class WeightedCompletionCalculatorTest {
         int progress = calculator.calculate(partialInfo);
         List<String> missingFields = calculator.getRequiredFields(partialInfo);
 
-
         // then
         assertThat(progress).isEqualTo(60); // 30 (destinations) + 30 (travelDates)
         assertThat(missingFields).containsExactly("budget", "companions", "travelStyle");
@@ -77,6 +78,7 @@ class WeightedCompletionCalculatorTest {
     @DisplayName("정보가 전혀 없으면 진행률은 0%가 되어야 한다")
     void calculate_shouldReturn0_whenNoInfoIsProvided() {
         // given
+        // ✅ 수정: 생성자에 null 2개 추가
         var emptyInfo = new TravelFormSubmitRequest(null, null, null, null, null, null, null, null, null, null);
 
         // when

@@ -1,5 +1,7 @@
 package com.compass.domain.chat.model.context;
 
+import com.compass.domain.chat.model.dto.ConfirmedSchedule;
+import com.compass.domain.chat.model.enums.DocumentType;
 import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -15,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
 import com.compass.domain.chat.model.request.TravelPlanRequest;
 
@@ -81,6 +84,14 @@ public class TravelContext implements Serializable {
     @Builder.Default
     private boolean waitingForTravelConfirmation = false;
 
+    // OCR로 확인된 확정 일정 목록 (Phase 2에서 수집, Phase 3에서 사용)
+    @Builder.Default
+    private List<ConfirmedSchedule> ocrConfirmedSchedules = new CopyOnWriteArrayList<>();
+
+    // OCR 처리된 원본 텍스트 저장 (파싱 실패 시 참조용)
+    @Builder.Default
+    private Map<DocumentType, String> ocrRawTexts = new ConcurrentHashMap<>();
+
     // 대화 횟수 증가
     public void incrementConversation() {
         this.conversationCount++;
@@ -102,10 +113,10 @@ public class TravelContext implements Serializable {
             messageHistory = new ArrayList<>();
         }
         messageHistory.add(MessageHistory.builder()
-            .role(role)
-            .content(content)
-            .timestamp(LocalDateTime.now())
-            .build());
+                .role(role)
+                .content(content)
+                .timestamp(LocalDateTime.now())
+                .build());
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -181,20 +192,20 @@ public class TravelContext implements Serializable {
     @SuppressWarnings("unchecked")
     public TravelPlanRequest toTravelPlanRequest() {
         return new TravelPlanRequest(
-            (List<String>) collectedInfo.getOrDefault(KEY_DESTINATIONS, List.of()),
-            (java.time.LocalDate) collectedInfo.get(KEY_START_DATE),
-            (java.time.LocalDate) collectedInfo.get(KEY_END_DATE),
-            (Integer) collectedInfo.get(KEY_BUDGET),
-            (List<String>) collectedInfo.getOrDefault(KEY_TRAVEL_STYLE, List.of()),
-            collectedInfo.containsKey(KEY_COMPANIONS) ?
-                (collectedInfo.get(KEY_COMPANIONS) instanceof List ?
-                    (List<String>) collectedInfo.get(KEY_COMPANIONS) :
-                    List.of(String.valueOf(collectedInfo.get(KEY_COMPANIONS)))) :
-                List.of("혼자"),
-            (String) collectedInfo.get(KEY_DEPARTURE),
-            (List<String>) collectedInfo.getOrDefault(KEY_INTERESTS, List.of()),
-            (String) collectedInfo.getOrDefault(KEY_ACCOMMODATION_TYPE, "호텔"),
-            (String) collectedInfo.getOrDefault(KEY_TRANSPORTATION_TYPE, "대중교통")
+                (List<String>) collectedInfo.getOrDefault(KEY_DESTINATIONS, List.of()),
+                (java.time.LocalDate) collectedInfo.get(KEY_START_DATE),
+                (java.time.LocalDate) collectedInfo.get(KEY_END_DATE),
+                (Integer) collectedInfo.get(KEY_BUDGET),
+                (List<String>) collectedInfo.getOrDefault(KEY_TRAVEL_STYLE, List.of()),
+                collectedInfo.containsKey(KEY_COMPANIONS) ?
+                        (collectedInfo.get(KEY_COMPANIONS) instanceof List ?
+                                (List<String>) collectedInfo.get(KEY_COMPANIONS) :
+                                List.of(String.valueOf(collectedInfo.get(KEY_COMPANIONS)))) :
+                        List.of("혼자"),
+                (String) collectedInfo.get(KEY_DEPARTURE),
+                (List<String>) collectedInfo.getOrDefault(KEY_INTERESTS, List.of()),
+                (String) collectedInfo.getOrDefault(KEY_ACCOMMODATION_TYPE, "호텔"),
+                (String) collectedInfo.getOrDefault(KEY_TRANSPORTATION_TYPE, "대중교통")
         );
     }
 
@@ -212,17 +223,17 @@ public class TravelContext implements Serializable {
         }
 
         return new TravelFormSubmitRequest(
-            userId,
-            (List<String>) collectedInfo.getOrDefault(KEY_DESTINATIONS, List.of()),
-            (String) collectedInfo.get(KEY_DEPARTURE),
-            dateRange,
-            departureTime,   // 출발 시간 추가
-            endTime,         // 종료 시간 추가
-            (String) collectedInfo.get(KEY_COMPANIONS),
-            collectedInfo.get(KEY_BUDGET) != null ?
-                Long.valueOf(String.valueOf(collectedInfo.get(KEY_BUDGET))) : null,
-            (List<String>) collectedInfo.getOrDefault(KEY_TRAVEL_STYLE, List.of()),
-            (String) collectedInfo.get(KEY_RESERVATION_DOCUMENT)
+                userId,
+                (List<String>) collectedInfo.getOrDefault(KEY_DESTINATIONS, List.of()),
+                (String) collectedInfo.get(KEY_DEPARTURE),
+                dateRange,
+                departureTime,   // 출발 시간 추가
+                endTime,         // 종료 시간 추가
+                (String) collectedInfo.get(KEY_COMPANIONS),
+                collectedInfo.get(KEY_BUDGET) != null ?
+                        Long.valueOf(String.valueOf(collectedInfo.get(KEY_BUDGET))) : null,
+                (List<String>) collectedInfo.getOrDefault(KEY_TRAVEL_STYLE, List.of()),
+                (String) collectedInfo.get(KEY_RESERVATION_DOCUMENT)
         );
     }
 
@@ -230,13 +241,13 @@ public class TravelContext implements Serializable {
     public boolean isRequiredInfoComplete() {
         // 필수 항목: 목적지, 출발지, 여행 날짜
         boolean hasDestinations = collectedInfo.containsKey(KEY_DESTINATIONS) &&
-            !((List<?>) collectedInfo.get(KEY_DESTINATIONS)).isEmpty();
+                !((List<?>) collectedInfo.get(KEY_DESTINATIONS)).isEmpty();
         boolean hasDeparture = collectedInfo.containsKey(KEY_DEPARTURE) &&
-            collectedInfo.get(KEY_DEPARTURE) != null;
+                collectedInfo.get(KEY_DEPARTURE) != null;
         boolean hasDates = collectedInfo.containsKey(KEY_START_DATE) &&
-            collectedInfo.containsKey(KEY_END_DATE) &&
-            collectedInfo.get(KEY_START_DATE) != null &&
-            collectedInfo.get(KEY_END_DATE) != null;
+                collectedInfo.containsKey(KEY_END_DATE) &&
+                collectedInfo.get(KEY_START_DATE) != null &&
+                collectedInfo.get(KEY_END_DATE) != null;
 
         return hasDestinations && hasDeparture && hasDates;
     }
@@ -258,6 +269,47 @@ public class TravelContext implements Serializable {
         if (collectedInfo.containsKey(KEY_TRANSPORTATION_TYPE)) collectedFields++;
 
         return (double) collectedFields / totalFields * 100;
+    }
+
+    // OCR 확정 일정 추가
+    public void addOcrSchedule(ConfirmedSchedule schedule) {
+        if (ocrConfirmedSchedules == null) {
+            ocrConfirmedSchedules = new CopyOnWriteArrayList<>();
+        }
+        // 중복 체크 (같은 시간대, 같은 타입)
+        boolean isDuplicate = ocrConfirmedSchedules.stream()
+                .anyMatch(existing ->
+                    existing.documentType() == schedule.documentType() &&
+                    existing.startTime().equals(schedule.startTime()));
+
+        if (!isDuplicate) {
+            ocrConfirmedSchedules.add(schedule);
+            this.updatedAt = LocalDateTime.now();
+        }
+    }
+
+    // OCR 원본 텍스트 저장
+    public void addOcrRawText(DocumentType type, String text) {
+        if (ocrRawTexts == null) {
+            ocrRawTexts = new ConcurrentHashMap<>();
+        }
+        ocrRawTexts.put(type, text);
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // 고정 일정만 필터링 (Phase 3에서 사용)
+    public List<ConfirmedSchedule> getFixedSchedules() {
+        if (ocrConfirmedSchedules == null) {
+            return new ArrayList<>();
+        }
+        return ocrConfirmedSchedules.stream()
+                .filter(ConfirmedSchedule::isFixed)
+                .toList();
+    }
+
+    // OCR 확정 일정이 있는지 확인
+    public boolean hasOcrSchedules() {
+        return ocrConfirmedSchedules != null && !ocrConfirmedSchedules.isEmpty();
     }
 
     // 내부 클래스: 메시지 히스토리

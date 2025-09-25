@@ -56,6 +56,18 @@ logging:
     com.compass: DEBUG
     org.springframework.ai: DEBUG
 
+# Kakao API 설정
+kakao:
+  api:
+    js-key: ${KAKAO_JS_KEY:dummy-js-key}  # JavaScript API Key (프론트엔드용)
+    rest-key: ${KAKAO_REST_KEY:dummy-rest-key}  # REST API Key (백엔드용)
+    map:
+      base-url: https://dapi.kakao.com
+      rate-limit: 30  # requests per second
+    mobility:
+      base-url: https://apis-navi.kakaomobility.com
+      rate-limit: 10  # requests per second (B2B only)
+
 # Swagger/OpenAPI 설정
 springdoc:
   api-docs:

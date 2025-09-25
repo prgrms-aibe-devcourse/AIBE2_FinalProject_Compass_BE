@@ -1,6 +1,8 @@
 package com.compass.domain.chat.orchestrator;
 
 import com.compass.domain.chat.model.context.TravelContext;
+import com.compass.domain.chat.model.dto.ConfirmedSchedule;
+import com.compass.domain.chat.model.enums.DocumentType;
 import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
 import com.compass.domain.chat.orchestrator.cache.PhaseCache;
@@ -327,5 +329,79 @@ public class PhaseManager {
             case COMPLETION ->
                 intent == Intent.COMPLETION;
         };
+    }
+
+    // OCR로 확인된 일정을 Phase2 Context에 추가
+    @Transactional
+    public void updatePhase2WithOcrSchedule(String threadId, ConfirmedSchedule schedule) {
+        MDC.put("threadId", threadId);
+        try {
+            log.info("OCR 확정 일정 추가 - type: {}, title: {}",
+                    schedule.documentType(), schedule.title());
+
+            // Context 가져오기
+            TravelContext context = contextManager.getContext(threadId, "").orElse(null);
+            if (context == null) {
+                log.warn("Context를 찾을 수 없음 - threadId: {}", threadId);
+                return;
+            }
+
+            // OCR 일정 추가
+            context.addOcrSchedule(schedule);
+
+            // Phase 확인 및 업데이트
+            TravelPhase currentPhase = getCurrentPhase(threadId);
+            if (currentPhase == TravelPhase.INITIALIZATION) {
+                // OCR 데이터가 있으면 자동으로 INFORMATION_COLLECTION으로 전환
+                log.info("OCR 데이터로 인한 Phase 전환: INITIALIZATION → INFORMATION_COLLECTION");
+                savePhase(threadId, TravelPhase.INFORMATION_COLLECTION);
+            }
+
+            // Context 저장
+            contextManager.updateContext(context, context.getUserId());
+
+            log.info("OCR 일정 저장 완료 - 총 {}개의 확정 일정",
+                    context.getOcrConfirmedSchedules().size());
+        } finally {
+            MDC.remove("threadId");
+        }
+    }
+
+    // OCR 원본 텍스트만 저장 (파싱 실패 시)
+    @Transactional
+    public void updatePhase2WithOcrText(String threadId, String text, DocumentType type) {
+        MDC.put("threadId", threadId);
+        MDC.put("documentType", type.name());
+        try {
+            log.info("OCR 원본 텍스트 저장 - textLength: {}", text.length());
+
+            TravelContext context = contextManager.getContext(threadId, "").orElse(null);
+            if (context == null) {
+                log.warn("Context를 찾을 수 없음 - threadId: {}", threadId);
+                return;
+            }
+
+            // OCR 원본 텍스트 저장
+            context.addOcrRawText(type, text);
+            contextManager.updateContext(context, context.getUserId());
+
+            log.info("OCR 원본 텍스트 저장 완료");
+        } finally {
+            MDC.remove("threadId");
+            MDC.remove("documentType");
+        }
+    }
+
+    // OCR 처리 에러 알림
+    public void notifyOcrError(String threadId, String errorMessage) {
+        MDC.put("threadId", threadId);
+        try {
+            log.error("OCR 처리 실패 알림 - error: {}", errorMessage);
+
+            // TODO: 사용자에게 에러 알림 (WebSocket/SSE)
+            // 임시로 로그만 남김
+        } finally {
+            MDC.remove("threadId");
+        }
     }
 }
