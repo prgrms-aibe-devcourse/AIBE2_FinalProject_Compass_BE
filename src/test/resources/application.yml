@@ -1,0 +1,77 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+
+  profiles:
+    active: test
+
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+    show-sql: false
+
+  h2:
+    console:
+      enabled: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+            scope:
+              - profile
+              - email
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
+
+# 환경변수 기본값 설정 (테스트용)
+GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID:test-project}
+GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:us-central1}
+GEMINI_MODEL: ${GEMINI_MODEL:gemini-2.0-flash}
+OPENAI_API_KEY: ${OPENAI_API_KEY:test-key}
+PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY:test-key}
+TOUR_API_KEY: ${TOUR_API_KEY:test-key}
+KAKAO_REST_KEY: ${KAKAO_REST_KEY:test-key}
+
+# AWS 설정
+AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:test-bucket}
+AWS_S3_REGION: ${AWS_S3_REGION:ap-northeast-2}
+AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:test-key}
+AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:test-key}
+
+# JWT 설정
+JWT_SECRET: ${JWT_SECRET:test-jwt-secret-key-that-should-be-at-least-256-bits-long-for-test}
+JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:test-jwt-access-secret-key-that-should-be-at-least-256-bits-long-for-test}
+JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:test-jwt-refresh-secret-key-that-should-be-at-least-256-bits-long-for-test}
+JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:3600000}
+JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:86400000}
+
+# Perplexity API 설정
+PERPLEXITY_API_URL: ${PERPLEXITY_API_URL:https://api.perplexity.ai/chat/completions}
+PERPLEXITY_API_TIMEOUT: ${PERPLEXITY_API_TIMEOUT:30}
+PERPLEXITY_API_MAX_RETRIES: ${PERPLEXITY_API_MAX_RETRIES:3}
+
+# 로깅 설정
+logging:
+  level:
+    com.compass: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.hibernate: WARN
