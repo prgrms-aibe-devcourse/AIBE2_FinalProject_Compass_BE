@@ -3,8 +3,6 @@ package com.compass.domain.chat.function.config;
 import com.compass.domain.chat.function.adjustment.ModifyItineraryFunction;
 import com.compass.domain.chat.function.adjustment.RegenerateItineraryFunction;
 import com.compass.domain.chat.function.collection.*;
-import com.compass.domain.chat.function.external.SearchTourAPIFunction;
-import com.compass.domain.chat.function.external.SearchWithPerplexityFunction;
 import com.compass.domain.chat.function.finalization.ExportItineraryFunction;
 import com.compass.domain.chat.function.finalization.SaveFinalItineraryFunction;
 import com.compass.domain.chat.function.general.HandleGeneralQueryFunction;
@@ -245,25 +243,7 @@ public class FunctionConfiguration {
     }
 
     // ========== 외부 API Functions (External) ==========
-
-    private final SearchTourAPIFunction searchTourAPIFunction;
-    private final SearchWithPerplexityFunction searchWithPerplexityFunction;
-
-    @Bean
-    public FunctionCallbackWrapper<?, ?> searchTourAPIWrapper() {
-        return FunctionCallbackWrapper.builder(searchTourAPIFunction)
-                .withName("search_tour_api")
-                .withDescription("한국관광공사 API 검색")
-                .build();
-    }
-
-    @Bean
-    public FunctionCallbackWrapper<?, ?> searchWithPerplexityWrapper() {
-        return FunctionCallbackWrapper.builder(searchWithPerplexityFunction)
-                .withName("search_with_perplexity")
-                .withDescription("Perplexity AI를 통한 실시간 웹 검색")
-                .build();
-    }
+    // 삭제된 TourAPI와 Perplexity 함수들 제거됨
 
     // ========== 유틸리티 Functions (Utility) ==========
 
@@ -291,7 +271,7 @@ public class FunctionConfiguration {
     @Bean
     public String functionRegistrationLogger() {
         log.info("========== Spring AI Function 등록 완료 ==========");
-        log.info("총 11개 Function이 FunctionCallbackWrapper로 등록되었습니다.");
+        log.info("총 9개 Function이 FunctionCallbackWrapper로 등록되었습니다.");
         log.info("- Collection Functions: 3개 (구현됨)");
         log.info("- Planning Functions: 2개 (구현됨)");
         log.info("- Itinerary Functions: 0개 (TODO)");
@@ -299,9 +279,9 @@ public class FunctionConfiguration {
         log.info("- Finalization Functions: 0개 (TODO)");
         log.info("- General Functions: 0개 (TODO)");
         log.info("- Processing Functions: 3개 (구현됨)");
-        log.info("- External API Functions: 2개 (구현됨)");
+        log.info("- External API Functions: 0개 (삭제됨)");
         log.info("- Utility Functions: 0개 (TODO)");
-        log.info("- 미구현 Function: 14개");
+        log.info("- 미구현 Function: 12개");
         log.info("=================================================");
         return "Function Registration Complete";
     }

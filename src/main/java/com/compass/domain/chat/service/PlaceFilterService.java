@@ -1,5 +1,6 @@
 package com.compass.domain.chat.service;
 
+import com.compass.domain.chat.entity.TourPlace;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -46,8 +47,8 @@ public class PlaceFilterService {
      * @param preferences 사용자 선호도
      * @return 필터링된 장소 리스트
      */
-    public List<PlaceDeduplicator.TourPlace> filterByPreferences(
-        List<PlaceDeduplicator.TourPlace> places,
+    public List<TourPlace> filterByPreferences(
+        List<TourPlace> places,
         UserPreferences preferences
     ) {
         if (places == null || places.isEmpty()) {
@@ -57,7 +58,7 @@ public class PlaceFilterService {
         log.info("장소 필터링 시작: {} 개 장소, 스타일: {}, 예산: {}", 
                 places.size(), preferences.travelStyle(), preferences.budget());
 
-        List<PlaceDeduplicator.TourPlace> filtered = places.stream()
+        List<TourPlace> filtered = places.stream()
             // 1. 예산 범위 필터링
             .filter(place -> matchesBudget(place, preferences.budget()))
             // 2. 여행 스타일 매칭
@@ -82,20 +83,20 @@ public class PlaceFilterService {
     /**
      * 예산 범위 체크
      */
-    private boolean matchesBudget(PlaceDeduplicator.TourPlace place, Budget budget) {
-        if (budget == null || place.priceRange() == null) {
+    private boolean matchesBudget(TourPlace place, Budget budget) {
+        if (budget == null || place.getPriceLevel() == null) {
             return true; // 정보가 없으면 통과
         }
 
         Set<String> allowedPrices = BUDGET_PRICE_MAPPING.get(budget);
-        return allowedPrices.contains(place.priceRange());
+        return allowedPrices.contains(place.getPriceLevel());
     }
 
     /**
      * 여행 스타일 매칭
      */
-    private boolean matchesStyle(PlaceDeduplicator.TourPlace place, TravelStyle style) {
-        if (style == null || place.category() == null) {
+    private boolean matchesStyle(TourPlace place, TravelStyle style) {
+        if (style == null || place.getCategory() == null) {
             return true; // 정보가 없으면 통과
         }
 
@@ -103,18 +104,18 @@ public class PlaceFilterService {
         
         // 카테고리가 선호 카테고리와 매칭되는지 확인
         return preferredCategories.stream()
-                .anyMatch(preferred -> place.category().toLowerCase().contains(preferred.toLowerCase()));
+                .anyMatch(preferred -> place.getCategory().toLowerCase().contains(preferred.toLowerCase()));
     }
 
     /**
      * 선호 카테고리 필터링
      */
-    private boolean matchesCategories(PlaceDeduplicator.TourPlace place, List<String> preferredCategories) {
-        if (preferredCategories == null || preferredCategories.isEmpty() || place.category() == null) {
+    private boolean matchesCategories(TourPlace place, List<String> preferredCategories) {
+        if (preferredCategories == null || preferredCategories.isEmpty() || place.getCategory() == null) {
             return true; // 선호도가 없거나 카테고리 정보가 없으면 통과
         }
 
-        String category = place.category().toLowerCase();
+        String category = place.getCategory().toLowerCase();
         return preferredCategories.stream()
                 .anyMatch(preferred -> category.contains(preferred.toLowerCase()));
     }
@@ -122,13 +123,13 @@ public class PlaceFilterService {
     /**
      * 운영 시간 확인
      */
-    private boolean isOperatingDuringTrip(PlaceDeduplicator.TourPlace place, DateRange dates) {
-        if (dates == null || place.operatingHours() == null) {
+    private boolean isOperatingDuringTrip(TourPlace place, DateRange dates) {
+        if (dates == null || place.getOperatingHours() == null) {
             return true; // 정보가 없으면 통과
         }
 
         // 간단한 운영시간 체크 (24시간 운영이거나 일반적인 운영시간)
-        String hours = place.operatingHours().toLowerCase();
+        String hours = place.getOperatingHours().toLowerCase();
         
         // 24시간 운영
         if (hours.contains("24시간") || hours.contains("00:00-24:00")) {
@@ -150,7 +151,7 @@ public class PlaceFilterService {
     /**
      * 장소 점수 계산 (정렬용)
      */
-    private int compareByScore(PlaceDeduplicator.TourPlace p1, PlaceDeduplicator.TourPlace p2) {
+    private int compareByScore(TourPlace p1, TourPlace p2) {
         double score1 = calculateScore(p1);
         double score2 = calculateScore(p2);
         return Double.compare(score2, score1);  // 내림차순 (높은 점수 우선)
@@ -159,12 +160,12 @@ public class PlaceFilterService {
     /**
      * 장소 점수 계산
      */
-    private double calculateScore(PlaceDeduplicator.TourPlace place) {
+    private double calculateScore(TourPlace place) {
         double score = 0.0;
 
         // 평점 (40% 가중치)
-        if (place.rating() != null) {
-            score += place.rating() * 0.4;
+        if (place.getRating() != null) {
+            score += place.getRating() * 0.4;
         } else {
             score += 3.5 * 0.4; // 기본 평점
         }
@@ -174,11 +175,11 @@ public class PlaceFilterService {
         score += completeness * 0.3;
 
         // 카테고리 인기도 (20% 가중치)
-        double categoryScore = getCategoryPopularity(place.category());
+        double categoryScore = getCategoryPopularity(place.getCategory());
         score += categoryScore * 0.2;
 
-        // 태그 다양성 (10% 가중치)
-        double tagScore = place.tags() != null ? Math.min(place.tags().size() / 5.0, 1.0) : 0.0;
+        // 태그 다양성 (10% 가중치) - TourPlace에는 tags 필드가 없으므로 기본값
+        double tagScore = 0.5; // 기본값
         score += tagScore * 0.1;
 
         return score;
@@ -187,18 +188,17 @@ public class PlaceFilterService {
     /**
      * 정보 완성도 계산
      */
-    private double calculateCompleteness(PlaceDeduplicator.TourPlace place) {
-        int totalFields = 8; // 주요 필드 개수
+    private double calculateCompleteness(TourPlace place) {
+        int totalFields = 7; // 주요 필드 개수 (tags 제외)
         int filledFields = 0;
 
-        if (place.name() != null && !place.name().trim().isEmpty()) filledFields++;
-        if (place.address() != null && !place.address().trim().isEmpty()) filledFields++;
-        if (place.latitude() != null && place.longitude() != null) filledFields++;
-        if (place.category() != null && !place.category().trim().isEmpty()) filledFields++;
-        if (place.rating() != null) filledFields++;
-        if (place.description() != null && !place.description().trim().isEmpty()) filledFields++;
-        if (place.operatingHours() != null && !place.operatingHours().trim().isEmpty()) filledFields++;
-        if (place.tags() != null && !place.tags().isEmpty()) filledFields++;
+        if (place.getName() != null && !place.getName().trim().isEmpty()) filledFields++;
+        if (place.getAddress() != null && !place.getAddress().trim().isEmpty()) filledFields++;
+        if (place.getLatitude() != null && place.getLongitude() != null) filledFields++;
+        if (place.getCategory() != null && !place.getCategory().trim().isEmpty()) filledFields++;
+        if (place.getRating() != null) filledFields++;
+        if (place.getOverview() != null && !place.getOverview().trim().isEmpty()) filledFields++;
+        if (place.getOperatingHours() != null && !place.getOperatingHours().trim().isEmpty()) filledFields++;
 
         return (double) filledFields / totalFields;
     }

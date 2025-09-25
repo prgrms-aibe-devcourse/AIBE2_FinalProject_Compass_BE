@@ -89,6 +89,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/").permitAll()  // 루트 경로 허용
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/static/**", "/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()  // Static resources
+                .requestMatchers("/*.html", "/*.css", "/*.js").permitAll()  // HTML, CSS, JS files
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()  // Authentication endpoints
                 .requestMatchers("/api/users/**").permitAll()
@@ -96,6 +98,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/debug/**").permitAll()  // Debug endpoints for testing
                 .requestMatchers("/api/chat/**", "/api/v1/chat/**").permitAll()  // Chat endpoints
                 .requestMatchers("/api/stage1/**").permitAll()  // Stage1 endpoints
+                .requestMatchers("/api/tourplace/**").permitAll()  // TourPlace endpoints
+                .requestMatchers("/api/cluster/**").permitAll()  // Cluster endpoints
+                .requestMatchers("/api/kakao-places/**").permitAll()  // Kakao Places API endpoints
                 .requestMatchers("/api/trips/**").permitAll()  // Trips endpoints for testing
                 .requestMatchers("/api/tour/**").permitAll()  // Tour API endpoints for testing
                 .requestMatchers("/api/search/**").permitAll()  // Search API endpoints
