@@ -1,0 +1,28 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+
+  pre_build:
+    commands:
+      - echo Pre Build started on `date`
+      - chmod +x gradlew
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - ./gradlew clean build
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+
+artifacts:
+  files:
+    - build/libs/compass-backend-0.0.1-SNAPSHOT.jar
+    - Procfile
+    - .ebextensions/**/*
+  name: compass-backend-artifact
+  discard-paths: no
