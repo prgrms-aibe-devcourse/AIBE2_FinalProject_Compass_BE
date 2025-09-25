@@ -75,6 +75,9 @@ public class TourPlace {
     @Column(name = "homepage")
     private String homepage;        // 홈페이지
     
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;     // 간단 설명
+    
     @Column(name = "overview", columnDefinition = "TEXT")
     private String overview;        // 상세 설명
     

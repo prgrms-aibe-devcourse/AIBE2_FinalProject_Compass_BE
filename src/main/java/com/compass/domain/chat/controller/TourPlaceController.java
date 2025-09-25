@@ -40,6 +40,10 @@ public class TourPlaceController {
                 log.info("MatchScore: {}", place.getMatchScore());
                 log.info("Source: {}", place.getSource());
                 log.info("ThreadId: {}", place.getThreadId());
+                log.info("Description: {}", place.getDescription());
+                log.info("Overview: {}", place.getOverview());
+                log.info("Latitude: {}", place.getLatitude());
+                log.info("Longitude: {}", place.getLongitude());
                 log.info("---");
             }
             
