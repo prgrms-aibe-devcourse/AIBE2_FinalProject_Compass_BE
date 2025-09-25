@@ -689,28 +689,28 @@ public class PlaceFilterService {
                 yield validateTimeRange(start, end, "12:00-14:00");
             }
             case "CAFE" -> {
-                // 카페: 14:00-15:30
+                // 카페: 14:00-16:00
                 String start = isTimeAfter(openTime, "14:00") ? openTime : "14:00";
-                String end = isTimeBefore(closeTime, "15:30") ? closeTime : "15:30";
-                yield validateTimeRange(start, end, "14:00-15:30");
+                String end = isTimeBefore(closeTime, "16:00") ? closeTime : "16:00";
+                yield validateTimeRange(start, end, "14:00-16:00");
             }
             case "AFTERNOON_ACTIVITY" -> {
-                // 오후활동: 15:30-17:00
-                String start = isTimeAfter(openTime, "15:30") ? openTime : "15:30";
-                String end = isTimeBefore(closeTime, "17:00") ? closeTime : "17:00";
-                yield validateTimeRange(start, end, "15:30-17:00");
+                // 오후활동: 16:00-18:00
+                String start = isTimeAfter(openTime, "16:00") ? openTime : "16:00";
+                String end = isTimeBefore(closeTime, "18:00") ? closeTime : "18:00";
+                yield validateTimeRange(start, end, "16:00-18:00");
             }
             case "DINNER" -> {
-                // 저녁: 17:00-19:00
-                String start = isTimeAfter(openTime, "17:00") ? openTime : "17:00";
-                String end = isTimeBefore(closeTime, "19:00") ? closeTime : "19:00";
-                yield validateTimeRange(start, end, "17:00-19:00");
+                // 저녁: 18:00-20:00
+                String start = isTimeAfter(openTime, "18:00") ? openTime : "18:00";
+                String end = isTimeBefore(closeTime, "20:00") ? closeTime : "20:00";
+                yield validateTimeRange(start, end, "18:00-20:00");
             }
             case "EVENING_ACTIVITY" -> {
-                // 저녁활동: 19:00-21:00
-                String start = isTimeAfter(openTime, "19:00") ? openTime : "19:00";
-                String end = isTimeBefore(closeTime, "21:00") ? closeTime : "21:00";
-                yield validateTimeRange(start, end, "19:00-21:00");
+                // 저녁활동: 20:00-22:00
+                String start = isTimeAfter(openTime, "20:00") ? openTime : "20:00";
+                String end = isTimeBefore(closeTime, "22:00") ? closeTime : "22:00";
+                yield validateTimeRange(start, end, "20:00-22:00");
             }
             default -> "09:00-18:00";
         };
