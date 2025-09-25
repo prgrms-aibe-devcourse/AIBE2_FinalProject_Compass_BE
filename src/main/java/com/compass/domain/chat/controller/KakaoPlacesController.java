@@ -4,7 +4,8 @@ import com.compass.domain.chat.entity.TourPlace;
 import com.compass.domain.chat.function.external.SearchKakaoPlacesFunction;
 import com.compass.domain.chat.repository.TourPlaceRepository;
 import com.compass.domain.chat.service.PlaceFilterService;
-import lombok.RequiredArgsConstructor;
+import com.compass.domain.chat.service.ClusterService;
+import com.compass.domain.chat.model.Cluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +18,6 @@ import java.util.*;
  */
 @RestController
 @RequestMapping("/api/kakao-places")
-@RequiredArgsConstructor
 public class KakaoPlacesController {
     
     private static final Logger log = LoggerFactory.getLogger(KakaoPlacesController.class);
@@ -25,6 +25,17 @@ public class KakaoPlacesController {
     private final SearchKakaoPlacesFunction kakaoPlacesFunction;
     private final PlaceFilterService placeFilterService;
     private final TourPlaceRepository tourPlaceRepository;
+    private final ClusterService clusterService;
+    
+    public KakaoPlacesController(SearchKakaoPlacesFunction kakaoPlacesFunction, 
+                                PlaceFilterService placeFilterService,
+                                TourPlaceRepository tourPlaceRepository,
+                                ClusterService clusterService) {
+        this.kakaoPlacesFunction = kakaoPlacesFunction;
+        this.placeFilterService = placeFilterService;
+        this.tourPlaceRepository = tourPlaceRepository;
+        this.clusterService = clusterService;
+    }
     
     /**
      * Kakao Places API로 장소 검색 및 저장
@@ -357,7 +368,7 @@ public class KakaoPlacesController {
         tourPlace.setSource("KakaoPlaces");
         tourPlace.setIsTrendy(true);
         tourPlace.setClusterName(clusterName);
-        tourPlace.setMatchScore(0.9);
+        tourPlace.setMatchScore(calculateMatchScore(clusterName, mappedCategory, timeBlock, latitude, longitude));
         tourPlace.setThreadId("kakao-places-001");
         tourPlace.setLatitude(latitude);
         tourPlace.setLongitude(longitude);
@@ -1181,6 +1192,168 @@ public class KakaoPlacesController {
         };
     }
     
+    /**
+     * 클러스터 매칭 점수 계산 (실제 데이터 기반)
+     */
+    private double calculateMatchScore(String clusterName, String category, String timeBlock, Double latitude, Double longitude) {
+        if (clusterName == null || category == null) {
+            return 0.5; // 기본값
+        }
+        
+        double score = 0.0;
+        
+        // 1. 클러스터 기본 매칭 점수 (40% 가중치)
+        double clusterScore = getClusterBaseScore(clusterName);
+        score += clusterScore * 0.4;
+        
+        // 2. 카테고리 매칭 점수 (30% 가중치)
+        double categoryScore = getCategoryMatchScore(clusterName, category);
+        score += categoryScore * 0.3;
+        
+        // 3. 시간대 매칭 점수 (20% 가중치)
+        double timeScore = getTimeBlockMatchScore(clusterName, timeBlock);
+        score += timeScore * 0.2;
+        
+        // 4. 지리적 근접성 점수 (10% 가중치)
+        double locationScore = getLocationMatchScore(clusterName, latitude, longitude);
+        score += locationScore * 0.1;
+        
+        // 5. 0.1 ~ 1.0 범위로 정규화
+        return Math.max(0.1, Math.min(1.0, score));
+    }
+
+    /**
+     * 클러스터 기본 매칭 점수
+     */
+    private double getClusterBaseScore(String clusterName) {
+        // 클러스터별 기본 매칭 점수
+        return switch (clusterName.toLowerCase()) {
+            case "홍대", "강남", "명동" -> 0.9;      // 인기 클러스터
+            case "경복궁", "북촌", "인사동" -> 0.85;   // 문화 클러스터
+            case "한강", "서울숲", "올림픽공원" -> 0.8; // 자연 클러스터
+            case "이태원", "청담", "압구정" -> 0.75;   // 고급 클러스터
+            default -> 0.6; // 기본값
+        };
+    }
+
+    /**
+     * 카테고리 매칭 점수 (클러스터별 선호도 반영)
+     */
+    private double getCategoryMatchScore(String clusterName, String category) {
+        if (category == null) return 0.5;
+        
+        String cat = category.toLowerCase();
+        String cluster = clusterName.toLowerCase();
+        
+        // 클러스터별 카테고리 선호도
+        if (cluster.contains("홍대") || cluster.contains("강남") || cluster.contains("명동")) {
+            // 도시 중심가: 쇼핑, 맛집, 카페 선호
+            if (cat.contains("쇼핑") || cat.contains("맛집") || cat.contains("카페")) return 0.9;
+            if (cat.contains("관광지")) return 0.7;
+            if (cat.contains("자연")) return 0.5;
+        } else if (cluster.contains("경복궁") || cluster.contains("북촌") || cluster.contains("인사동")) {
+            // 전통 문화 지역: 관광지, 문화시설 선호
+            if (cat.contains("관광지") || cat.contains("문화시설") || cat.contains("박물관")) return 0.9;
+            if (cat.contains("맛집")) return 0.7;
+            if (cat.contains("쇼핑")) return 0.6;
+        } else if (cluster.contains("한강") || cluster.contains("서울숲") || cluster.contains("올림픽공원")) {
+            // 자연 지역: 자연, 공원, 카페 선호
+            if (cat.contains("자연") || cat.contains("공원") || cat.contains("카페")) return 0.9;
+            if (cat.contains("관광지")) return 0.7;
+            if (cat.contains("쇼핑")) return 0.5;
+        } else if (cluster.contains("이태원") || cluster.contains("청담") || cluster.contains("압구정")) {
+            // 고급 상업 지역: 맛집, 카페, 쇼핑 선호
+            if (cat.contains("맛집") || cat.contains("카페") || cat.contains("쇼핑")) return 0.85;
+            if (cat.contains("관광지")) return 0.6;
+        }
+        
+        return 0.6; // 기본값
+    }
+
+    /**
+     * 시간대 매칭 점수
+     */
+    private double getTimeBlockMatchScore(String clusterName, String timeBlock) {
+        if (timeBlock == null) return 0.5;
+        
+        String cluster = clusterName.toLowerCase();
+        
+        // 클러스터별 시간대 선호도
+        if (cluster.contains("홍대") || cluster.contains("강남")) {
+            // 도시 중심가: 저녁 시간대 인기
+            return switch (timeBlock) {
+                case "DINNER", "EVENING_ACTIVITY" -> 0.9;
+                case "LUNCH", "CAFE" -> 0.8;
+                case "BREAKFAST", "MORNING_ACTIVITY" -> 0.6;
+                case "AFTERNOON_ACTIVITY" -> 0.7;
+                default -> 0.5;
+            };
+        } else if (cluster.contains("경복궁") || cluster.contains("북촌")) {
+            // 문화 지역: 오전/오후 활동 시간대 인기
+            return switch (timeBlock) {
+                case "MORNING_ACTIVITY", "AFTERNOON_ACTIVITY" -> 0.9;
+                case "LUNCH", "CAFE" -> 0.8;
+                case "BREAKFAST", "DINNER" -> 0.6;
+                case "EVENING_ACTIVITY" -> 0.7;
+                default -> 0.5;
+            };
+        } else if (cluster.contains("한강") || cluster.contains("서울숲")) {
+            // 자연 지역: 오전/오후 시간대 인기
+            return switch (timeBlock) {
+                case "MORNING_ACTIVITY", "AFTERNOON_ACTIVITY", "CAFE" -> 0.9;
+                case "LUNCH", "DINNER" -> 0.7;
+                case "BREAKFAST" -> 0.6;
+                case "EVENING_ACTIVITY" -> 0.5;
+                default -> 0.5;
+            };
+        }
+        
+        return 0.6; // 기본값
+    }
+
+    /**
+     * 지리적 근접성 점수
+     */
+    private double getLocationMatchScore(String clusterName, Double latitude, Double longitude) {
+        if (latitude == null || longitude == null) return 0.5;
+        
+        try {
+            // 클러스터 중심점과의 거리 계산
+            Cluster cluster = clusterService.getCluster(clusterName);
+            if (cluster != null) {
+                double distance = calculateDistance(latitude, longitude, 
+                    cluster.getCenterLat(), cluster.getCenterLng());
+                
+                // 거리 기반 점수 계산 (5km 이내면 높은 점수)
+                if (distance <= 1.0) return 0.9;      // 1km 이내
+                else if (distance <= 2.0) return 0.8;  // 2km 이내
+                else if (distance <= 3.0) return 0.7;  // 3km 이내
+                else if (distance <= 5.0) return 0.6;  // 5km 이내
+                else return 0.4;                       // 5km 초과
+            }
+        } catch (Exception e) {
+            log.warn("지리적 근접성 계산 실패: {}", e.getMessage());
+        }
+        
+        return 0.5; // 기본값
+    }
+
+    /**
+     * 두 지점 간의 거리 계산 (km)
+     */
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371; // 지구 반지름 (km)
+        
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        
+        return R * c;
+    }
+
     /**
      * 시간블록별 추천 시간 설정
      */
