@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TourPlace 객체 조회</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .tourplace-item {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tourplace-item h3 {
+            color: #007bff;
+            margin: 0 0 10px 0;
+        }
+        .tourplace-item p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .stat-card .number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 TourPlace 객체 조회 시스템</h1>
+        
+        <div class="button-group">
+            <button onclick="loadAllTourPlaces()">모든 TourPlace 조회</button>
+            <button onclick="loadStats()">통계 조회</button>
+            <button onclick="loadByThread()">ThreadId별 조회</button>
+        </div>
+
+        <div id="result" class="result" style="display: none;">
+            <h3>조회 결과</h3>
+            <div id="content"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/tourplace';
+        
+        function showLoading() {
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('content').innerHTML = '<div class="loading">로딩 중...</div>';
+        }
+        
+        function showError(message) {
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('content').innerHTML = `<div class="error">오류: ${message}</div>`;
+        }
+        
+        function showContent(content) {
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('content').innerHTML = content;
+        }
+        
+        async function loadAllTourPlaces() {
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/all`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                
+                let content = `<h4>총 ${data.length}개의 TourPlace 객체</h4>`;
+                data.forEach((place, index) => {
+                    content += `
+                        <div class="tourplace-item">
+                            <h3>${index + 1}. ${place.name || 'N/A'}</h3>
+                            <p><strong>주소:</strong> ${place.address || 'N/A'}</p>
+                            <p><strong>카테고리:</strong> ${place.category || 'N/A'}</p>
+                            <p><strong>시간대:</strong> ${place.timeBlock || 'N/A'}</p>
+                            <p><strong>일차:</strong> ${place.day || 'N/A'}</p>
+                            <p><strong>추천시간:</strong> ${place.recommendTime || 'N/A'}</p>
+                            <p><strong>평점:</strong> ${place.rating || 'N/A'}</p>
+                            <p><strong>소스:</strong> ${place.source || 'N/A'}</p>
+                            <p><strong>ThreadId:</strong> ${place.threadId || 'N/A'}</p>
+                        </div>
+                    `;
+                });
+                showContent(content);
+            } catch (error) {
+                showError(`모든 TourPlace 조회 실패: ${error.message}`);
+            }
+        }
+        
+        async function loadStats() {
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/stats`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                
+                let content = '<h4>TourPlace 통계</h4>';
+                content += `
+                    <div class="stats">
+                        <div class="stat-card">
+                            <h4>총 장소 수</h4>
+                            <div class="number">${data.totalPlaces || 0}</div>
+                        </div>
+                    </div>
+                `;
+                
+                if (data.byCategory) {
+                    content += '<h5>카테고리별 분포</h5><div class="stats">';
+                    Object.entries(data.byCategory).forEach(([category, count]) => {
+                        content += `
+                            <div class="stat-card">
+                                <h4>${category}</h4>
+                                <div class="number">${count}</div>
+                            </div>
+                        `;
+                    });
+                    content += '</div>';
+                }
+                
+                if (data.byTimeBlock) {
+                    content += '<h5>시간대별 분포</h5><div class="stats">';
+                    Object.entries(data.byTimeBlock).forEach(([timeBlock, count]) => {
+                        content += `
+                            <div class="stat-card">
+                                <h4>${timeBlock}</h4>
+                                <div class="number">${count}</div>
+                            </div>
+                        `;
+                    });
+                    content += '</div>';
+                }
+                
+                showContent(content);
+            } catch (error) {
+                showError(`통계 조회 실패: ${error.message}`);
+            }
+        }
+        
+        async function loadByThread() {
+            const threadId = prompt('ThreadId를 입력하세요:', 'tour_place_test_1758612381921');
+            if (!threadId) return;
+            
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/thread/${threadId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                
+                let content = `<h4>ThreadId: ${threadId} (${data.length}개)</h4>`;
+                data.forEach((place, index) => {
+                    content += `
+                        <div class="tourplace-item">
+                            <h3>${index + 1}. ${place.name || 'N/A'}</h3>
+                            <p><strong>주소:</strong> ${place.address || 'N/A'}</p>
+                            <p><strong>카테고리:</strong> ${place.category || 'N/A'}</p>
+                            <p><strong>시간대:</strong> ${place.timeBlock || 'N/A'}</p>
+                            <p><strong>일차:</strong> ${place.day || 'N/A'}</p>
+                            <p><strong>추천시간:</strong> ${place.recommendTime || 'N/A'}</p>
+                            <p><strong>평점:</strong> ${place.rating || 'N/A'}</p>
+                            <p><strong>소스:</strong> ${place.source || 'N/A'}</p>
+                        </div>
+                    `;
+                });
+                showContent(content);
+            } catch (error) {
+                showError(`ThreadId별 조회 실패: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
