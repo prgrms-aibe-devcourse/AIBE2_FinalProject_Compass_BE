@@ -1,0 +1,743 @@
+package com.compass.domain.chat.stage3.service;
+
+import com.compass.domain.chat.model.TravelPlace;
+import com.compass.domain.chat.route_optimization.client.KakaoMobilityClient;
+import com.compass.domain.chat.stage2.service.Stage2TimeBlockService;
+import com.compass.domain.chat.stage2.service.Stage2TimeBlockService.TimeBlock;
+import com.compass.domain.chat.stage2.service.Stage2TimeBlockService.TimeBlockCandidates;
+import com.compass.domain.chat.stage2.service.Stage2TimeBlockService.DaySchedule;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+// Stage 3: AI 추천 일정 생성 및 커스터마이징 서비스
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class Stage3CustomizationService {
+
+    private final KakaoMobilityClient kakaoMobilityClient;
+
+    // Stage 2 Response를 받아서 처리하는 메서드 추가
+    public Stage3Response generateRecommendedItinerary(String threadId,
+                                                      Stage2TimeBlockService.Stage2Response stage2Response) {
+        // Stage2Response를 Stage3Request로 변환
+        Stage3Request request = Stage3Request.builder()
+            .threadId(threadId)
+            .daySchedules(stage2Response.timeBlocks())
+            .transportMode("자차") // 기본값
+            .build();
+
+        return generateRecommendedItinerary(request);
+    }
+
+    // Stage 3 메인 처리
+    public Stage3Response generateRecommendedItinerary(Stage3Request request) {
+        log.info("Stage 3: AI 추천 일정 생성 시작");
+
+        Map<Integer, RecommendedDayItinerary> recommendedItinerary = new HashMap<>();
+        Map<Integer, AlternativePlaces> alternativePlaces = new HashMap<>();
+
+        // 각 날짜별 처리
+        for (var dayEntry : request.daySchedules().entrySet()) {
+            int day = dayEntry.getKey();
+            DaySchedule daySchedule = dayEntry.getValue();
+
+            // 1. AI 추천 일정 생성
+            RecommendedDayItinerary recommended = createRecommendedItinerary(
+                day,
+                daySchedule,
+                request.transportMode()
+            );
+            recommendedItinerary.put(day, recommended);
+
+            // 2. 대안 장소들 정리 (장바구니)
+            AlternativePlaces alternatives = organizeAlternatives(
+                daySchedule,
+                recommended
+            );
+            alternativePlaces.put(day, alternatives);
+
+            log.info("Day {} 일정: 추천 {}개 장소, 대안 {}개",
+                day, recommended.places().size(),
+                countAlternatives(alternatives));
+        }
+
+        // 3. 전체 여행 통계 계산
+        TripStatistics statistics = calculateStatistics(
+            recommendedItinerary,
+            request.transportMode()
+        );
+
+        return Stage3Response.builder()
+            .threadId(request.threadId())
+            .tripDays(request.tripDays())
+            .recommendedItinerary(recommendedItinerary)
+            .alternativePlaces(alternativePlaces)
+            .statistics(statistics)
+            .transportMode(request.transportMode())
+            .build();
+    }
+
+    // AI 추천 일정 생성
+    private RecommendedDayItinerary createRecommendedItinerary(
+            int day,
+            DaySchedule daySchedule,
+            String transportMode) {
+
+        List<PlaceWithTime> itinerary = new ArrayList<>();
+        LocalTime currentTime = LocalTime.of(7, 0); // 아침 7시 시작
+
+        // 각 시간블록별로 최적 장소 선택
+        for (TimeBlock timeBlock : TimeBlock.values()) {
+            TimeBlockCandidates candidates = daySchedule.timeBlocks().get(timeBlock);
+            if (candidates == null) continue;
+
+            // 시간블록의 장소 선택 (확정 우선, 없으면 AI 후보에서 선택)
+            List<TravelPlace> selectedPlaces = selectPlacesForTimeBlock(candidates, itinerary);
+
+            for (TravelPlace place : selectedPlaces) {
+                PlaceWithTime placeWithTime = new PlaceWithTime(
+                    place,
+                    currentTime,
+                    currentTime.plusMinutes(90), // 기본 90분 할당
+                    timeBlock
+                );
+                itinerary.add(placeWithTime);
+
+                // 이동시간 고려하여 다음 시작 시간 계산
+                currentTime = calculateNextStartTime(placeWithTime, itinerary, transportMode);
+            }
+        }
+
+        // TSP로 동선 최적화
+        List<PlaceWithTime> optimized = optimizeRoute(itinerary);
+
+        // 경로 정보 계산
+        RouteStatistics routeStats = calculateRouteStatistics(optimized, transportMode);
+
+        return new RecommendedDayItinerary(day, optimized, routeStats);
+    }
+
+    // 시간블록에서 장소 선택 (확정 우선, AI 후보 중 최적 선택)
+    private List<TravelPlace> selectPlacesForTimeBlock(TimeBlockCandidates candidates,
+                                                      List<PlaceWithTime> currentItinerary) {
+        List<TravelPlace> selected = new ArrayList<>();
+
+        // 1. 확정된 장소 모두 추가
+        selected.addAll(candidates.confirmedPlaces());
+
+        // 2. 빈 슬롯이 있으면 AI 후보에서 추가
+        int remainingSlots = 2 - selected.size(); // 시간블록당 최대 2개
+
+        if (remainingSlots > 0 && !candidates.aiCandidates().isEmpty()) {
+            // 현재까지의 일정과 가장 잘 맞는 후보 선택
+            List<TravelPlace> bestCandidates = selectBestCandidates(
+                candidates.aiCandidates(),
+                currentItinerary,
+                remainingSlots
+            );
+            selected.addAll(bestCandidates);
+        }
+
+        return selected;
+    }
+
+    // AI 후보 중 최적 선택
+    private List<TravelPlace> selectBestCandidates(List<TravelPlace> candidates,
+                                                  List<PlaceWithTime> currentItinerary,
+                                                  int count) {
+        if (currentItinerary.isEmpty()) {
+            // 첫 장소는 리뷰수/평점 기준
+            return candidates.stream()
+                .sorted((p1, p2) -> {
+                    double score1 = calculatePlaceScore(p1);
+                    double score2 = calculatePlaceScore(p2);
+                    return Double.compare(score2, score1);
+                })
+                .limit(count)
+                .collect(Collectors.toList());
+        }
+
+        // 마지막 장소와의 거리 고려
+        PlaceWithTime lastPlace = currentItinerary.get(currentItinerary.size() - 1);
+
+        return candidates.stream()
+            .sorted((p1, p2) -> {
+                double score1 = calculatePlaceScoreWithDistance(p1, lastPlace.place());
+                double score2 = calculatePlaceScoreWithDistance(p2, lastPlace.place());
+                return Double.compare(score2, score1);
+            })
+            .limit(count)
+            .collect(Collectors.toList());
+    }
+
+    // 장소 점수 계산 (리뷰수 + 평점)
+    private double calculatePlaceScore(TravelPlace place) {
+        double reviewScore = 0.0;
+        double ratingScore = 0.0;
+
+        if (place.getReviewCount() != null) {
+            reviewScore = Math.min(1.0, Math.log10(place.getReviewCount() + 1) / 3.0);
+        }
+
+        if (place.getRating() != null) {
+            ratingScore = place.getRating() / 5.0;
+        }
+
+        return (reviewScore * 0.5) + (ratingScore * 0.5);
+    }
+
+    // 거리를 고려한 장소 점수 계산
+    private double calculatePlaceScoreWithDistance(TravelPlace place, TravelPlace reference) {
+        double baseScore = calculatePlaceScore(place);
+        double distance = calculateDistance(place, reference);
+
+        // 거리 점수 (5km 이내 만점)
+        double distanceScore = Math.max(0, 1.0 - (distance / 10.0));
+
+        // 기본 점수 60%, 거리 점수 40%
+        return (baseScore * 0.6) + (distanceScore * 0.4);
+    }
+
+    // TSP로 동선 최적화
+    private List<PlaceWithTime> optimizeRoute(List<PlaceWithTime> itinerary) {
+        if (itinerary.size() <= 2) return itinerary;
+
+        // 시간블록 순서는 유지하면서 같은 시간블록 내에서만 최적화
+        Map<TimeBlock, List<PlaceWithTime>> byTimeBlock = itinerary.stream()
+            .collect(Collectors.groupingBy(
+                PlaceWithTime::timeBlock,
+                LinkedHashMap::new,
+                Collectors.toList()
+            ));
+
+        List<PlaceWithTime> optimized = new ArrayList<>();
+
+        for (var entry : byTimeBlock.entrySet()) {
+            List<PlaceWithTime> blockPlaces = entry.getValue();
+            if (blockPlaces.size() > 1) {
+                // 같은 시간블록 내에서 거리 최적화
+                blockPlaces = optimizeWithinBlock(blockPlaces);
+            }
+            optimized.addAll(blockPlaces);
+        }
+
+        return optimized;
+    }
+
+    // 시간블록 내 최적화
+    private List<PlaceWithTime> optimizeWithinBlock(List<PlaceWithTime> places) {
+        if (places.size() == 2) {
+            // 2개일 때는 거리가 더 가까운 순서로
+            double dist1 = calculateTotalDistance(places);
+            List<PlaceWithTime> reversed = List.of(places.get(1), places.get(0));
+            double dist2 = calculateTotalDistance(reversed);
+
+            return dist1 <= dist2 ? places : reversed;
+        }
+        return places; // 3개 이상은 그대로 (복잡도 고려)
+    }
+
+    // 대안 장소 정리 (장바구니) - 거리별 3단계 섹션으로 구분
+    private AlternativePlaces organizeAlternatives(DaySchedule daySchedule,
+                                                  RecommendedDayItinerary recommended) {
+        Map<TimeBlock, DistanceBasedAlternatives> alternatives = new HashMap<>();
+
+        // 추천 일정에 포함된 장소 ID들
+        Set<String> recommendedIds = recommended.places().stream()
+            .map(p -> p.place().getPlaceId())
+            .collect(Collectors.toSet());
+
+        // 해당 일자의 사용자 선택 장소들을 기준점으로 사용
+        // (사용자 선택 장소들은 확정된 장소들 중에서 isUserSelected=true인 것들)
+        List<TravelPlace> userSelectedPlaces = daySchedule.timeBlocks().values().stream()
+            .flatMap(tc -> tc.confirmedPlaces().stream())
+            .filter(p -> p.isUserSelected())
+            .map(p -> convertToTravelPlace(p))
+            .collect(Collectors.toList());
+
+        // 각 시간블록별로 선택되지 않은 AI 후보들 정리
+        for (var entry : daySchedule.timeBlocks().entrySet()) {
+            TimeBlock timeBlock = entry.getKey();
+            TimeBlockCandidates candidates = entry.getValue();
+
+            List<TravelPlace> notSelected = candidates.aiCandidates().stream()
+                .filter(p -> !recommendedIds.contains(p.getPlaceId()))
+                .collect(Collectors.toList());
+
+            if (!notSelected.isEmpty()) {
+                // 일자별 사용자 선택 장소들을 기준으로 거리 계산
+                DistanceBasedAlternatives distanceAlternatives = categorizeByDistanceFromUserSelected(
+                    notSelected,
+                    userSelectedPlaces
+                );
+
+                alternatives.put(timeBlock, distanceAlternatives);
+            }
+        }
+
+        return new AlternativePlaces(alternatives);
+    }
+
+    // ConfirmedSchedule를 TravelPlace로 변환
+    private TravelPlace convertToTravelPlace(com.compass.domain.chat.model.dto.ConfirmedSchedule confirmed) {
+        return TravelPlace.builder()
+            .placeId(confirmed.placeId())
+            .name(confirmed.placeName())
+            .category(confirmed.category())
+            .latitude(confirmed.latitude())
+            .longitude(confirmed.longitude())
+            .address(confirmed.address())
+            .rating(confirmed.rating())
+            .build();
+    }
+
+    // 시간블록에 해당하는 기준 장소 찾기
+    private TravelPlace findReferencePlaceForTimeBlock(RecommendedDayItinerary recommended,
+                                                       TimeBlock timeBlock) {
+        return recommended.places().stream()
+            .filter(p -> p.timeBlock() == timeBlock)
+            .map(PlaceWithTime::place)
+            .findFirst()
+            .orElse(null);
+    }
+
+    // 거리별 3단계 섹션으로 분류 (단일 기준점)
+    private DistanceBasedAlternatives categorizeByDistance(List<TravelPlace> places,
+                                                          TravelPlace reference) {
+        List<TravelPlace> nearbyPlaces = new ArrayList<>();  // 2km 이내
+        List<TravelPlace> moderatePlaces = new ArrayList<>(); // 2-5km
+        List<TravelPlace> farPlaces = new ArrayList<>();     // 5km 이상
+
+        for (TravelPlace place : places) {
+            double distance = reference != null ?
+                calculateDistance(place, reference) : 0.0;
+
+            if (distance <= 2.0) {
+                nearbyPlaces.add(place);
+            } else if (distance <= 5.0) {
+                moderatePlaces.add(place);
+            } else {
+                farPlaces.add(place);
+            }
+        }
+
+        // 각 섹션 내에서 평점/리뷰수로 정렬
+        nearbyPlaces.sort((p1, p2) -> Double.compare(
+            calculatePlaceScore(p2), calculatePlaceScore(p1)));
+        moderatePlaces.sort((p1, p2) -> Double.compare(
+            calculatePlaceScore(p2), calculatePlaceScore(p1)));
+        farPlaces.sort((p1, p2) -> Double.compare(
+            calculatePlaceScore(p2), calculatePlaceScore(p1)));
+
+        return new DistanceBasedAlternatives(nearbyPlaces, moderatePlaces, farPlaces);
+    }
+
+    // 거리별 3단계 섹션으로 분류 (사용자 선택 장소들 기준)
+    private DistanceBasedAlternatives categorizeByDistanceFromUserSelected(
+            List<TravelPlace> places,
+            List<TravelPlace> userSelectedPlaces) {
+
+        List<TravelPlace> nearbyPlaces = new ArrayList<>();  // 2km 이내
+        List<TravelPlace> moderatePlaces = new ArrayList<>(); // 2-5km
+        List<TravelPlace> farPlaces = new ArrayList<>();     // 5km 이상
+
+        for (TravelPlace place : places) {
+            // 모든 사용자 선택 장소들과의 최소 거리 계산
+            double minDistance = Double.MAX_VALUE;
+
+            if (userSelectedPlaces.isEmpty()) {
+                // 사용자 선택 장소가 없으면 기본적으로 가까운 거리로 분류
+                minDistance = 0.0;
+            } else {
+                for (TravelPlace userPlace : userSelectedPlaces) {
+                    double distance = calculateDistance(place, userPlace);
+                    minDistance = Math.min(minDistance, distance);
+                }
+            }
+
+            // 최소 거리를 기준으로 분류
+            if (minDistance <= 2.0) {
+                nearbyPlaces.add(place);
+            } else if (minDistance <= 5.0) {
+                moderatePlaces.add(place);
+            } else {
+                farPlaces.add(place);
+            }
+        }
+
+        // 각 섹션 내에서 평점/리뷰수로 정렬
+        nearbyPlaces.sort((p1, p2) -> Double.compare(
+            calculatePlaceScore(p2), calculatePlaceScore(p1)));
+        moderatePlaces.sort((p1, p2) -> Double.compare(
+            calculatePlaceScore(p2), calculatePlaceScore(p1)));
+        farPlaces.sort((p1, p2) -> Double.compare(
+            calculatePlaceScore(p2), calculatePlaceScore(p1)));
+
+        log.debug("장바구니 거리별 분류 완료 - 도보가능: {}, 가까운거리: {}, 먼거리: {}",
+            nearbyPlaces.size(), moderatePlaces.size(), farPlaces.size());
+
+        return new DistanceBasedAlternatives(nearbyPlaces, moderatePlaces, farPlaces);
+    }
+
+    // 다음 시작 시간 계산
+    private LocalTime calculateNextStartTime(PlaceWithTime current,
+                                            List<PlaceWithTime> itinerary,
+                                            String transportMode) {
+        // 현재 장소 종료 시간 + 이동 시간
+        LocalTime endTime = current.endTime();
+
+        if (itinerary.size() > 1) {
+            PlaceWithTime previous = itinerary.get(itinerary.size() - 2);
+            double distance = calculateDistance(current.place(), previous.place());
+            int travelMinutes = calculateTravelTime(distance, transportMode);
+            endTime = endTime.plusMinutes(travelMinutes);
+        }
+
+        return endTime;
+    }
+
+    // 이동 시간 계산
+    private int calculateTravelTime(double distanceKm, String transportMode) {
+        double speedKmh = switch (transportMode) {
+            case "CAR" -> 30.0; // 도심 평균 속도
+            case "PUBLIC_TRANSPORT" -> 20.0;
+            case "WALKING" -> 4.0;
+            default -> 25.0;
+        };
+
+        return (int)(distanceKm / speedKmh * 60);
+    }
+
+    // 경로 통계 계산
+    private RouteStatistics calculateRouteStatistics(List<PlaceWithTime> itinerary,
+                                                    String transportMode) {
+        if (itinerary.size() < 2) {
+            return new RouteStatistics(0, 0, 0);
+        }
+
+        double totalDistance = calculateTotalDistance(itinerary);
+        int totalTravelTime = 0;
+
+        for (int i = 0; i < itinerary.size() - 1; i++) {
+            double distance = calculateDistance(
+                itinerary.get(i).place(),
+                itinerary.get(i + 1).place()
+            );
+            totalTravelTime += calculateTravelTime(distance, transportMode);
+        }
+
+        int totalActivityTime = itinerary.stream()
+            .mapToInt(p -> (int)java.time.Duration.between(p.startTime(), p.endTime()).toMinutes())
+            .sum();
+
+        return new RouteStatistics(totalDistance, totalTravelTime, totalActivityTime);
+    }
+
+    // 전체 여행 통계 계산
+    private TripStatistics calculateStatistics(Map<Integer, RecommendedDayItinerary> itinerary,
+                                              String transportMode) {
+        int totalPlaces = itinerary.values().stream()
+            .mapToInt(day -> day.places().size())
+            .sum();
+
+        double totalDistance = itinerary.values().stream()
+            .mapToDouble(day -> day.routeStatistics().totalDistance())
+            .sum();
+
+        int totalTravelTime = itinerary.values().stream()
+            .mapToInt(day -> day.routeStatistics().totalTravelTime())
+            .sum();
+
+        double avgPlacesPerDay = totalPlaces / (double) itinerary.size();
+
+        return new TripStatistics(
+            totalPlaces,
+            totalDistance,
+            totalTravelTime,
+            avgPlacesPerDay,
+            transportMode
+        );
+    }
+
+    // 거리 계산 (Haversine)
+    private double calculateDistance(TravelPlace p1, TravelPlace p2) {
+        if (p1.getLatitude() == null || p2.getLatitude() == null) {
+            return 5.0; // 기본값
+        }
+
+        double lat1 = p1.getLatitude();
+        double lon1 = p1.getLongitude();
+        double lat2 = p2.getLatitude();
+        double lon2 = p2.getLongitude();
+
+        double R = 6371; // km
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c;
+    }
+
+    // 전체 거리 계산
+    private double calculateTotalDistance(List<PlaceWithTime> places) {
+        double total = 0;
+        for (int i = 0; i < places.size() - 1; i++) {
+            total += calculateDistance(places.get(i).place(), places.get(i + 1).place());
+        }
+        return total;
+    }
+
+    // 대안 개수 계산
+    private int countAlternatives(AlternativePlaces alternatives) {
+        return alternatives.getTotalCount();
+    }
+
+    // 커스터마이징: 장소 교체
+    @Transactional
+    public Stage3Response customizeItinerary(CustomizationRequest request) {
+        log.info("장소 교체 요청: {} -> {}",
+            request.oldPlaceId(), request.newPlaceId());
+
+        // TODO: 실제 구현 시 DB 업데이트 및 재계산 로직 추가
+        // 현재는 더미 응답 반환
+
+        return Stage3Response.builder()
+            .threadId(request.threadId())
+            .tripDays(2) // 임시
+            .recommendedItinerary(new HashMap<>())
+            .alternativePlaces(new HashMap<>())
+            .statistics(new TripStatistics(10, 50.0, 120, 5.0, "자차"))
+            .transportMode("자차")
+            .build();
+    }
+
+    // 커스터마이징: 장소 교체 (기존 메서드 유지)
+    @Transactional
+    public CustomizationResponse replacePlace(CustomizationRequest request) {
+        log.info("장소 교체 요청: Day {} {} -> {}",
+            request.day(), request.oldPlaceId(), request.newPlaceId());
+
+        // TODO: 실제 구현 시 DB 업데이트 및 재계산 로직 추가
+
+        return CustomizationResponse.builder()
+            .success(true)
+            .message("장소가 성공적으로 교체되었습니다")
+            .build();
+    }
+
+    // 요청 DTO
+    public record Stage3Request(
+        String threadId,
+        int tripDays,
+        Map<Integer, DaySchedule> daySchedules,
+        String transportMode
+    ) {
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+            private String threadId;
+            private int tripDays;
+            private Map<Integer, DaySchedule> daySchedules;
+            private String transportMode;
+
+            public Builder threadId(String threadId) {
+                this.threadId = threadId;
+                return this;
+            }
+
+            public Builder tripDays(int tripDays) {
+                this.tripDays = tripDays;
+                return this;
+            }
+
+            public Builder daySchedules(Map<Integer, DaySchedule> daySchedules) {
+                this.daySchedules = daySchedules;
+                return this;
+            }
+
+            public Builder transportMode(String transportMode) {
+                this.transportMode = transportMode;
+                return this;
+            }
+
+            public Stage3Request build() {
+                return new Stage3Request(threadId, tripDays, daySchedules, transportMode);
+            }
+        }
+    }
+
+    // 시간이 포함된 장소
+    public record PlaceWithTime(
+        TravelPlace place,
+        LocalTime startTime,
+        LocalTime endTime,
+        TimeBlock timeBlock
+    ) {}
+
+    // 하루 추천 일정
+    public record RecommendedDayItinerary(
+        int day,
+        List<PlaceWithTime> places,
+        RouteStatistics routeStatistics
+    ) {}
+
+    // 경로 통계
+    public record RouteStatistics(
+        double totalDistance,  // km
+        int totalTravelTime,   // 분
+        int totalActivityTime  // 분
+    ) {}
+
+    // 거리별 대안 장소 (3단계 섹션)
+    public record DistanceBasedAlternatives(
+        List<TravelPlace> nearbyPlaces,    // 2km 이내 - 도보 가능
+        List<TravelPlace> moderatePlaces,  // 2-5km - 가까운 거리
+        List<TravelPlace> farPlaces        // 5km 이상 - 먼 거리
+    ) {
+        // 전체 대안 개수
+        public int getTotalCount() {
+            return nearbyPlaces.size() + moderatePlaces.size() + farPlaces.size();
+        }
+
+        // 섹션별 개수
+        public String getSummary() {
+            return String.format("도보가능(%d) | 가까운거리(%d) | 먼거리(%d)",
+                nearbyPlaces.size(), moderatePlaces.size(), farPlaces.size());
+        }
+    }
+
+    // 대안 장소들 (장바구니) - 거리별 3단계 섹션 포함
+    public record AlternativePlaces(
+        Map<TimeBlock, DistanceBasedAlternatives> alternativesByTimeBlock
+    ) {
+        // 시간블록별 대안 개수
+        public int getCountForTimeBlock(TimeBlock timeBlock) {
+            DistanceBasedAlternatives alternatives = alternativesByTimeBlock.get(timeBlock);
+            return alternatives != null ? alternatives.getTotalCount() : 0;
+        }
+
+        // 전체 대안 개수
+        public int getTotalCount() {
+            return alternativesByTimeBlock.values().stream()
+                .mapToInt(DistanceBasedAlternatives::getTotalCount)
+                .sum();
+        }
+    }
+
+    // 전체 여행 통계
+    public record TripStatistics(
+        int totalPlaces,
+        double totalDistance,
+        int totalTravelTime,
+        double avgPlacesPerDay,
+        String transportMode
+    ) {}
+
+    // Stage 3 응답 DTO
+    public record Stage3Response(
+        String threadId,
+        int tripDays,
+        Map<Integer, RecommendedDayItinerary> recommendedItinerary,
+        Map<Integer, AlternativePlaces> alternativePlaces,
+        TripStatistics statistics,
+        String transportMode
+    ) {
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+            private String threadId;
+            private int tripDays;
+            private Map<Integer, RecommendedDayItinerary> recommendedItinerary;
+            private Map<Integer, AlternativePlaces> alternativePlaces;
+            private TripStatistics statistics;
+            private String transportMode;
+
+            public Builder threadId(String threadId) {
+                this.threadId = threadId;
+                return this;
+            }
+
+            public Builder tripDays(int tripDays) {
+                this.tripDays = tripDays;
+                return this;
+            }
+
+            public Builder recommendedItinerary(Map<Integer, RecommendedDayItinerary> recommendedItinerary) {
+                this.recommendedItinerary = recommendedItinerary;
+                return this;
+            }
+
+            public Builder alternativePlaces(Map<Integer, AlternativePlaces> alternativePlaces) {
+                this.alternativePlaces = alternativePlaces;
+                return this;
+            }
+
+            public Builder statistics(TripStatistics statistics) {
+                this.statistics = statistics;
+                return this;
+            }
+
+            public Builder transportMode(String transportMode) {
+                this.transportMode = transportMode;
+                return this;
+            }
+
+            public Stage3Response build() {
+                return new Stage3Response(threadId, tripDays, recommendedItinerary,
+                    alternativePlaces, statistics, transportMode);
+            }
+        }
+    }
+
+    // 커스터마이징 요청
+    public record CustomizationRequest(
+        String threadId,
+        int day,
+        String oldPlaceId,
+        String newPlaceId
+    ) {}
+
+    // 커스터마이징 응답
+    public record CustomizationResponse(
+        boolean success,
+        String message
+    ) {
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+            private boolean success;
+            private String message;
+
+            public Builder success(boolean success) {
+                this.success = success;
+                return this;
+            }
+
+            public Builder message(String message) {
+                this.message = message;
+                return this;
+            }
+
+            public CustomizationResponse build() {
+                return new CustomizationResponse(success, message);
+            }
+        }
+    }
+}

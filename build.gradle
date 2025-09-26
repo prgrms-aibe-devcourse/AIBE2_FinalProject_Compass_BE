@@ -8,7 +8,9 @@ group = 'com.compass'
 version = '0.0.1-SNAPSHOT'
 
 java {
-    sourceCompatibility = '17'
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 configurations {
@@ -55,12 +57,15 @@ dependencies {
     // Dotenv
     implementation 'io.github.cdimascio:dotenv-java:3.0.0'
 
+    // OpenCSV for CSV parsing
+    implementation 'com.opencsv:opencsv:5.7.1'
+
     // Swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
 
     // Lombok
-    compileOnly 'org.projectlombok:lombok:1.18.30'
-    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    compileOnly 'org.projectlombok:lombok:1.18.34'
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
 
     // 테스트
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
