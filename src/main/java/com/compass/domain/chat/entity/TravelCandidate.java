@@ -184,6 +184,18 @@ public class TravelCandidate {
     @Column(name = "google_place_id", length = 100)
     private String googlePlaceId;
 
+    // Tour API Content ID
+    @Column(name = "tour_api_content_id", length = 100)
+    private String tourApiContentId;
+
+    // Kakao Place ID
+    @Column(name = "kakao_place_id", length = 100)
+    private String kakaoPlaceId;
+
+    // 상세 주소
+    @Column(name = "detailed_address", length = 500)
+    private String detailedAddress;
+
     // AI 보강 여부
     @Column(name = "ai_enriched")
     private Boolean aiEnriched;
@@ -195,6 +207,18 @@ public class TravelCandidate {
     // 휴무일 (Tour API)
     @Column(name = "closed_days", length = 200)
     private String closedDays;
+
+    // 휴무일 (Tour API - restdate)
+    @Column(name = "rest_day", length = 200)
+    private String restDay;
+
+    // 우편번호
+    @Column(name = "postal_code", length = 20)
+    private String postalCode;
+
+    // 특별 이벤트
+    @Column(name = "special_events", columnDefinition = "TEXT")
+    private String specialEvents;
 
     // 데이터 보강 상태 (0: 미완료, 1: Tour API 완료, 2: Perplexity 완료)
     @Column(name = "enrichment_status")
