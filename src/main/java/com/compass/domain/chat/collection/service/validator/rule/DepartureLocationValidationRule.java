@@ -18,7 +18,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class DepartureLocationValidationRule implements ValidationRule {
 
-    private final ChatModel chatModel;
+    // ChatModel 의존성 제거 - 순환 참조 해결
+    // private final ChatModel chatModel;
     private final PerplexityClient perplexityClient;
 
     // 전국 주요 도시 목록 (검증 없이 통과)

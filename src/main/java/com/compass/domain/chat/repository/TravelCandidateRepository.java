@@ -19,7 +19,7 @@ import java.util.Optional;
  * Pre-Stage에서 수집된 여행 후보지 정보 관리
  */
 @Repository
-public interface TravelCandidateRepository extends JpaRepository<TravelCandidate, Long> {
+public interface TravelCandidateRepository extends JpaRepository<TravelCandidate, Long>, TravelCandidateQueryRepository {
 
     // Place ID로 조회
     Optional<TravelCandidate> findByPlaceIdAndRegion(String placeId, String region);

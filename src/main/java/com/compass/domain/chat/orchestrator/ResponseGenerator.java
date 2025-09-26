@@ -26,6 +26,7 @@ import java.util.Map;
 public class ResponseGenerator {
 
     private final ShowQuickInputFormFunction showQuickInputFormFunction;
+    private final com.compass.domain.chat.service.TravelPlanGenerationService travelPlanGenerationService;
 
     @Autowired(required = false)
     private ChatModel chatModel;  // OpenAI 모델 사용 (선택적)
@@ -324,6 +325,9 @@ public class ResponseGenerator {
 
     // 응답 데이터 구성
     public Object buildResponseData(Intent intent, TravelPhase phase, TravelContext context) {
+        log.info("🔍 buildResponseData 호출 - Intent: {}, Phase: {}, Context null?: {}",
+            intent, phase, context == null);
+
         // INFORMATION_COLLECTION 단계에서는 컨텍스트 확인 후 처리
         if (phase == TravelPhase.INFORMATION_COLLECTION) {
             // 이미 정보가 수집되었는지 확인
@@ -349,8 +353,29 @@ public class ResponseGenerator {
         if (intent == Intent.INFORMATION_COLLECTION && context != null) {
             return context.getCollectedInfo();
         } else if (phase == TravelPhase.PLAN_GENERATION && context != null) {
+            log.info("🎯 PLAN_GENERATION 단계 진입!");
+            // 여행 계획이 없으면 생성
+            if (context.getTravelPlan() == null ||
+                (context.getTravelPlan() instanceof Map && ((Map<?,?>)context.getTravelPlan()).isEmpty())) {
+                log.info("📍 여행 계획이 없어서 새로 생성합니다.");
+                try {
+                    Map<String, Object> travelPlan = travelPlanGenerationService.generateTravelPlan(context);
+                    log.info("✅ 여행 계획 생성 완료. 계획 null?: {}", travelPlan == null);
+                    if (travelPlan != null) {
+                        log.info("📋 생성된 계획 키들: {}", travelPlan.keySet());
+                    }
+                    context.setTravelPlan(travelPlan);
+                    return travelPlan;
+                } catch (Exception e) {
+                    log.error("❌ 여행 계획 생성 중 오류 발생", e);
+                    return null;
+                }
+            }
+            log.info("📦 이미 존재하는 여행 계획 반환");
             return context.getTravelPlan();
         }
+
+        log.info("⚠️ buildResponseData - 해당하는 조건 없음, null 반환");
         return null;
     }
 

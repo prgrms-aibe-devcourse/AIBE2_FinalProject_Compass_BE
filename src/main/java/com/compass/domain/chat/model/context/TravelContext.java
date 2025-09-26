@@ -209,6 +209,11 @@ public class TravelContext implements Serializable {
         );
     }
 
+    // FormData 반환 메서드 추가
+    public Map<String, Object> getFormData() {
+        return this.collectedInfo;
+    }
+
     // TravelFormSubmitRequest로 변환 (현재 수집된 정보 기반)
     @SuppressWarnings("unchecked")
     public TravelFormSubmitRequest toTravelFormSubmitRequest() {

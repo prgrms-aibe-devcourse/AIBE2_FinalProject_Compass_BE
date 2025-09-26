@@ -37,9 +37,13 @@ public class Stage3IntegrationService {
 
         // TravelContext에서 Phase 2 정보 추출
         String destination = extractDestination(context);
-        LocalDate startDate = (LocalDate) context.getCollectedInfo().get(TravelContext.KEY_START_DATE);
-        LocalDate endDate = (LocalDate) context.getCollectedInfo().get(TravelContext.KEY_END_DATE);
-        String travelStyle = (String) context.getCollectedInfo().get(TravelContext.KEY_TRAVEL_STYLE);
+
+        // 날짜 안전하게 변환 (String 또는 LocalDate 모두 처리)
+        LocalDate startDate = convertToLocalDate(context.getCollectedInfo().get(TravelContext.KEY_START_DATE));
+        LocalDate endDate = convertToLocalDate(context.getCollectedInfo().get(TravelContext.KEY_END_DATE));
+
+        // travelStyle 처리 (List 또는 String)
+        String travelStyle = extractTravelStyle(context);
         String companions = (String) context.getCollectedInfo().get(TravelContext.KEY_COMPANIONS);
         String transportMode = (String) context.getCollectedInfo().get(TravelContext.KEY_TRANSPORTATION_TYPE);
 
@@ -442,5 +446,41 @@ public class Stage3IntegrationService {
         }
 
         return arranged;
+    }
+
+    // 날짜 타입 안전 변환 (String 또는 LocalDate 처리)
+    private LocalDate convertToLocalDate(Object dateObj) {
+        if (dateObj == null) {
+            return LocalDate.now(); // 기본값
+        }
+        if (dateObj instanceof LocalDate) {
+            return (LocalDate) dateObj;
+        }
+        if (dateObj instanceof String) {
+            try {
+                return LocalDate.parse((String) dateObj);
+            } catch (Exception e) {
+                log.warn("Failed to parse date string: {}", dateObj);
+                return LocalDate.now();
+            }
+        }
+        return LocalDate.now();
+    }
+
+    // travelStyle 추출 (List 또는 String 처리)
+    @SuppressWarnings("unchecked")
+    private String extractTravelStyle(TravelContext context) {
+        Object styleObj = context.getCollectedInfo().get(TravelContext.KEY_TRAVEL_STYLE);
+        if (styleObj == null) {
+            return "culture"; // 기본값
+        }
+        if (styleObj instanceof List) {
+            List<String> styles = (List<String>) styleObj;
+            return styles.isEmpty() ? "culture" : styles.get(0);
+        }
+        if (styleObj instanceof String) {
+            return (String) styleObj;
+        }
+        return "culture";
     }
 }

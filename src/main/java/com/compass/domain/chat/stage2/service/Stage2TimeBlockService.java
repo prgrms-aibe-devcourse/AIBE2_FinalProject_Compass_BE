@@ -174,13 +174,15 @@ public class Stage2TimeBlockService {
             return List.of();
         }
 
-        List<TravelCandidate> candidates = regions.stream()
-            .distinct()
-            .flatMap(region -> travelCandidateRepository.findByRegion(region).stream())
-            .collect(Collectors.toList());
+        TravelCandidate.TimeBlock entityTimeBlock = mapToCandidateTimeBlock(block);
 
-        // 시간블록에 맞는 카테고리 필터링
-        List<TravelCandidate> filtered = filterByTimeBlock(candidates, block);
+        int fetchLimit = StageConstants.Limits.PLACES_PER_CLUSTER * Math.max(regions.size(), 1);
+
+        List<TravelCandidate> filtered = travelCandidateRepository.findActiveByRegionsAndTimeBlock(
+            regions,
+            entityTimeBlock,
+            fetchLimit
+        );
 
         // 점수 계산 및 정렬
         return filtered.stream()
@@ -194,28 +196,6 @@ public class Stage2TimeBlockService {
             .limit(StageConstants.Limits.PLACES_PER_CLUSTER)
             .map(ScoredCandidate::place)
             .collect(Collectors.toList());
-    }
-
-    // 시간블록에 맞는 카테고리 필터링
-    private List<TravelCandidate> filterByTimeBlock(List<TravelCandidate> candidates,
-                                                   TimeBlock block) {
-        return candidates.stream()
-            .filter(c -> matchesTimeBlock(c.getCategory(), block))
-            .collect(Collectors.toList());
-    }
-
-    // 카테고리와 시간블록 매칭
-    private boolean matchesTimeBlock(String category, TimeBlock block) {
-        if (category == null) return false;
-
-        return switch (block) {
-            case BREAKFAST -> category.contains("아침") || category.contains("브런치");
-            case LUNCH -> category.contains("점심") || category.contains("맛집");
-            case DINNER -> category.contains("저녁") || category.contains("맛집");
-            case MORNING_ACTIVITY -> category.contains("관광") || category.contains("명소");
-            case AFTERNOON_ACTIVITY -> category.contains("체험") || category.contains("카페");
-            case EVENING_ACTIVITY -> category.contains("야경") || category.contains("공연");
-        };
     }
 
     // 카테고리에 맞는 시간블록 찾기
@@ -301,6 +281,17 @@ public class Stage2TimeBlockService {
         timeBlocks.computeIfAbsent(day, k -> new DaySchedule(
             day, new HashMap<>()
         ));
+    }
+
+    private TravelCandidate.TimeBlock mapToCandidateTimeBlock(TimeBlock block) {
+        return switch (block) {
+            case BREAKFAST -> TravelCandidate.TimeBlock.BREAKFAST;
+            case MORNING_ACTIVITY -> TravelCandidate.TimeBlock.MORNING_ACTIVITY;
+            case LUNCH -> TravelCandidate.TimeBlock.LUNCH;
+            case AFTERNOON_ACTIVITY -> TravelCandidate.TimeBlock.AFTERNOON_ACTIVITY;
+            case DINNER -> TravelCandidate.TimeBlock.DINNER;
+            case EVENING_ACTIVITY -> TravelCandidate.TimeBlock.EVENING_ACTIVITY;
+        };
     }
 
     private LocalDate resolveTripStartDate(TravelFormSubmitRequest travelInfo,

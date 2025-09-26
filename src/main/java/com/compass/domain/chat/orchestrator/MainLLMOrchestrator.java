@@ -12,12 +12,15 @@ import com.compass.domain.chat.model.request.ChatRequest;
 import com.compass.domain.chat.model.response.FollowUpResponse;
 import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.service.ChatThreadService;
-import com.compass.domain.chat.service.TravelInfoService;
+import com.compass.domain.chat.service.TravelFormWorkflowService;
+import com.compass.domain.chat.service.TravelPlanGenerationService;
 import com.compass.domain.chat.collection.service.FormDataConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -31,7 +34,8 @@ public class MainLLMOrchestrator {
     private final ChatThreadService chatThreadService;
     private final PromptBuilder promptBuilder;
     private final FormDataConverter formDataConverter;
-    private final TravelInfoService travelInfoService;
+    private final TravelFormWorkflowService travelFormWorkflowService;
+    private final TravelPlanGenerationService travelPlanGenerationService;
 
     private final SubmitTravelFormFunction submitTravelFormFunction;
     private final StartFollowUpFunction startFollowUpFunction;
@@ -101,7 +105,6 @@ public class MainLLMOrchestrator {
             log.info("📍 [CONVERTED] TravelFormRequest: {}", travelFormRequest);
 
             context.updateFromFormSubmit(travelFormRequest);
-            contextManager.updateContext(context, context.getUserId());
             log.info("📍 [UPDATED] Context updated with form data");
 
             log.info("📍 [FUNCTION] Calling submitTravelFormFunction");
@@ -113,11 +116,24 @@ public class MainLLMOrchestrator {
 
             String nextAction = validationResponse.getNextAction();
 
-            if (!"START_FOLLOW_UP".equals(nextAction)) {
-                log.info("유효성 검사 통과 또는 목적지 미정 확인. DB에 정보를 저장합니다.");
-                travelInfoService.saveTravelInfo(request.getThreadId(), travelFormRequest);
+            boolean shouldPersist = !"START_FOLLOW_UP".equals(nextAction);
+            boolean shouldTransition = "TRIGGER_PLAN_GENERATION".equals(nextAction);
+
+            if (shouldTransition) {
+                context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
+            }
+
+            if (shouldPersist) {
+                log.info("유효성 검사 통과 또는 목적지 미정 확인. 폼 데이터를 저장합니다.");
+                travelFormWorkflowService.persistFormData(
+                    context,
+                    request.getThreadId(),
+                    travelFormRequest,
+                    shouldTransition
+                );
             } else {
                 log.warn("유효성 검사 실패. DB에 정보를 저장하지 않습니다.");
+                contextManager.updateContext(context, context.getUserId());
             }
 
             return switch (nextAction) {
@@ -146,9 +162,22 @@ public class MainLLMOrchestrator {
                     log.info("📍 [PHASE_TRANSITION] ThreadId: {}, UserId: {}",
                         request.getThreadId(), context.getUserId());
 
-                    phaseManager.savePhase(request.getThreadId(), TravelPhase.PLAN_GENERATION);
-                    context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
-                    contextManager.updateContext(context, context.getUserId());
+                    // 🔥 Stage 3를 즉시 실행!
+                    log.info("🚀 Stage 3 여행 계획 생성을 즉시 시작합니다!");
+                    try {
+                        Map<String, Object> travelPlan = travelPlanGenerationService.generateTravelPlan(context);
+                        if (travelPlan != null && !travelPlan.isEmpty()) {
+                            log.info("✅ Stage 3 여행 계획 생성 성공! 데이터를 응답에 포함합니다.");
+                            log.info("📊 생성된 계획 키: {}", travelPlan.keySet());
+                            validationResponse.setData(travelPlan);
+                            validationResponse.setType("TRAVEL_PLAN_GENERATED");
+                        } else {
+                            log.warn("⚠️ Stage 3 실행했지만 여행 계획이 비어있습니다.");
+                        }
+                    } catch (Exception e) {
+                        log.error("❌ Stage 3 실행 중 오류 발생: {}", e.getMessage(), e);
+                        // 오류가 발생해도 Phase 전환은 진행
+                    }
 
                     validationResponse.setPhase(TravelPhase.PLAN_GENERATION.name());
                     validationResponse.setThreadId(request.getThreadId());
@@ -156,8 +185,9 @@ public class MainLLMOrchestrator {
 
                     log.info("📍 [PHASE_COMPLETE] Phase transition complete. New phase: {}",
                         TravelPhase.PLAN_GENERATION.name());
-                    log.info("📍 [RESPONSE_READY] Response ready with phase: {}, threadId: {}",
-                        validationResponse.getPhase(), validationResponse.getThreadId());
+                    log.info("📍 [RESPONSE_READY] Response ready with phase: {}, threadId: {}, hasData: {}",
+                        validationResponse.getPhase(), validationResponse.getThreadId(),
+                        validationResponse.getData() != null);
 
                     yield validationResponse;
                 }

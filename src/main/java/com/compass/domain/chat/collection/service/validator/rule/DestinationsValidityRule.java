@@ -2,11 +2,10 @@ package com.compass.domain.chat.collection.service.validator.rule;
 
 import com.compass.domain.chat.collection.service.validator.ValidationRule;
 import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
+import com.compass.domain.chat.service.PerplexityClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -17,10 +16,13 @@ import java.util.Set;
 @Slf4j
 @Order(10) // 다른 기본 규칙들 다음에 실행되도록 순서 지정
 @Component
-@RequiredArgsConstructor
 public class DestinationsValidityRule implements ValidationRule {
 
-    private final ChatModel chatModel;
+    private final PerplexityClient perplexityClient;
+
+    public DestinationsValidityRule(@Lazy PerplexityClient perplexityClient) {
+        this.perplexityClient = perplexityClient;
+    }
 
     // 전국 주요 도시 목록 (검증 없이 통과)
     private static final Set<String> MAJOR_KOREAN_CITIES = Set.of(
@@ -42,7 +44,7 @@ public class DestinationsValidityRule implements ValidationRule {
 
         // 전라도
         "전북", "전라북도", "전주", "익산", "군산", "정읍", "남원", "김제", "완주",
-        "전남", "전라남도", "목포", "여수", "순천", "나주", "광양", "무안", "담양", "여수", "보성", "해남",
+        "전남", "전라남도", "목포", "여수", "순천", "나주", "광양", "무안", "담양", "보성", "해남",
 
         // 경상도
         "경북", "경상북도", "포항", "경주", "구미", "김천", "안동", "영주", "영천", "상주", "문경", "경산", "울진", "울릉도",
@@ -84,26 +86,22 @@ public class DestinationsValidityRule implements ValidationRule {
             }
 
             try {
-                // Gemini를 통한 빠른 목적지 유효성 검증 (주요 도시가 아닌 경우만)
-                String promptText = String.format(
-                    "'%s'은(는) 실제 존재하는 유효한 여행 목적지입니까? " +
-                    "실제 존재하는 도시, 지역, 국가, 관광지라면 'true', " +
-                    "존재하지 않거나 잘못된 이름이면 'false'로만 답하세요.",
-                    destination
+                // Perplexity API를 사용하여 목적지 유효성을 검증합니다.
+                String prompt = String.format(
+                    "Is '%s' a real, valid place name on Earth that can be used as a travel destination? Answer with only 'true' or 'false'.",
+                    normalizedDestination
                 );
+                String response = perplexityClient.search(prompt).trim().toLowerCase();
 
-                Prompt prompt = new Prompt(promptText);
-                ChatResponse response = chatModel.call(prompt);
-                String result = response.getResult().getOutput().getContent().trim().toLowerCase();
-
-                if (result.contains("false")) {
+                // LLM의 응답이 'false'이면 유효하지 않은 목적지로 판단합니다.
+                if (response.contains("false")) {
                     log.warn("유효하지 않은 목적지: '{}'", destination);
                     return Optional.of(String.format("'%s'은(는) 유효한 목적지가 아닌 것 같아요. 다시 확인해주시겠어요?", destination));
                 }
             } catch (Exception e) {
-                log.error("목적지 '{}' 유효성 검증 중 Gemini API 오류 발생", destination, e);
-                // Gemini 오류 시 검증을 통과시켜 서비스 중단 방지
-                log.info("Gemini API 오류로 인해 목적지 '{}' 검증을 건너뜁니다", destination);
+                log.error("목적지 '{}' 유효성 검증 중 API 오류 발생", destination, e);
+                // [핵심 수정] API 호출에 실패하면, 검증을 통과시키는 대신 사용자에게 문제가 발생했음을 알립니다.
+                return Optional.of("목적지 유효성을 확인하는 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
             }
         }
         return Optional.empty();
