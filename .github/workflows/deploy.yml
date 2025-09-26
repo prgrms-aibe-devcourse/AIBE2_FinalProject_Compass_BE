@@ -82,8 +82,8 @@ jobs:
       - name: Deploy to AWS Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v21
         with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID_DUMMY }} # OIDC 사용 시 값은 필요 없으나 파라미터는 존재해야 함
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DUMMY }} # OIDC 사용 시 값은 필요 없으나 파라미터는 존재해야 함
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }} # OIDC 사용 시 값은 필요 없으나 파라미터는 존재해야 함
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # OIDC 사용 시 값은 필요 없으나 파라미터는 존재해야 함
           application_name: ${{ env.EB_APPLICATION_NAME }}
           environment_name: ${{ env.EB_ENVIRONMENT_NAME }}
           version_label: "ver-${{ github.sha }}"
