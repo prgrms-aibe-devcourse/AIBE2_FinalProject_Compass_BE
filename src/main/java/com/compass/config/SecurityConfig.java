@@ -106,7 +106,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/search/**").permitAll()  // Search API endpoints
                 .requestMatchers("/api/crawl/**").permitAll()  // Crawl API endpoints for testing
                 .requestMatchers("/api/mock/**").permitAll()  // Mock data endpoints for Stage 2 testing
-                .requestMatchers("/api/admin/**").permitAll()  // Admin endpoints for data collection
+                .requestMatchers("/api/admin/**", "/api/v1/admin/**").permitAll()  // Admin endpoints for data collection
                 .requestMatchers("/api/v1/ocr/**").permitAll()  // OCR endpoints for image processing
                 .requestMatchers("/health").permitAll()
                 .requestMatchers("/actuator/**").permitAll()

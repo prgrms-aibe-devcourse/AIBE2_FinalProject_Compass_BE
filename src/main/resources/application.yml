@@ -77,3 +77,9 @@ springdoc:
     enabled: true
     operations-sorter: method
     tags-sorter: alpha
+
+# Google Places API
+google:
+  places:
+    api:
+      key: ${GOOGLE_PLACES_API_KEY:your-google-places-api-key-here}

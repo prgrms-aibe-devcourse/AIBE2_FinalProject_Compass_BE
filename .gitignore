@@ -81,3 +81,23 @@ config/credentials/
 
 # Frontend test directory
 FE/
+
+# Frontend local development directory
+Frontend/
+
+# List directory
+/list
+/Users/kmj/Documents/GitHub/AIBE2_FinalProject_Compass_BE/list
+
+# Codex related files
+codex/
+*codex*
+*.codex
+.codex/
+codex-*
+
+# Temporary files directory
+temp-files/
+
+# AGENTS.md file
+AGENTS.md
