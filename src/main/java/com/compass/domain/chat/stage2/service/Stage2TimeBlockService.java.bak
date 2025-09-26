@@ -1,0 +1,484 @@
+package com.compass.domain.chat.stage2.service;
+
+import com.compass.domain.chat.entity.TravelCandidate;
+import com.compass.domain.chat.model.TravelPlace;
+import com.compass.domain.chat.model.dto.ConfirmedSchedule;
+import com.compass.domain.chat.repository.TravelCandidateRepository;
+import com.compass.domain.chat.stage2.dto.UserSelectionRequest;
+import com.compass.domain.chat.stage2.dto.UserSelectionRequest.SelectedPlace;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+// Stage 2: 시간블록 기반 후보지 선정 서비스
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class Stage2TimeBlockService {
+
+    private final TravelCandidateRepository travelCandidateRepository;
+
+    // 시간블록 정의 (6개)
+    public enum TimeBlock {
+        BREAKFAST("아침식사", 7, 9),
+        MORNING_ACTIVITY("오전일과", 9, 12),
+        LUNCH("점심식사", 12, 14),
+        AFTERNOON_ACTIVITY("오후일과", 14, 18),
+        DINNER("저녁식사", 18, 20),
+        EVENING_ACTIVITY("저녁일과", 20, 22);
+
+        private final String korean;
+        private final int startHour;
+        private final int endHour;
+
+        TimeBlock(String korean, int startHour, int endHour) {
+            this.korean = korean;
+            this.startHour = startHour;
+            this.endHour = endHour;
+        }
+    }
+
+    // Stage 2 메인 처리
+    public Stage2Response processTimeBlockCandidates(Stage2Request request) {
+        log.info("Stage 2: 시간블록 기반 후보지 선정 시작");
+
+        Map<Integer, DaySchedule> daySchedules = new HashMap<>();
+
+        for (int day = 1; day <= request.tripDays(); day++) {
+            DaySchedule daySchedule = processDaySchedule(
+                day,
+                request.ocrSchedules(),
+                request.userSelectedPlaces(),
+                request.destination(),
+                request.startDate()
+            );
+            daySchedules.put(day, daySchedule);
+        }
+
+        return Stage2Response.builder()
+            .threadId(request.threadId())
+            .tripDays(request.tripDays())
+            .daySchedules(daySchedules)
+            .totalCandidates(countTotalCandidates(daySchedules))
+            .build();
+    }
+
+    // 하루 일정 처리
+    private DaySchedule processDaySchedule(int day,
+                                          List<ConfirmedSchedule> ocrSchedules,
+                                          List<UserSelectedPlace> userPlaces,
+                                          String destination,
+                                          LocalDate startDate) {
+
+        Map<TimeBlock, TimeBlockCandidates> timeBlockMap = new HashMap<>();
+
+        // 1. OCR/티켓 확정 일정 먼저 배치
+        placeOcrSchedules(timeBlockMap, ocrSchedules, startDate, day);
+
+        // 2. 사용자 선택 장소 배치 (높은 우선순위)
+        placeUserSelectedPlaces(timeBlockMap, userPlaces, day);
+
+        // 3. 각 시간블록별 AI 후보 추가
+        for (TimeBlock timeBlock : TimeBlock.values()) {
+            TimeBlockCandidates candidates = timeBlockMap.computeIfAbsent(
+                timeBlock,
+                k -> new TimeBlockCandidates(timeBlock, new ArrayList<>(), new ArrayList<>())
+            );
+
+            // AI 후보 추가 (기존 확정/선택 장소 근처)
+            List<TravelPlace> aiCandidates = findAiCandidates(
+                timeBlock,
+                candidates,
+                destination,
+                day
+            );
+
+            candidates.aiCandidates().addAll(aiCandidates);
+        }
+
+        return new DaySchedule(day, timeBlockMap);
+    }
+
+    // OCR 일정 배치
+    private void placeOcrSchedules(Map<TimeBlock, TimeBlockCandidates> timeBlockMap,
+                                  List<ConfirmedSchedule> ocrSchedules,
+                                  LocalDate startDate,
+                                  int day) {
+        if (ocrSchedules == null || ocrSchedules.isEmpty()) return;
+
+        LocalDate targetDate = startDate.plusDays(day - 1);
+
+        for (ConfirmedSchedule schedule : ocrSchedules) {
+            if (schedule.startTime().toLocalDate().equals(targetDate)) {
+                TimeBlock timeBlock = getTimeBlock(schedule.startTime());
+
+                TimeBlockCandidates candidates = timeBlockMap.computeIfAbsent(
+                    timeBlock,
+                    k -> new TimeBlockCandidates(timeBlock, new ArrayList<>(), new ArrayList<>())
+                );
+
+                // OCR 일정을 확정 장소로 추가
+                TravelPlace confirmedPlace = TravelPlace.builder()
+                    .placeId("ocr_" + schedule.hashCode())
+                    .name(schedule.title())
+                    .category(mapDocumentTypeToCategory(schedule.documentType()))
+                    .address(schedule.location())
+                    .description("확정 일정: " + schedule.description())
+                    .build();
+
+                candidates.confirmedPlaces().add(confirmedPlace);
+
+                log.info("Day {} {} 시간블록에 OCR 일정 배치: {}",
+                    day, timeBlock.korean, schedule.title());
+            }
+        }
+    }
+
+    // 사용자 선택 장소 배치
+    private void placeUserSelectedPlaces(Map<TimeBlock, TimeBlockCandidates> timeBlockMap,
+                                        List<UserSelectedPlace> userPlaces,
+                                        int day) {
+        if (userPlaces == null || userPlaces.isEmpty()) return;
+
+        // 사용자 선택 장소를 카테고리에 따라 적절한 시간블록에 배치
+        for (UserSelectedPlace place : userPlaces) {
+            TimeBlock bestTimeBlock = findBestTimeBlock(place.category(), timeBlockMap);
+
+            TimeBlockCandidates candidates = timeBlockMap.computeIfAbsent(
+                bestTimeBlock,
+                k -> new TimeBlockCandidates(bestTimeBlock, new ArrayList<>(), new ArrayList<>())
+            );
+
+            // 사용자 선택은 확정에 준하는 우선순위
+            TravelPlace selectedPlace = TravelPlace.builder()
+                .placeId(place.placeId())
+                .name(place.name())
+                .category(place.category())
+                .latitude(place.latitude())
+                .longitude(place.longitude())
+                .address(place.address())
+                .rating(place.rating())
+                .reviewCount(place.reviewCount())
+                .description("사용자 선택")
+                .build();
+
+            candidates.confirmedPlaces().add(selectedPlace);
+
+            log.debug("Day {} {} 시간블록에 사용자 선택 배치: {}",
+                day, bestTimeBlock.korean, place.name());
+        }
+    }
+
+    // AI 후보 찾기 (거리, 리뷰수, 평점 종합 고려)
+    private List<TravelPlace> findAiCandidates(TimeBlock timeBlock,
+                                              TimeBlockCandidates existing,
+                                              String destination,
+                                              int day) {
+
+        // 이미 확정된 장소가 2개 이상이면 추가 후보 불필요
+        if (existing.confirmedPlaces().size() >= 2) {
+            return Collections.emptyList();
+        }
+
+        // DB에서 해당 지역의 후보 조회
+        List<TravelCandidate> candidates = travelCandidateRepository.findByRegion(destination);
+
+        // 시간블록에 맞는 카테고리 필터링
+        List<TravelCandidate> filtered = filterByTimeBlock(candidates, timeBlock);
+
+        // 사용자 선택 장소들을 기준점으로 설정
+        List<TravelPlace> userSelectedPlaces = existing.confirmedPlaces().stream()
+            .filter(p -> p.getDescription() != null && p.getDescription().contains("사용자 선택"))
+            .collect(Collectors.toList());
+
+        // 기준점이 없으면 모든 확정 장소를 기준으로
+        final List<TravelPlace> referencePlaces = userSelectedPlaces.isEmpty()
+            ? existing.confirmedPlaces()
+            : userSelectedPlaces;
+
+        // 각 후보에 대해 종합 점수 계산
+        List<ScoredCandidate> scoredCandidates = filtered.stream()
+            .map(candidate -> {
+                TravelPlace place = convertToTravelPlace(candidate);
+                double score = calculateCandidateScore(place, referencePlaces);
+                return new ScoredCandidate(place, score);
+            })
+            .sorted((s1, s2) -> Double.compare(s2.score(), s1.score()))
+            .limit(10) // 시간블록당 10개 후보
+            .collect(Collectors.toList());
+
+        List<TravelPlace> aiCandidates = scoredCandidates.stream()
+            .map(ScoredCandidate::place)
+            .collect(Collectors.toList());
+
+        log.debug("Day {} {} 시간블록 AI 후보 {}개 생성 (최고점수: {:.2f})",
+            day, timeBlock.korean, aiCandidates.size(),
+            scoredCandidates.isEmpty() ? 0 : scoredCandidates.get(0).score());
+
+        return aiCandidates;
+    }
+
+    // 후보 점수 계산 (거리 40%, 리뷰수 30%, 평점 30%)
+    private double calculateCandidateScore(TravelPlace candidate,
+                                          List<TravelPlace> referencePlaces) {
+        double distanceScore = 0.0;
+        double reviewScore = 0.0;
+        double ratingScore = 0.0;
+
+        // 1. 거리 점수 (가까울수록 높음)
+        if (!referencePlaces.isEmpty() && candidate.getLatitude() != null) {
+            // 모든 기준점과의 평균 거리 계산
+            double avgDistance = referencePlaces.stream()
+                .mapToDouble(ref -> calculateDistance(ref, candidate))
+                .average()
+                .orElse(10.0);
+
+            // 5km 이내면 만점, 20km 이상이면 0점
+            if (avgDistance <= 5.0) {
+                distanceScore = 1.0;
+            } else if (avgDistance <= 20.0) {
+                distanceScore = 1.0 - ((avgDistance - 5.0) / 15.0);
+            } else {
+                distanceScore = 0.0;
+            }
+        }
+
+        // 2. 리뷰수 점수 (로그 스케일)
+        if (candidate.getReviewCount() != null && candidate.getReviewCount() > 0) {
+            // 리뷰 1000개 이상이면 만점
+            reviewScore = Math.min(1.0, Math.log10(candidate.getReviewCount() + 1) / 3.0);
+        }
+
+        // 3. 평점 점수
+        if (candidate.getRating() != null) {
+            // 5점 만점 정규화
+            ratingScore = candidate.getRating() / 5.0;
+        }
+
+        // 종합 점수: 거리 40%, 리뷰수 30%, 평점 30%
+        double totalScore = (distanceScore * 0.4) + (reviewScore * 0.3) + (ratingScore * 0.3);
+
+        log.trace("후보 '{}' 점수: 거리={:.2f}, 리뷰={:.2f}, 평점={:.2f}, 종합={:.2f}",
+            candidate.getName(), distanceScore, reviewScore, ratingScore, totalScore);
+
+        return totalScore;
+    }
+
+    // 점수가 계산된 후보
+    private record ScoredCandidate(TravelPlace place, double score) {}
+
+    // 시간블록에 맞는 카테고리 필터링
+    private List<TravelCandidate> filterByTimeBlock(List<TravelCandidate> candidates,
+                                                   TimeBlock timeBlock) {
+        return candidates.stream()
+            .filter(c -> matchesTimeBlock(c.getCategory(), timeBlock))
+            .collect(Collectors.toList());
+    }
+
+    // 카테고리와 시간블록 매칭
+    private boolean matchesTimeBlock(String category, TimeBlock timeBlock) {
+        if (category == null) return false;
+
+        return switch (timeBlock) {
+            case BREAKFAST -> category.contains("아침") || category.contains("브런치")
+                           || category.contains("베이커리");
+            case LUNCH -> category.contains("점심") || category.contains("맛집")
+                      || category.contains("레스토랑");
+            case DINNER -> category.contains("저녁") || category.contains("맛집")
+                       || category.contains("레스토랑");
+            case MORNING_ACTIVITY -> category.contains("관광") || category.contains("명소")
+                                  || category.contains("박물관");
+            case AFTERNOON_ACTIVITY -> category.contains("체험") || category.contains("쇼핑")
+                                    || category.contains("카페");
+            case EVENING_ACTIVITY -> category.contains("야경") || category.contains("공연")
+                                 || category.contains("문화");
+        };
+    }
+
+    // 카테고리에 가장 적합한 시간블록 찾기
+    private TimeBlock findBestTimeBlock(String category,
+                                       Map<TimeBlock, TimeBlockCandidates> currentSchedule) {
+        // 카테고리별 기본 시간블록
+        TimeBlock defaultBlock = switch (category) {
+            case "맛집", "음식점" -> TimeBlock.LUNCH;
+            case "카페", "베이커리" -> TimeBlock.AFTERNOON_ACTIVITY;
+            case "관광명소", "관광지" -> TimeBlock.MORNING_ACTIVITY;
+            case "쇼핑" -> TimeBlock.AFTERNOON_ACTIVITY;
+            case "야경명소" -> TimeBlock.EVENING_ACTIVITY;
+            default -> TimeBlock.AFTERNOON_ACTIVITY;
+        };
+
+        // 해당 시간블록이 이미 꽉 찼으면 대체 시간블록 찾기
+        TimeBlockCandidates candidates = currentSchedule.get(defaultBlock);
+        if (candidates != null && candidates.confirmedPlaces().size() >= 2) {
+            // 비어있는 다른 시간블록 찾기
+            for (TimeBlock block : TimeBlock.values()) {
+                TimeBlockCandidates alt = currentSchedule.get(block);
+                if (alt == null || alt.confirmedPlaces().size() < 2) {
+                    return block;
+                }
+            }
+        }
+
+        return defaultBlock;
+    }
+
+    // 시간으로 TimeBlock 결정
+    private TimeBlock getTimeBlock(LocalDateTime dateTime) {
+        int hour = dateTime.getHour();
+
+        for (TimeBlock block : TimeBlock.values()) {
+            if (hour >= block.startHour && hour < block.endHour) {
+                return block;
+            }
+        }
+
+        // 기본값
+        return TimeBlock.AFTERNOON_ACTIVITY;
+    }
+
+    // DocumentType을 카테고리로 변환
+    private String mapDocumentTypeToCategory(com.compass.domain.chat.model.enums.DocumentType type) {
+        return switch (type) {
+            case FLIGHT_RESERVATION, TRAIN_TICKET, CAR_RENTAL -> "교통";
+            case HOTEL_RESERVATION -> "숙박";
+            case EVENT_TICKET -> "공연/이벤트";
+            case RESTAURANT_RESERVATION -> "맛집";
+            case ATTRACTION_TICKET -> "관광지";
+            default -> "기타";
+        };
+    }
+
+    // TravelCandidate를 TravelPlace로 변환
+    private TravelPlace convertToTravelPlace(TravelCandidate candidate) {
+        return TravelPlace.builder()
+            .placeId(candidate.getPlaceId())
+            .name(candidate.getName())
+            .category(candidate.getCategory())
+            .latitude(candidate.getLatitude())
+            .longitude(candidate.getLongitude())
+            .address(candidate.getAddress())
+            .rating(candidate.getRating())
+            .reviewCount(candidate.getReviewCount())
+            .priceLevel(candidate.getPriceLevel())
+            .photoUrl(candidate.getPhotoUrl())
+            .description(candidate.getDescription())
+            .build();
+    }
+
+    // 거리 계산 (Haversine)
+    private double calculateDistance(TravelPlace p1, TravelPlace p2) {
+        if (p1.getLatitude() == null || p2.getLatitude() == null) {
+            return Double.MAX_VALUE;
+        }
+
+        double lat1 = p1.getLatitude();
+        double lon1 = p1.getLongitude();
+        double lat2 = p2.getLatitude();
+        double lon2 = p2.getLongitude();
+
+        double R = 6371; // km
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c;
+    }
+
+    // 전체 후보 수 계산
+    private int countTotalCandidates(Map<Integer, DaySchedule> daySchedules) {
+        return daySchedules.values().stream()
+            .mapToInt(day -> day.timeBlocks().values().stream()
+                .mapToInt(tb -> tb.confirmedPlaces().size() + tb.aiCandidates().size())
+                .sum())
+            .sum();
+    }
+
+    // 요청 DTO
+    public record Stage2Request(
+        String threadId,
+        String destination,
+        LocalDate startDate,
+        int tripDays,
+        List<ConfirmedSchedule> ocrSchedules,
+        List<UserSelectedPlace> userSelectedPlaces
+    ) {}
+
+    // 사용자 선택 장소 DTO
+    public record UserSelectedPlace(
+        String placeId,
+        String name,
+        String category,
+        Double latitude,
+        Double longitude,
+        String address,
+        Double rating,
+        Integer reviewCount
+    ) {}
+
+    // 시간블록별 후보 DTO
+    public record TimeBlockCandidates(
+        TimeBlock timeBlock,
+        List<TravelPlace> confirmedPlaces,  // OCR + 사용자 선택 (우선순위 높음)
+        List<TravelPlace> aiCandidates      // AI 추천 후보들
+    ) {}
+
+    // 하루 일정 DTO
+    public record DaySchedule(
+        int day,
+        Map<TimeBlock, TimeBlockCandidates> timeBlocks
+    ) {}
+
+    // Stage 2 응답 DTO
+    public record Stage2Response(
+        String threadId,
+        int tripDays,
+        Map<Integer, DaySchedule> daySchedules,
+        int totalCandidates
+    ) {
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+            private String threadId;
+            private int tripDays;
+            private Map<Integer, DaySchedule> daySchedules;
+            private int totalCandidates;
+
+            public Builder threadId(String threadId) {
+                this.threadId = threadId;
+                return this;
+            }
+
+            public Builder tripDays(int tripDays) {
+                this.tripDays = tripDays;
+                return this;
+            }
+
+            public Builder daySchedules(Map<Integer, DaySchedule> daySchedules) {
+                this.daySchedules = daySchedules;
+                return this;
+            }
+
+            public Builder totalCandidates(int totalCandidates) {
+                this.totalCandidates = totalCandidates;
+                return this;
+            }
+
+            public Stage2Response build() {
+                return new Stage2Response(threadId, tripDays, daySchedules, totalCandidates);
+            }
+        }
+    }
+}

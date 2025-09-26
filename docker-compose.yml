@@ -74,8 +74,12 @@ services:
       # Tour API
       TOUR_API_KEY: ${TOUR_API_KEY}
 
+      # Kakao API
+      KAKAO_REST_KEY: ${KAKAO_REST_KEY}
+
     volumes:
       - ./travelagent-468611-1ae0c9d4e187.json:/app/travelagent-468611-1ae0c9d4e187.json:ro
+      - ./list:/Users/kmj/Documents/GitHub/AIBE2_FinalProject_Compass_BE/list:ro
     depends_on:
       - redis
     networks:

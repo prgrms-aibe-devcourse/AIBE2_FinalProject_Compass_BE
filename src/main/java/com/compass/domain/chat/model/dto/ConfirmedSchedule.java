@@ -150,11 +150,10 @@ public record ConfirmedSchedule(
         if (other == null) {
             return false;
         }
-        // 시간이 겹치는지 확인
-        return !endTime.isBefore(other.startTime) && !startTime.isAfter(other.endTime);
+        return !(endTime.isBefore(other.startTime) || startTime.isAfter(other.endTime));
     }
 
-    // 우선순위 가져오기
+    // 우선순위 반환
     public int getPriority() {
         return documentType.getPriority();
     }

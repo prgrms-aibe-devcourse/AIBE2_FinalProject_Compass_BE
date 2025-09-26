@@ -2,6 +2,8 @@ package com.compass.domain.chat.route_optimization.service;
 
 import com.compass.domain.chat.route_optimization.model.CategoryBasedSelectionRequest;
 import com.compass.domain.chat.route_optimization.model.CategoryBasedSelectionRequest.*;
+import com.compass.domain.chat.service.MealAreaRecommendationService;
+import com.compass.domain.chat.service.MealAreaRecommendationService.MealAreaRecommendation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class CategoryBasedDistributionService {
+
+    private final MealAreaRecommendationService mealAreaRecommendationService;
 
     /**
      * 카테고리별 필수 장소를 포함하여 일자별 분배 (호텔 체크인/체크아웃 고려)
@@ -290,7 +294,7 @@ public class CategoryBasedDistributionService {
     }
 
     /**
-     * 시간대별 최적화
+     * 시간대별 최적화 (식사 지역 추천 추가)
      */
     private void optimizeTimeSlots(Map<Integer, List<PlaceCandidate>> distribution) {
         List<String> timeOrder = List.of(
@@ -301,10 +305,18 @@ public class CategoryBasedDistributionService {
             "EVENING_ACTIVITY"
         );
 
-        for (List<PlaceCandidate> dayPlaces : distribution.values()) {
+        for (Map.Entry<Integer, List<PlaceCandidate>> entry : distribution.entrySet()) {
+            List<PlaceCandidate> dayPlaces = entry.getValue();
+
+            // 식사 시간대 처리 - 특정 식당이 아닌 지역 추천으로 변경
+            replaceMealPlacesWithAreaRecommendations(dayPlaces, "서울");
+
+            // 시간순 정렬
             dayPlaces.sort((a, b) -> {
                 int indexA = timeOrder.indexOf(a.timeBlock());
                 int indexB = timeOrder.indexOf(b.timeBlock());
+                if (indexA == -1) indexA = 99;
+                if (indexB == -1) indexB = 99;
                 return Integer.compare(indexA, indexB);
             });
         }
@@ -572,11 +584,90 @@ public class CategoryBasedDistributionService {
     }
 
     /**
+     * 식사 장소를 지역 추천으로 교체
+     */
+    private void replaceMealPlacesWithAreaRecommendations(List<PlaceCandidate> places, String region) {
+        List<PlaceCandidate> mealPlaces = new ArrayList<>();
+        List<PlaceCandidate> nonMealPlaces = new ArrayList<>();
+
+        // 식사 장소와 일반 장소 분리
+        for (PlaceCandidate place : places) {
+            if (isMealTimeBlock(place.timeBlock())) {
+                mealPlaces.add(place);
+            } else {
+                nonMealPlaces.add(place);
+            }
+        }
+
+        // 기존 리스트 재구성 - 식사 장소는 제거하고 식사 지역 추천 추가
+        places.clear();
+        places.addAll(nonMealPlaces);
+
+        // 각 식사 시간대별로 지역 추천 추가
+        if (mealPlaces.stream().anyMatch(p -> p.timeBlock().equals("LUNCH"))) {
+            // 점심 시간대 근처 장소의 평균 위치 계산
+            double avgLat = nonMealPlaces.stream()
+                .mapToDouble(PlaceCandidate::latitude)
+                .average().orElse(37.5665);  // 서울 중심 기본값
+            double avgLng = nonMealPlaces.stream()
+                .mapToDouble(PlaceCandidate::longitude)
+                .average().orElse(126.9780);
+
+            MealAreaRecommendation lunchArea = mealAreaRecommendationService
+                .recommendMealArea(region, "LUNCH", avgLat, avgLng);
+
+            places.add(createMealAreaPlaceCandidate(lunchArea, "LUNCH"));
+        }
+
+        if (mealPlaces.stream().anyMatch(p -> p.timeBlock().equals("DINNER"))) {
+            // 저녁 시간대 근처 장소의 평균 위치 계산
+            double avgLat = nonMealPlaces.stream()
+                .mapToDouble(PlaceCandidate::latitude)
+                .average().orElse(37.5665);
+            double avgLng = nonMealPlaces.stream()
+                .mapToDouble(PlaceCandidate::longitude)
+                .average().orElse(126.9780);
+
+            MealAreaRecommendation dinnerArea = mealAreaRecommendationService
+                .recommendMealArea(region, "DINNER", avgLat, avgLng);
+
+            places.add(createMealAreaPlaceCandidate(dinnerArea, "DINNER"));
+        }
+    }
+
+    /**
+     * 식사 시간대 확인
+     */
+    private boolean isMealTimeBlock(String timeBlock) {
+        return "BREAKFAST".equals(timeBlock) ||
+               "LUNCH".equals(timeBlock) ||
+               "DINNER".equals(timeBlock);
+    }
+
+    /**
+     * 식사 지역 추천을 PlaceCandidate로 변환
+     */
+    private PlaceCandidate createMealAreaPlaceCandidate(
+            MealAreaRecommendation recommendation, String timeBlock) {
+        return new PlaceCandidate(
+            "meal_area_" + timeBlock.toLowerCase(),
+            recommendation.areaName() + " (식사 추천 지역)",
+            "식사",
+            recommendation.latitude(),
+            recommendation.longitude(),
+            timeBlock,
+            2,  // 선택적 우선순위
+            60  // 예상 식사 시간
+        );
+    }
+
+    /**
      * 선택적 장소 추출
      */
     private List<PlaceCandidate> getOptionalPlaces(List<PlaceCandidate> allPlaces) {
         return allPlaces.stream()
             .filter(place -> place.priority() > 1)
+            .filter(place -> !isMealTimeBlock(place.timeBlock()))  // 식사 장소 제외
             .collect(Collectors.toList());
     }
 }

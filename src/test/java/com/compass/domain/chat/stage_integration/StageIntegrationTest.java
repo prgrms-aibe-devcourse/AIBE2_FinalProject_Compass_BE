@@ -1,0 +1,205 @@
+package com.compass.domain.chat.stage_integration;
+
+import com.compass.domain.chat.entity.TravelCandidate;
+import com.compass.domain.chat.entity.TravelInfo;
+import com.compass.domain.chat.repository.TravelCandidateRepository;
+import com.compass.domain.chat.repository.TravelInfoRepository;
+import com.compass.domain.chat.stage1.service.Stage1DestinationSelectionService;
+import com.compass.domain.chat.stage2.service.Stage2TimeBlockService;
+import com.compass.domain.chat.stage2.service.Stage2TimeBlockService.SelectedPlace;
+import com.compass.domain.chat.stage2.service.Stage2TimeBlockService.UserSelectionRequest;
+import com.compass.domain.chat.stage3.service.Stage3CustomizationService;
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+// Stage 1-2-3 통합 테스트
+@Slf4j
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
+public class StageIntegrationTest {
+
+    @Autowired
+    private Stage1DestinationSelectionService stage1Service;
+
+    @Autowired
+    private Stage2TimeBlockService stage2Service;
+
+    @Autowired
+    private Stage3CustomizationService stage3Service;
+
+    @Autowired
+    private TravelInfoRepository travelInfoRepository;
+
+    @Autowired
+    private TravelCandidateRepository travelCandidateRepository;
+
+    private String testThreadId = "test-thread-123";
+
+    @BeforeEach
+    void setUp() {
+        // Phase 2 데이터 생성
+        TravelInfo travelInfo = TravelInfo.builder()
+            .threadId(testThreadId)
+            .destinations(List.of("서울"))
+            .travelStyle(List.of("편안한", "문화"))
+            .startDate(LocalDate.now().plusDays(7))
+            .endDate(LocalDate.now().plusDays(9))
+            .budget("중간")
+            .build();
+        travelInfoRepository.save(travelInfo);
+
+        // 테스트용 후보지 데이터 생성
+        createTestCandidates();
+    }
+
+    @Test
+    void testCompleteStageFlow() {
+        log.info("===== Stage 1-2-3 통합 테스트 시작 =====");
+
+        // Stage 1: 카테고리별 후보 제공
+        log.info("Stage 1: 카테고리별 후보 제공");
+        var stage1Response = stage1Service.processDestinationSelection(testThreadId);
+
+        assertThat(stage1Response).isNotNull();
+        assertThat(stage1Response.destinations()).contains("서울");
+        assertThat(stage1Response.regionCandidates()).isNotEmpty();
+
+        log.info("Stage 1 결과 - 총 후보 수: {}", stage1Response.totalCandidates());
+
+        // 프론트엔드에서 사용자가 선택한 장소들 시뮬레이션
+        List<SelectedPlace> userSelections = simulateUserSelection(stage1Response);
+
+        // Stage 2: 시간블록별 후보 생성
+        log.info("Stage 2: 사용자 선택 기반 시간블록별 후보 생성");
+        UserSelectionRequest stage2Request = new UserSelectionRequest(
+            testThreadId,
+            userSelections,
+            2 // 1박2일
+        );
+
+        var stage2Response = stage2Service.processUserSelection(stage2Request);
+
+        assertThat(stage2Response).isNotNull();
+        assertThat(stage2Response.timeBlocks()).isNotEmpty();
+
+        log.info("Stage 2 결과 - 시간블록 수: {}", stage2Response.timeBlocks().size());
+        stage2Response.timeBlocks().forEach((day, blocks) -> {
+            log.info("Day {}: {} 시간블록", day, blocks.size());
+            blocks.forEach((blockType, block) -> {
+                log.info("  {}: 확정 {}, 후보 {}",
+                    blockType,
+                    block.confirmed().size(),
+                    block.candidates().size()
+                );
+            });
+        });
+
+        // Stage 3: AI 추천 일정 생성
+        log.info("Stage 3: AI 추천 일정 생성");
+        var stage3Response = stage3Service.generateRecommendedItinerary(
+            testThreadId,
+            stage2Response
+        );
+
+        assertThat(stage3Response).isNotNull();
+        assertThat(stage3Response.recommendedItinerary()).isNotEmpty();
+        assertThat(stage3Response.alternativePlaces()).isNotEmpty();
+
+        log.info("Stage 3 결과:");
+        log.info("- 추천 일정: {} 일", stage3Response.recommendedItinerary().size());
+        log.info("- 대안 장소(장바구니): {} 개", countAlternatives(stage3Response.alternativePlaces()));
+        log.info("- 총 거리: {} km", stage3Response.tripStats().totalDistance());
+        log.info("- 예상 시간: {} 분", stage3Response.tripStats().estimatedDuration());
+
+        log.info("===== Stage 1-2-3 통합 테스트 완료 =====");
+    }
+
+    // 사용자 선택 시뮬레이션 (각 카테고리에서 1개씩)
+    private List<SelectedPlace> simulateUserSelection(Stage1DestinationSelectionService.Stage1Response response) {
+        List<SelectedPlace> selections = new ArrayList<>();
+
+        response.regionCandidates().forEach((region, categoryCandidates) -> {
+            categoryCandidates.categoryCandidates().forEach((category, places) -> {
+                if (!places.isEmpty()) {
+                    // 각 카테고리에서 첫 번째 장소 선택
+                    var place = places.get(0);
+                    selections.add(new SelectedPlace(
+                        place.getPlaceId(),
+                        place.getName(),
+                        category,
+                        place.getLatitude(),
+                        place.getLongitude(),
+                        place.getAddress(),
+                        place.getRating()
+                    ));
+                }
+            });
+        });
+
+        // 최대 6개만 선택 (시간블록 수와 맞춤)
+        return selections.stream().limit(6).toList();
+    }
+
+    // 대안 장소 개수 계산
+    private int countAlternatives(Map<Integer, Map<String, List<com.compass.domain.chat.model.TravelPlace>>> alternatives) {
+        return alternatives.values().stream()
+            .flatMap(day -> day.values().stream())
+            .mapToInt(List::size)
+            .sum();
+    }
+
+    // 테스트용 후보지 데이터 생성
+    private void createTestCandidates() {
+        List<TravelCandidate> candidates = new ArrayList<>();
+
+        // 관광명소
+        candidates.add(createCandidate("place_1", "경복궁", "관광명소", 37.5796, 126.9770, 4.5, 15000));
+        candidates.add(createCandidate("place_2", "북촌한옥마을", "관광명소", 37.5827, 126.9831, 4.3, 8000));
+        candidates.add(createCandidate("place_3", "남산타워", "관광명소", 37.5512, 126.9882, 4.4, 12000));
+
+        // 맛집
+        candidates.add(createCandidate("place_4", "토속촌삼계탕", "맛집", 37.5776, 126.9695, 4.6, 5000));
+        candidates.add(createCandidate("place_5", "명동교자", "맛집", 37.5636, 126.9869, 4.2, 3000));
+        candidates.add(createCandidate("place_6", "광장시장", "맛집", 37.5700, 126.9994, 4.4, 4500));
+
+        // 카페
+        candidates.add(createCandidate("place_7", "북촌카페", "카페", 37.5833, 126.9822, 4.5, 2000));
+        candidates.add(createCandidate("place_8", "익선동카페거리", "카페", 37.5726, 126.9889, 4.3, 1500));
+
+        // 쇼핑
+        candidates.add(createCandidate("place_9", "명동쇼핑거리", "쇼핑", 37.5606, 126.9856, 4.1, 10000));
+        candidates.add(createCandidate("place_10", "동대문디자인플라자", "쇼핑", 37.5679, 127.0095, 4.2, 7000));
+
+        travelCandidateRepository.saveAll(candidates);
+    }
+
+    private TravelCandidate createCandidate(String id, String name, String category,
+                                           double lat, double lng, double rating, int reviewCount) {
+        return TravelCandidate.builder()
+            .placeId(id)
+            .name(name)
+            .category(category)
+            .region("서울")
+            .latitude(lat)
+            .longitude(lng)
+            .rating(rating)
+            .reviewCount(reviewCount)
+            .address("서울특별시")
+            .description(name + " 설명")
+            .photoUrl("http://photo.url/" + id)
+            .build();
+    }
+}

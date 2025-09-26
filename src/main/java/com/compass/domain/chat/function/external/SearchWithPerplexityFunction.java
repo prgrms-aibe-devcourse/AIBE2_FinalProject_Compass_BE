@@ -62,7 +62,8 @@ public class SearchWithPerplexityFunction implements Function<SearchWithPerplexi
                 "주소 정보",
                 "운영시간 정보",
                 response.substring(0, Math.min(100, response.length())),
-                4.5
+                4.5,
+                null
             )
         );
     }
@@ -81,7 +82,7 @@ public class SearchWithPerplexityFunction implements Function<SearchWithPerplexi
         String address,      // 주소
         String hours,        // 운영시간
         String description,  // 설명
-        Double rating        // 평점
+        Double rating,       // 평점
+        String tips          // 꿀팁/추천 포인트
     ) {}
 }
-

@@ -1,0 +1,165 @@
+package com.compass.domain.chat.stage_integration.controller;
+
+import com.compass.domain.chat.stage1.service.Stage1DestinationSelectionService;
+import com.compass.domain.chat.stage1.service.Stage1DestinationSelectionService.Stage1Response;
+import com.compass.domain.chat.stage2.service.Stage2TimeBlockService;
+import com.compass.domain.chat.stage2.service.Stage2TimeBlockService.Stage2Response;
+import com.compass.domain.chat.stage2.dto.UserSelectionRequest;
+import com.compass.domain.chat.stage3.service.Stage3CustomizationService;
+import com.compass.domain.chat.stage3.service.Stage3CustomizationService.Stage3Response;
+import com.compass.domain.chat.stage3.service.Stage3CustomizationService.CustomizationRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+// Stage 1-2-3 통합 컨트롤러
+@Slf4j
+@RestController
+@RequestMapping("/api/stages")
+@RequiredArgsConstructor
+public class StageIntegrationController {
+
+    private final Stage1DestinationSelectionService stage1Service;
+    private final Stage2TimeBlockService stage2Service;
+    private final Stage3CustomizationService stage3Service;
+
+    // Stage 1: Phase 2 데이터 기반 카테고리별 후보 제공
+    @GetMapping("/1/candidates/{threadId}")
+    public ResponseEntity<Stage1Response> getStage1Candidates(@PathVariable String threadId) {
+        log.info("Stage 1 요청 - threadId: {}", threadId);
+        Stage1Response response = stage1Service.processDestinationSelection(threadId);
+        log.info("Stage 1 완료 - 총 후보 수: {}", response.totalCandidates());
+        return ResponseEntity.ok(response);
+    }
+
+    // Stage 2: 사용자 선택 기반 시간블록별 후보 생성
+    @PostMapping("/2/time-blocks")
+    public ResponseEntity<Stage2Response> processStage2Selection(@RequestBody UserSelectionRequest request) {
+        log.info("Stage 2 요청 - threadId: {}, 선택 장소 수: {}",
+            request.threadId(), request.selectedPlaces().size());
+        Stage2Response response = stage2Service.processUserSelection(request);
+        log.info("Stage 2 완료 - 시간블록 생성 완료");
+        return ResponseEntity.ok(response);
+    }
+
+    // Stage 3: AI 추천 일정 생성
+    @PostMapping("/3/recommend")
+    public ResponseEntity<Stage3Response> generateStage3Recommendation(@RequestBody Stage3Request request) {
+        log.info("Stage 3 요청 - threadId: {}", request.threadId());
+        Stage3Response response = stage3Service.generateRecommendedItinerary(
+            request.threadId(),
+            request.stage2Response()
+        );
+        log.info("Stage 3 완료 - AI 추천 일정 생성 완료");
+        return ResponseEntity.ok(response);
+    }
+
+    // Stage 3: 사용자 커스터마이징 (장소 교체)
+    @PostMapping("/3/customize")
+    public ResponseEntity<Stage3Response> customizeItinerary(@RequestBody CustomizationRequest request) {
+        log.info("Stage 3 커스터마이징 - threadId: {}, 교체할 장소: {}",
+            request.threadId(), request.oldPlaceId());
+        Stage3Response response = stage3Service.customizeItinerary(request);
+        log.info("Stage 3 커스터마이징 완료");
+        return ResponseEntity.ok(response);
+    }
+
+    // Stage 3: 장바구니 거리별 섹션 조회
+    @GetMapping("/3/alternatives/{threadId}/{day}/{timeBlock}")
+    public ResponseEntity<AlternativesSectionResponse> getAlternativesByDistance(
+            @PathVariable String threadId,
+            @PathVariable int day,
+            @PathVariable String timeBlock) {
+        log.info("장바구니 거리별 섹션 조회 - threadId: {}, day: {}, timeBlock: {}",
+            threadId, day, timeBlock);
+
+        // TODO: 실제 구현시 Stage3Service에서 조회
+        AlternativesSectionResponse response = new AlternativesSectionResponse(
+            threadId,
+            day,
+            timeBlock,
+            List.of(), // nearbyPlaces
+            List.of(), // moderatePlaces
+            List.of(), // farPlaces
+            "도보가능(0) | 가까운거리(0) | 먼거리(0)"
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    // 전체 플로우 상태 조회
+    @GetMapping("/status/{threadId}")
+    public ResponseEntity<StageStatus> getStageStatus(@PathVariable String threadId) {
+        log.info("Stage 상태 조회 - threadId: {}", threadId);
+
+        // 각 Stage 완료 여부 확인 로직
+        boolean stage1Complete = checkStage1Complete(threadId);
+        boolean stage2Complete = checkStage2Complete(threadId);
+        boolean stage3Complete = checkStage3Complete(threadId);
+
+        StageStatus status = new StageStatus(
+            threadId,
+            stage1Complete,
+            stage2Complete,
+            stage3Complete,
+            getCurrentStage(stage1Complete, stage2Complete, stage3Complete)
+        );
+
+        return ResponseEntity.ok(status);
+    }
+
+    // Stage 1 완료 여부 확인
+    private boolean checkStage1Complete(String threadId) {
+        // 실제 구현에서는 DB나 캐시에서 확인
+        return true; // 임시
+    }
+
+    // Stage 2 완료 여부 확인
+    private boolean checkStage2Complete(String threadId) {
+        // 실제 구현에서는 DB나 캐시에서 확인
+        return false; // 임시
+    }
+
+    // Stage 3 완료 여부 확인
+    private boolean checkStage3Complete(String threadId) {
+        // 실제 구현에서는 DB나 캐시에서 확인
+        return false; // 임시
+    }
+
+    // 현재 진행 중인 Stage 판단
+    private String getCurrentStage(boolean stage1, boolean stage2, boolean stage3) {
+        if (stage3) return "COMPLETED";
+        if (stage2) return "STAGE_3";
+        if (stage1) return "STAGE_2";
+        return "STAGE_1";
+    }
+
+    // Stage 3 요청 DTO
+    public record Stage3Request(
+        String threadId,
+        Stage2Response stage2Response
+    ) {}
+
+    // Stage 상태 DTO
+    public record StageStatus(
+        String threadId,
+        boolean stage1Complete,
+        boolean stage2Complete,
+        boolean stage3Complete,
+        String currentStage
+    ) {}
+
+    // 장바구니 거리별 섹션 응답 DTO
+    public record AlternativesSectionResponse(
+        String threadId,
+        int day,
+        String timeBlock,
+        List<com.compass.domain.chat.model.TravelPlace> nearbyPlaces,    // 2km 이내
+        List<com.compass.domain.chat.model.TravelPlace> moderatePlaces,  // 2-5km
+        List<com.compass.domain.chat.model.TravelPlace> farPlaces,       // 5km 이상
+        String summary  // "도보가능(n) | 가까운거리(n) | 먼거리(n)"
+    ) {}
+}
