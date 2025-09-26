@@ -24,6 +24,8 @@ public interface TravelCandidateRepository extends JpaRepository<TravelCandidate
     // Place ID로 조회
     Optional<TravelCandidate> findByPlaceIdAndRegion(String placeId, String region);
 
+    Optional<TravelCandidate> findFirstByPlaceId(String placeId);
+
     // 지역별 모든 데이터 조회
     List<TravelCandidate> findByRegion(String region);
 
@@ -177,4 +179,11 @@ public interface TravelCandidateRepository extends JpaRepository<TravelCandidate
     @Query("SELECT tc FROM TravelCandidate tc WHERE tc.rating IS NOT NULL " +
            "ORDER BY tc.rating DESC, tc.reviewCount DESC")
     List<TravelCandidate> findTopRatedPlaces(Pageable pageable);
+
+    // Stage 3에서 사용할 메서드들
+    List<TravelCandidate> findByRegionAndIsActiveTrue(String region);
+
+    List<TravelCandidate> findByRegionAndCategoryAndIsActiveTrue(String region, String category);
+
+    List<TravelCandidate> findByRegionAndTimeBlockAndIsActiveTrue(String region, TimeBlock timeBlock);
 }

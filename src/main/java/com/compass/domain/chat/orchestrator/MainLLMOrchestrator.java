@@ -86,17 +86,30 @@ public class MainLLMOrchestrator {
      */
     private ChatResponse handleFormSubmission(ChatRequest request) {
         log.info("🎯 빠른입력폼 제출 감지 -> 처리를 시작합니다.");
+        log.info("📍 [FORM] ThreadId: {}, UserId: {}", request.getThreadId(), request.getUserId());
         try {
             var context = contextManager.getOrCreateContext(request);
+            log.info("📍 [CONTEXT] Current Phase: {}", context.getCurrentPhase());
+
             var metadata = (java.util.Map<String, Object>) request.getMetadata();
+            log.info("📍 [METADATA] Raw metadata: {}", metadata);
+
             var formDataMap = (java.util.Map<String, Object>) metadata.get("formData");
+            log.info("📍 [FORMDATA] Form data map: {}", formDataMap);
+
             var travelFormRequest = formDataConverter.convertFromFrontend(request.getUserId(), formDataMap);
+            log.info("📍 [CONVERTED] TravelFormRequest: {}", travelFormRequest);
 
             context.updateFromFormSubmit(travelFormRequest);
             contextManager.updateContext(context, context.getUserId());
+            log.info("📍 [UPDATED] Context updated with form data");
 
+            log.info("📍 [FUNCTION] Calling submitTravelFormFunction");
             ChatResponse validationResponse = submitTravelFormFunction.apply(travelFormRequest);
+            log.info("📍 [RESPONSE] Validation response type: {}, phase: {}",
+                validationResponse.getType(), validationResponse.getPhase());
             saveSystemMessage(request.getThreadId(), validationResponse.getContent());
+            log.info("📍 [SAVED] System message saved");;
 
             String nextAction = validationResponse.getNextAction();
 
@@ -113,22 +126,47 @@ public class MainLLMOrchestrator {
                     DestinationRecommendationDto recommendations = recommendDestinationsFunction.apply(travelFormRequest);
                     validationResponse.setData(recommendations);
                     validationResponse.setType("DESTINATION_RECOMMENDATION");
+                    validationResponse.setPhase(context.getCurrentPhase());
+                    validationResponse.setThreadId(request.getThreadId());
+                    validationResponse.setCurrentPhase(context.getCurrentPhase());
                     yield validationResponse;
                 }
                 case "START_FOLLOW_UP" -> {
                     log.info("✅ 정보 부족 시나리오 -> StartFollowUpFunction 호출");
                     ChatResponse followUpQuestionResponse = startFollowUpFunction.apply(travelFormRequest);
                     saveSystemMessage(request.getThreadId(), followUpQuestionResponse.getContent());
+                    followUpQuestionResponse.setPhase(context.getCurrentPhase());
+                    followUpQuestionResponse.setThreadId(request.getThreadId());
+                    followUpQuestionResponse.setCurrentPhase(context.getCurrentPhase());
                     yield followUpQuestionResponse;
                 }
                 case "TRIGGER_PLAN_GENERATION" -> {
                     log.info("✅ 정보 수집 완료 시나리오 -> PLAN_GENERATION으로 전환");
+                    log.info("📍 [PHASE_TRANSITION] INFORMATION_COLLECTION -> PLAN_GENERATION");
+                    log.info("📍 [PHASE_TRANSITION] ThreadId: {}, UserId: {}",
+                        request.getThreadId(), context.getUserId());
+
                     phaseManager.savePhase(request.getThreadId(), TravelPhase.PLAN_GENERATION);
                     context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
                     contextManager.updateContext(context, context.getUserId());
+
+                    validationResponse.setPhase(TravelPhase.PLAN_GENERATION.name());
+                    validationResponse.setThreadId(request.getThreadId());
+                    validationResponse.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
+
+                    log.info("📍 [PHASE_COMPLETE] Phase transition complete. New phase: {}",
+                        TravelPhase.PLAN_GENERATION.name());
+                    log.info("📍 [RESPONSE_READY] Response ready with phase: {}, threadId: {}",
+                        validationResponse.getPhase(), validationResponse.getThreadId());
+
                     yield validationResponse;
                 }
-                default -> validationResponse;
+                default -> {
+                    validationResponse.setPhase(context.getCurrentPhase());
+                    validationResponse.setThreadId(request.getThreadId());
+                    validationResponse.setCurrentPhase(context.getCurrentPhase());
+                    yield validationResponse;
+                }
             };
 
         } catch (Exception e) {
@@ -165,6 +203,10 @@ public class MainLLMOrchestrator {
             }
 
             saveSystemMessage(request.getThreadId(), functionResponse.getContent());
+            // Phase 정보 추가
+            functionResponse.setPhase(context.getCurrentPhase());
+            functionResponse.setThreadId(request.getThreadId());
+            functionResponse.setCurrentPhase(context.getCurrentPhase());
             return functionResponse;
         }
 
@@ -174,6 +216,10 @@ public class MainLLMOrchestrator {
 
         var response = responseGenerator.generateResponse(request, intent, nextPhase, context, promptBuilder);
         saveSystemMessage(request.getThreadId(), response.getContent());
+        // Phase와 ThreadId 정보 추가
+        response.setPhase(nextPhase.name());
+        response.setThreadId(request.getThreadId());
+        response.setCurrentPhase(nextPhase.name());
         return response;
     }
 

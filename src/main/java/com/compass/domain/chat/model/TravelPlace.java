@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
 
 // 여행지 정보 모델 (Stage 1에서 수집되는 데이터)
 @Data
@@ -27,6 +28,11 @@ public class TravelPlace {
     private boolean openNow;          // 현재 영업 여부
     private String phoneNumber;       // 전화번호
     private String website;           // 웹사이트
+
+    // Stage 3 추가 필드
+    private Boolean isFixed;          // 고정 일정 여부 (호텔 체크인, 항공 등)
+    private LocalDateTime fixedTime;  // 고정된 시간 (OCR 확정 일정)
+    private Boolean isUserSelected;   // 사용자 선택 장소 여부
 
     // 품질 점수 계산 (평점 70% + 리뷰수 30%)
     public double getQualityScore() {

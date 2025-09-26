@@ -340,7 +340,7 @@ public class PhaseManager {
                     schedule.documentType(), schedule.title());
 
             // Context 가져오기
-            TravelContext context = contextManager.getContext(threadId, "").orElse(null);
+            TravelContext context = contextManager.getContext(threadId).orElse(null);
             if (context == null) {
                 log.warn("Context를 찾을 수 없음 - threadId: {}", threadId);
                 return;
@@ -375,7 +375,7 @@ public class PhaseManager {
         try {
             log.info("OCR 원본 텍스트 저장 - textLength: {}", text.length());
 
-            TravelContext context = contextManager.getContext(threadId, "").orElse(null);
+            TravelContext context = contextManager.getContext(threadId).orElse(null);
             if (context == null) {
                 log.warn("Context를 찾을 수 없음 - threadId: {}", threadId);
                 return;
