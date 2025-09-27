@@ -11,5 +11,7 @@ FROM openjdk:17-slim
 WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
 
+COPY docker-entrypoint.sh /entrypoint.sh
+
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["/entrypoint.sh"]

@@ -5,12 +5,13 @@ import com.compass.domain.chat.repository.TravelCandidateRepository;
 import com.compass.domain.chat.service.enrichment.EnrichmentUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GooglePlacesEnrichmentService {
 
@@ -38,6 +38,18 @@ public class GooglePlacesEnrichmentService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final ChatModel chatModel;
+
+    public GooglePlacesEnrichmentService(
+        TravelCandidateRepository travelCandidateRepository,
+        RestTemplate restTemplate,
+        ObjectMapper objectMapper,
+        @Autowired(required = false) @Qualifier("vertexAiGeminiChat") ChatModel chatModel
+    ) {
+        this.travelCandidateRepository = travelCandidateRepository;
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+        this.chatModel = chatModel;
+    }
 
     @Value("${google.places.api.key:}")
     private String googleApiKey;

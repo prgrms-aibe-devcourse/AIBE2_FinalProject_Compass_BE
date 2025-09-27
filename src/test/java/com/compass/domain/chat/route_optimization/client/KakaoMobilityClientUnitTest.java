@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
@@ -25,14 +26,13 @@ class KakaoMobilityClientUnitTest {
 
         // 환경 변수에서 API 키 읽기
         apiKey = System.getenv("KAKAO_REST_KEY");
-        if (apiKey == null) {
-            apiKey = "e441db4b56f018bdfb43f87db66c216a"; // .env에서 제공된 키
-        }
+        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank(),
+            "환경 변수 KAKAO_REST_KEY가 설정되어야 카카오 모빌리티 API 테스트를 실행할 수 있습니다.");
 
         // Reflection으로 API 키 설정
         ReflectionTestUtils.setField(kakaoMobilityClient, "restApiKey", apiKey);
 
-        System.out.println("✅ KAKAO_REST_KEY 설정: " + apiKey.substring(0, 8) + "...");
+        System.out.println("✅ KAKAO_REST_KEY 설정 확인");
     }
 
     @Test

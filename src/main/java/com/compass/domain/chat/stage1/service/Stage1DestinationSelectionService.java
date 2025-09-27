@@ -63,14 +63,6 @@ public class Stage1DestinationSelectionService {
     private CategoryCandidates collectCandidatesByCategory(String destination, List<String> travelStyle) {
         log.debug("{}의 카테고리별 후보 수집", destination);
 
-        // DB에서 지역별 후보 조회
-        List<TravelCandidate> allCandidates = travelCandidateRepository.findByRegion(destination);
-
-        if (allCandidates.isEmpty()) {
-            log.warn("{} 지역의 후보가 없습니다. Pre-Stage 데이터 수집이 필요합니다.", destination);
-            return CategoryCandidates.empty();
-        }
-
         // 카테고리별 그룹화
         Map<String, List<TravelPlace>> byCategory = new HashMap<>();
 
@@ -89,22 +81,25 @@ public class Stage1DestinationSelectionService {
         );
 
         for (String category : categories) {
-            List<TravelPlace> categoryPlaces = filterByCategory(allCandidates, category, travelStyle);
+            List<String> categoryKeywords = resolveCategoryKeywords(category);
+            int fetchLimit = StageConstants.Limits.CANDIDATES_PER_CATEGORY * 3;
 
-            // 리뷰수 기반 상위 N개 선택 (상수 사용)
-            // Google Places API에서 수집된 리뷰수를 우선순위로 사용
-            List<TravelPlace> topCandidates = categoryPlaces.stream()
+            List<TravelCandidate> fetchedCandidates = travelCandidateRepository
+                .findTopActiveByRegionAndCategoryKeywords(destination, categoryKeywords, fetchLimit);
+
+            List<TravelPlace> topCandidates = fetchedCandidates.stream()
+                .filter(candidate -> matchesCategory(candidate, category))
+                .filter(candidate -> matchesTravelStyle(candidate, travelStyle))
                 .sorted(Comparator
-                    // 1순위: 리뷰수 (많을수록 신뢰도 높음)
-                    .comparing((TravelPlace p) -> p.getReviewCount() != null ? p.getReviewCount() : 0)
-                    // 2순위: 평점 (리뷰수가 같을 경우)
-                    .thenComparing(p -> p.getRating() != null ? p.getRating() : 0.0)
+                    .comparing((TravelCandidate c) -> c.getReviewCount() != null ? c.getReviewCount() : 0)
+                    .thenComparing(c -> c.getRating() != null ? c.getRating() : 0.0)
                     .reversed())
                 .limit(StageConstants.Limits.CANDIDATES_PER_CATEGORY)
+                .map(this::convertToTravelPlace)
                 .collect(Collectors.toList());
 
             log.debug("카테고리 '{}': {}개 후보 중 상위 {}개 선별 (최고 리뷰수: {})",
-                category, categoryPlaces.size(),
+                category, fetchedCandidates.size(),
                 StageConstants.Limits.CANDIDATES_PER_CATEGORY,
                 topCandidates.isEmpty() ? 0 : topCandidates.get(0).getReviewCount());
 
@@ -115,17 +110,6 @@ public class Stage1DestinationSelectionService {
             .region(destination)
             .categoryCandidates(byCategory)
             .build();
-    }
-
-    // 카테고리와 여행 스타일에 맞는 장소 필터링
-    private List<TravelPlace> filterByCategory(List<TravelCandidate> candidates,
-                                              String category,
-                                              List<String> travelStyle) {
-        return candidates.stream()
-            .filter(c -> matchesCategory(c, category))
-            .filter(c -> matchesTravelStyle(c, travelStyle))
-            .map(this::convertToTravelPlace)
-            .collect(Collectors.toList());
     }
 
     // 카테고리 매칭
@@ -199,6 +183,22 @@ public class Stage1DestinationSelectionService {
     // TravelCandidate를 TravelPlace로 변환 (유틸리티 사용)
     private TravelPlace convertToTravelPlace(TravelCandidate candidate) {
         return travelPlaceConverter.fromCandidate(candidate);
+    }
+
+    private List<String> resolveCategoryKeywords(String category) {
+        return switch (category) {
+            case StageConstants.Category.TOURIST_ATTRACTION -> List.of("관광", "명소", "전망", "랜드마크");
+            case StageConstants.Category.RESTAURANT -> List.of("레스토랑", "맛집", "식당", "요리");
+            case StageConstants.Category.CAFE -> List.of("카페", "커피", "디저트", "베이커리");
+            case StageConstants.Category.SHOPPING -> List.of("쇼핑", "시장", "백화점", "몰");
+            case StageConstants.Category.ACTIVITY -> List.of("액티비티", "체험", "스포츠", "레저");
+            case StageConstants.Category.CULTURE -> List.of("문화", "박물관", "전통", "전시");
+            case StageConstants.Category.NATURE -> List.of("자연", "공원", "산", "호수");
+            case StageConstants.Category.THEME_PARK -> List.of("테마", "놀이", "파크", "랜드");
+            case StageConstants.Category.NIGHT_VIEW -> List.of("야경", "야간", "밤", "라이트");
+            case StageConstants.Category.ACCOMMODATION -> List.of("호텔", "숙박", "리조트", "게스트하우스");
+            default -> List.of();
+        };
     }
 
     // 전체 후보 개수 계산

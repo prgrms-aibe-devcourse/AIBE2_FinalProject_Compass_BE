@@ -3,9 +3,10 @@ package com.compass.domain.chat.service;
 import com.compass.domain.chat.entity.TravelCandidate;
 import com.compass.domain.chat.repository.TravelCandidateRepository;
 import com.compass.domain.chat.service.enrichment.EnrichmentUtils;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -17,11 +18,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 // Gemini를 활용해 장소 설명을 재생성하는 서비스
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class GeminiDescriptionService {
 
     private final TravelCandidateRepository travelCandidateRepository;
     private final ChatModel chatModel;
+
+    public GeminiDescriptionService(
+        TravelCandidateRepository travelCandidateRepository,
+        @Autowired(required = false) ChatModel chatModel
+    ) {
+        this.travelCandidateRepository = travelCandidateRepository;
+        this.chatModel = chatModel;
+    }
 
     // 장소 설명을 Gemini로 재생성 (기존 내용 포함 덮어쓰기)
     public int regenerateDescriptions(boolean onlyIfEmpty) {

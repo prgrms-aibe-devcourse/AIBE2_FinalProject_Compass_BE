@@ -56,7 +56,8 @@ services:
       # Google Cloud & AI Configuration
       GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
-      GOOGLE_APPLICATION_CREDENTIALS: /app/travelagent-468611-1ae0c9d4e187.json
+      GOOGLE_APPLICATION_CREDENTIALS: /app/google-credentials.json
+      GCP_SERVICE_ACCOUNT_JSON: ${GCP_SERVICE_ACCOUNT_JSON}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
 
       # OpenAI & Perplexity
@@ -76,7 +77,6 @@ services:
       KAKAO_REST_KEY: ${KAKAO_REST_KEY}
 
     volumes:
-      - ./travelagent-468611-1ae0c9d4e187.json:/app/travelagent-468611-1ae0c9d4e187.json:ro
       - ./list:/Users/kmj/Documents/GitHub/AIBE2_FinalProject_Compass_BE/list:ro
     depends_on:
       - redis

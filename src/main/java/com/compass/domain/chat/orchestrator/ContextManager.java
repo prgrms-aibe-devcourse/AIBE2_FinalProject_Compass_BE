@@ -48,8 +48,15 @@ public class ContextManager {
 
 
     public Optional<TravelContext> getContext(String threadId, String userId) {
+        if (userId == null || userId.isBlank()) {
+            return getContext(threadId);
+        }
         return contextCache.get(threadId)
                 .filter(context -> context.getUserId() != null && context.getUserId().equals(userId));
+    }
+
+    public Optional<TravelContext> getContext(String threadId) {
+        return contextCache.get(threadId);
     }
 
     public void updateContext(TravelContext context, String userId) {

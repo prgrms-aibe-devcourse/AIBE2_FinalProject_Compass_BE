@@ -101,3 +101,6 @@ temp-files/
 
 # AGENTS.md file
 AGENTS.md
+
+# Test frontend directory
+FETEST/

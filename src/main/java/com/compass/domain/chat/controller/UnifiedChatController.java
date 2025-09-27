@@ -70,10 +70,22 @@ public class UnifiedChatController {
 
         try {
             ChatResponse response = mainLLMOrchestrator.processChat(request);
+            // Thread ID와 현재 Phase 추가
+            response.setThreadId(threadId);
+            if (response.getPhase() != null) {
+                response.setCurrentPhase(response.getPhase());
+            }
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("처리 중 오류: userId={}", userId, e);
-            return ResponseEntity.internalServerError().body(ChatResponse.builder().content("처리 중 오류가 발생했습니다.").type("ERROR").build());
+            ChatResponse errorResponse = ChatResponse.builder()
+                .content("처리 중 오류가 발생했습니다.")
+                .type("ERROR")
+                .threadId(threadId)
+                .phase("INITIAL")
+                .currentPhase("INITIAL")
+                .build();
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 

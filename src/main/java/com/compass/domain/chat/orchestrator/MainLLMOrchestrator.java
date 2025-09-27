@@ -12,12 +12,17 @@ import com.compass.domain.chat.model.request.ChatRequest;
 import com.compass.domain.chat.model.response.FollowUpResponse;
 import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.service.ChatThreadService;
-import com.compass.domain.chat.service.TravelInfoService;
+import com.compass.domain.chat.service.TravelFormWorkflowService;
+import com.compass.domain.chat.service.TravelPlanGenerationService;
 import com.compass.domain.chat.collection.service.FormDataConverter;
+import com.compass.domain.chat.stage_integration.service.StageIntegrationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -31,7 +36,9 @@ public class MainLLMOrchestrator {
     private final ChatThreadService chatThreadService;
     private final PromptBuilder promptBuilder;
     private final FormDataConverter formDataConverter;
-    private final TravelInfoService travelInfoService;
+    private final TravelFormWorkflowService travelFormWorkflowService;
+    private final TravelPlanGenerationService travelPlanGenerationService;
+    private final StageIntegrationService stageIntegrationService;
 
     private final SubmitTravelFormFunction submitTravelFormFunction;
     private final StartFollowUpFunction startFollowUpFunction;
@@ -56,17 +63,104 @@ public class MainLLMOrchestrator {
             ensureChatThreadExists(request);
             saveUserMessage(request);
 
-            // 1. 폼 데이터가 포함된 특별 요청인지 확인합니다.
+            // 1. Stage 처리 요청인지 확인합니다.
+            if (isStageRequest(request)) {
+                return handleStageRequest(request);
+            }
+
+            // 2. 폼 데이터가 포함된 특별 요청인지 확인합니다.
             if (isFormSubmission(request)) {
                 return handleFormSubmission(request);
             }
 
-            // 2. 폼 데이터가 없는 일반 대화 요청을 처리합니다.
+            // 3. 폼 데이터가 없는 일반 대화 요청을 처리합니다.
             return handleGeneralChatMessage(request);
 
         } finally {
             // 요청 처리가 끝나면 MDC에서 정보를 제거합니다.
             MDC.clear();
+        }
+    }
+
+    /**
+     * 요청이 Stage 처리 요청인지 확인하는 헬퍼 메소드입니다.
+     */
+    private boolean isStageRequest(ChatRequest request) {
+        if (request.getMetadata() instanceof java.util.Map) {
+            var metadata = (java.util.Map<String, Object>) request.getMetadata();
+            String type = (String) metadata.get("type");
+            return "STAGE1_GENERATION_REQUEST".equals(type) ||
+                   "STAGE1_TO_STAGE2_TRANSFER".equals(type) ||
+                   "STAGE2_TO_STAGE3_TRANSFER".equals(type) ||
+                   "STAGE3_GENERATION_REQUEST".equals(type);
+        }
+        return false;
+    }
+
+    /**
+     * Stage 처리 요청을 처리하는 메서드입니다.
+     */
+    private ChatResponse handleStageRequest(ChatRequest request) {
+        log.info("🎯 Stage 처리 요청 감지");
+
+        var context = contextManager.getOrCreateContext(request);
+        var metadata = (java.util.Map<String, Object>) request.getMetadata();
+        String type = (String) metadata.get("type");
+
+        log.info("📍 [STAGE] Request type: {}", type);
+
+        // destination 가져오기
+        @SuppressWarnings("unchecked")
+        List<String> destinations = (List<String>) context.getCollectedInfo().get(TravelContext.KEY_DESTINATIONS);
+        String destination = destinations != null && !destinations.isEmpty() ? destinations.get(0) : "서울";
+        log.info("📍 [STAGE] Current context destination: {}", destination);
+
+        try {
+            Map<String, Object> stageData;
+
+            switch (type) {
+                case "STAGE1_GENERATION_REQUEST":
+                    log.info("🏃 Stage 1 실행 - 지역: {}", destination);
+                    stageData = stageIntegrationService.processStage1(context);
+                    break;
+
+                case "STAGE1_TO_STAGE2_TRANSFER":
+                    log.info("🏃 Stage 1 → Stage 2 전환 실행");
+                    stageData = stageIntegrationService.processStage1ToStage2(context, metadata);
+                    break;
+
+                case "STAGE2_TO_STAGE3_TRANSFER":
+                    log.info("🏃 Stage 2 → Stage 3 전환 실행");
+                    stageData = stageIntegrationService.processStage2ToStage3(context, metadata);
+                    break;
+
+                case "STAGE3_GENERATION_REQUEST":
+                    log.info("🏃 Stage 3 직접 실행");
+                    stageData = stageIntegrationService.processStage3(context);
+                    break;
+
+                default:
+                    log.error("❌ 알 수 없는 Stage 타입: {}", type);
+                    return createErrorResponse("알 수 없는 Stage 요청입니다.");
+            }
+
+            // ChatResponse 생성
+            ChatResponse response = ChatResponse.builder()
+                .type((String) stageData.get("type"))
+                .data(stageData)
+                .threadId(request.getThreadId())
+                .phase(context.getCurrentPhase())
+                .currentPhase(context.getCurrentPhase())
+                .build();
+
+            log.info("✅ [STAGE] 응답 생성 완료 - type: {}, stage: {}",
+                stageData.get("type"), stageData.get("stage"));
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("❌ Stage 처리 중 오류 발생: ", e);
+            return createErrorResponse("Stage 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
@@ -86,25 +180,50 @@ public class MainLLMOrchestrator {
      */
     private ChatResponse handleFormSubmission(ChatRequest request) {
         log.info("🎯 빠른입력폼 제출 감지 -> 처리를 시작합니다.");
+        log.info("📍 [FORM] ThreadId: {}, UserId: {}", request.getThreadId(), request.getUserId());
         try {
             var context = contextManager.getOrCreateContext(request);
+            log.info("📍 [CONTEXT] Current Phase: {}", context.getCurrentPhase());
+
             var metadata = (java.util.Map<String, Object>) request.getMetadata();
+            log.info("📍 [METADATA] Raw metadata: {}", metadata);
+
             var formDataMap = (java.util.Map<String, Object>) metadata.get("formData");
+            log.info("📍 [FORMDATA] Form data map: {}", formDataMap);
+
             var travelFormRequest = formDataConverter.convertFromFrontend(request.getUserId(), formDataMap);
+            log.info("📍 [CONVERTED] TravelFormRequest: {}", travelFormRequest);
 
             context.updateFromFormSubmit(travelFormRequest);
-            contextManager.updateContext(context, context.getUserId());
+            log.info("📍 [UPDATED] Context updated with form data");
 
+            log.info("📍 [FUNCTION] Calling submitTravelFormFunction");
             ChatResponse validationResponse = submitTravelFormFunction.apply(travelFormRequest);
+            log.info("📍 [RESPONSE] Validation response type: {}, phase: {}",
+                validationResponse.getType(), validationResponse.getPhase());
             saveSystemMessage(request.getThreadId(), validationResponse.getContent());
+            log.info("📍 [SAVED] System message saved");;
 
             String nextAction = validationResponse.getNextAction();
 
-            if (!"START_FOLLOW_UP".equals(nextAction)) {
-                log.info("유효성 검사 통과 또는 목적지 미정 확인. DB에 정보를 저장합니다.");
-                travelInfoService.saveTravelInfo(request.getThreadId(), travelFormRequest);
+            boolean shouldPersist = !"START_FOLLOW_UP".equals(nextAction);
+            boolean shouldTransition = "TRIGGER_PLAN_GENERATION".equals(nextAction);
+
+            if (shouldTransition) {
+                context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
+            }
+
+            if (shouldPersist) {
+                log.info("유효성 검사 통과 또는 목적지 미정 확인. 폼 데이터를 저장합니다.");
+                travelFormWorkflowService.persistFormData(
+                    context,
+                    request.getThreadId(),
+                    travelFormRequest,
+                    shouldTransition
+                );
             } else {
                 log.warn("유효성 검사 실패. DB에 정보를 저장하지 않습니다.");
+                contextManager.updateContext(context, context.getUserId());
             }
 
             return switch (nextAction) {
@@ -113,22 +232,67 @@ public class MainLLMOrchestrator {
                     DestinationRecommendationDto recommendations = recommendDestinationsFunction.apply(travelFormRequest);
                     validationResponse.setData(recommendations);
                     validationResponse.setType("DESTINATION_RECOMMENDATION");
+                    validationResponse.setPhase(context.getCurrentPhase());
+                    validationResponse.setThreadId(request.getThreadId());
+                    validationResponse.setCurrentPhase(context.getCurrentPhase());
                     yield validationResponse;
                 }
                 case "START_FOLLOW_UP" -> {
                     log.info("✅ 정보 부족 시나리오 -> StartFollowUpFunction 호출");
                     ChatResponse followUpQuestionResponse = startFollowUpFunction.apply(travelFormRequest);
                     saveSystemMessage(request.getThreadId(), followUpQuestionResponse.getContent());
+                    followUpQuestionResponse.setPhase(context.getCurrentPhase());
+                    followUpQuestionResponse.setThreadId(request.getThreadId());
+                    followUpQuestionResponse.setCurrentPhase(context.getCurrentPhase());
                     yield followUpQuestionResponse;
                 }
                 case "TRIGGER_PLAN_GENERATION" -> {
                     log.info("✅ 정보 수집 완료 시나리오 -> PLAN_GENERATION으로 전환");
-                    phaseManager.savePhase(request.getThreadId(), TravelPhase.PLAN_GENERATION);
-                    context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
-                    contextManager.updateContext(context, context.getUserId());
+                    log.info("📍 [PHASE_TRANSITION] INFORMATION_COLLECTION -> PLAN_GENERATION");
+                    log.info("📍 [PHASE_TRANSITION] ThreadId: {}, UserId: {}",
+                        request.getThreadId(), context.getUserId());
+
+                    // 🔥 Stage 1부터 시작! (DB에서 모든 장소 가져오기)
+                    log.info("🚀 Stage 1 - DB에서 지역의 모든 장소를 가져옵니다!");
+                    try {
+                        Map<String, Object> stage1Data = stageIntegrationService.processStage1(context);
+                        if (stage1Data != null && !stage1Data.isEmpty()) {
+                            log.info("✅ Stage 1 데이터 조회 성공! 장소 목록을 응답에 포함합니다.");
+                            log.info("📊 생성된 데이터 키: {}", stage1Data.keySet());
+                            log.info("📊 allPlaces 크기: {}",
+                                stage1Data.get("allPlaces") != null ?
+                                ((List<?>)stage1Data.get("allPlaces")).size() : "null");
+                            validationResponse.setData(stage1Data);
+                            validationResponse.setType("STAGE1_PLACES_LOADED");
+                            log.info("🔍 응답 데이터 설정 완료: hasData={}, type={}",
+                                validationResponse.getData() != null,
+                                validationResponse.getType());
+                        } else {
+                            log.warn("⚠️ Stage 3 실행했지만 여행 계획이 비어있습니다.");
+                        }
+                    } catch (Exception e) {
+                        log.error("❌ Stage 3 실행 중 오류 발생: {}", e.getMessage(), e);
+                        // 오류가 발생해도 Phase 전환은 진행
+                    }
+
+                    validationResponse.setPhase(TravelPhase.PLAN_GENERATION.name());
+                    validationResponse.setThreadId(request.getThreadId());
+                    validationResponse.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
+
+                    log.info("📍 [PHASE_COMPLETE] Phase transition complete. New phase: {}",
+                        TravelPhase.PLAN_GENERATION.name());
+                    log.info("📍 [RESPONSE_READY] Response ready with phase: {}, threadId: {}, hasData: {}",
+                        validationResponse.getPhase(), validationResponse.getThreadId(),
+                        validationResponse.getData() != null);
+
                     yield validationResponse;
                 }
-                default -> validationResponse;
+                default -> {
+                    validationResponse.setPhase(context.getCurrentPhase());
+                    validationResponse.setThreadId(request.getThreadId());
+                    validationResponse.setCurrentPhase(context.getCurrentPhase());
+                    yield validationResponse;
+                }
             };
 
         } catch (Exception e) {
@@ -165,6 +329,10 @@ public class MainLLMOrchestrator {
             }
 
             saveSystemMessage(request.getThreadId(), functionResponse.getContent());
+            // Phase 정보 추가
+            functionResponse.setPhase(context.getCurrentPhase());
+            functionResponse.setThreadId(request.getThreadId());
+            functionResponse.setCurrentPhase(context.getCurrentPhase());
             return functionResponse;
         }
 
@@ -174,6 +342,10 @@ public class MainLLMOrchestrator {
 
         var response = responseGenerator.generateResponse(request, intent, nextPhase, context, promptBuilder);
         saveSystemMessage(request.getThreadId(), response.getContent());
+        // Phase와 ThreadId 정보 추가
+        response.setPhase(nextPhase.name());
+        response.setThreadId(request.getThreadId());
+        response.setCurrentPhase(nextPhase.name());
         return response;
     }
 

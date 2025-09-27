@@ -7,16 +7,22 @@ import com.compass.domain.chat.common.utils.TravelPlaceConverter;
 import com.compass.domain.chat.entity.TravelCandidate;
 import com.compass.domain.chat.model.TravelPlace;
 import com.compass.domain.chat.model.dto.ConfirmedSchedule;
+import com.compass.domain.chat.model.context.TravelContext;
+import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
+import com.compass.domain.chat.orchestrator.ContextManager;
 import com.compass.domain.chat.repository.TravelCandidateRepository;
 import com.compass.domain.chat.stage2.dto.UserSelectionRequest;
 import com.compass.domain.chat.stage2.dto.UserSelectionRequest.SelectedPlace;
 import com.compass.domain.chat.stage2.dto.SelectedSchedule;
+import com.compass.domain.chat.service.TravelInfoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,6 +37,8 @@ public class Stage2TimeBlockService {
     private final DistanceCalculator distanceCalculator;
     private final PlaceScoreCalculator scoreCalculator;
     private final TravelPlaceConverter placeConverter;
+    private final ContextManager contextManager;
+    private final TravelInfoService travelInfoService;
 
     // 사용자 선택 기반 시간블록별 후보 생성
     public Stage2Response processUserSelection(UserSelectionRequest request) {
@@ -38,15 +46,19 @@ public class Stage2TimeBlockService {
 
         Map<Integer, DaySchedule> timeBlocks = new HashMap<>();
 
-        // 1. 확정 일정 (OCR/티켓) 우선 배치
         List<ConfirmedSchedule> confirmedSchedules = getConfirmedSchedules(request.threadId());
-        placeConfirmedSchedules(confirmedSchedules, timeBlocks, request.tripDays());
+        TravelFormSubmitRequest travelInfo = travelInfoService.loadTravelInfo(request.threadId());
+        LocalDate tripStartDate = resolveTripStartDate(travelInfo, confirmedSchedules);
+        List<String> regions = resolveRegions(travelInfo, request.selectedPlaces());
+
+        // 1. 확정 일정 (OCR/티켓) 우선 배치
+        placeConfirmedSchedules(confirmedSchedules, timeBlocks, request.tripDays(), tripStartDate);
 
         // 2. 사용자 선택 장소 배치
         List<SelectedSchedule> selectedSchedules = placeUserSelections(request.selectedPlaces(), timeBlocks, request.tripDays());
 
         // 3. AI 추천 후보 생성
-        generateAIRecommendations(timeBlocks, request.selectedPlaces(), request.threadId());
+        generateAIRecommendations(timeBlocks, request.selectedPlaces(), request.threadId(), regions);
 
         return Stage2Response.builder()
             .threadId(request.threadId())
@@ -57,16 +69,19 @@ public class Stage2TimeBlockService {
 
     // 확정 일정 조회 (OCR/티켓 정보)
     private List<ConfirmedSchedule> getConfirmedSchedules(String threadId) {
-        // TODO: 실제 구현시 DB에서 조회
-        return new ArrayList<>();
+        return contextManager.getContext(threadId)
+            .map(TravelContext::getOcrConfirmedSchedules)
+            .map(ArrayList::new)
+            .orElseGet(ArrayList::new);
     }
 
     // 확정 일정 배치
     private void placeConfirmedSchedules(List<ConfirmedSchedule> schedules,
                                         Map<Integer, DaySchedule> timeBlocks,
-                                        int tripDays) {
+                                        int tripDays,
+                                        LocalDate tripStartDate) {
         for (ConfirmedSchedule schedule : schedules) {
-            int day = calculateDay(schedule.startTime(), tripDays);
+            int day = calculateDay(schedule.startTime(), tripStartDate, tripDays);
             TimeBlock block = getTimeBlock(schedule.startTime());
 
             ensureDaySchedule(timeBlocks, day);
@@ -116,7 +131,8 @@ public class Stage2TimeBlockService {
     // AI 추천 후보 생성
     private void generateAIRecommendations(Map<Integer, DaySchedule> timeBlocks,
                                           List<SelectedPlace> userSelections,
-                                          String threadId) {
+                                          String threadId,
+                                          List<String> regions) {
         // 사용자 선택 장소들을 기준점으로 사용
         List<TravelPlace> referencePlaces = placeConverter.fromSelectedPlaces(userSelections);
 
@@ -138,7 +154,7 @@ public class Stage2TimeBlockService {
 
                 // AI 후보 생성
                 List<TravelPlace> aiCandidates = findCandidatesForTimeBlock(
-                    block, referencePlaces, threadId
+                    block, referencePlaces, threadId, regions
                 );
 
                 candidates.aiCandidates().addAll(aiCandidates);
@@ -151,14 +167,22 @@ public class Stage2TimeBlockService {
     // 시간블록에 맞는 후보 찾기
     private List<TravelPlace> findCandidatesForTimeBlock(TimeBlock block,
                                                         List<TravelPlace> references,
-                                                        String threadId) {
-        // TODO: 실제 구현시 지역 정보 활용
-        String region = "서울"; // 임시
+                                                        String threadId,
+                                                        List<String> regions) {
+        if (regions.isEmpty()) {
+            log.debug("AI 후보 생성을 건너뜀 - region 정보를 찾지 못했습니다 (threadId={})", threadId);
+            return List.of();
+        }
 
-        List<TravelCandidate> candidates = travelCandidateRepository.findByRegion(region);
+        TravelCandidate.TimeBlock entityTimeBlock = mapToCandidateTimeBlock(block);
 
-        // 시간블록에 맞는 카테고리 필터링
-        List<TravelCandidate> filtered = filterByTimeBlock(candidates, block);
+        int fetchLimit = StageConstants.Limits.PLACES_PER_CLUSTER * Math.max(regions.size(), 1);
+
+        List<TravelCandidate> filtered = travelCandidateRepository.findActiveByRegionsAndTimeBlock(
+            regions,
+            entityTimeBlock,
+            fetchLimit
+        );
 
         // 점수 계산 및 정렬
         return filtered.stream()
@@ -172,28 +196,6 @@ public class Stage2TimeBlockService {
             .limit(StageConstants.Limits.PLACES_PER_CLUSTER)
             .map(ScoredCandidate::place)
             .collect(Collectors.toList());
-    }
-
-    // 시간블록에 맞는 카테고리 필터링
-    private List<TravelCandidate> filterByTimeBlock(List<TravelCandidate> candidates,
-                                                   TimeBlock block) {
-        return candidates.stream()
-            .filter(c -> matchesTimeBlock(c.getCategory(), block))
-            .collect(Collectors.toList());
-    }
-
-    // 카테고리와 시간블록 매칭
-    private boolean matchesTimeBlock(String category, TimeBlock block) {
-        if (category == null) return false;
-
-        return switch (block) {
-            case BREAKFAST -> category.contains("아침") || category.contains("브런치");
-            case LUNCH -> category.contains("점심") || category.contains("맛집");
-            case DINNER -> category.contains("저녁") || category.contains("맛집");
-            case MORNING_ACTIVITY -> category.contains("관광") || category.contains("명소");
-            case AFTERNOON_ACTIVITY -> category.contains("체험") || category.contains("카페");
-            case EVENING_ACTIVITY -> category.contains("야경") || category.contains("공연");
-        };
     }
 
     // 카테고리에 맞는 시간블록 찾기
@@ -232,9 +234,19 @@ public class Stage2TimeBlockService {
     }
 
     // 날짜 계산
-    private int calculateDay(LocalDateTime dateTime, int maxDays) {
-        // TODO: 실제 구현시 여행 시작일 기준으로 계산
-        return 1;
+    private int calculateDay(LocalDateTime dateTime, LocalDate tripStartDate, int maxDays) {
+        if (maxDays <= 0) {
+            return 1;
+        }
+        if (tripStartDate != null) {
+            long diff = ChronoUnit.DAYS.between(tripStartDate, dateTime.toLocalDate());
+            int day = (int) diff + 1;
+            if (day < 1) {
+                return 1;
+            }
+            return Math.min(day, maxDays);
+        }
+        return Math.min(1, maxDays);
     }
 
     // 시간블록 결정
@@ -269,6 +281,56 @@ public class Stage2TimeBlockService {
         timeBlocks.computeIfAbsent(day, k -> new DaySchedule(
             day, new HashMap<>()
         ));
+    }
+
+    private TravelCandidate.TimeBlock mapToCandidateTimeBlock(TimeBlock block) {
+        return switch (block) {
+            case BREAKFAST -> TravelCandidate.TimeBlock.BREAKFAST;
+            case MORNING_ACTIVITY -> TravelCandidate.TimeBlock.MORNING_ACTIVITY;
+            case LUNCH -> TravelCandidate.TimeBlock.LUNCH;
+            case AFTERNOON_ACTIVITY -> TravelCandidate.TimeBlock.AFTERNOON_ACTIVITY;
+            case DINNER -> TravelCandidate.TimeBlock.DINNER;
+            case EVENING_ACTIVITY -> TravelCandidate.TimeBlock.EVENING_ACTIVITY;
+        };
+    }
+
+    private LocalDate resolveTripStartDate(TravelFormSubmitRequest travelInfo,
+                                           List<ConfirmedSchedule> confirmedSchedules) {
+        if (travelInfo.travelDates() != null && travelInfo.travelDates().startDate() != null) {
+            return travelInfo.travelDates().startDate();
+        }
+
+        return confirmedSchedules.stream()
+            .map(schedule -> schedule.startTime().toLocalDate())
+            .sorted()
+            .findFirst()
+            .orElse(null);
+    }
+
+    private List<String> resolveRegions(TravelFormSubmitRequest travelInfo,
+                                        List<SelectedPlace> selections) {
+        if (travelInfo.destinations() != null && !travelInfo.destinations().isEmpty()) {
+            return new ArrayList<>(travelInfo.destinations());
+        }
+
+        if (selections == null || selections.isEmpty()) {
+            return List.of();
+        }
+
+        return selections.stream()
+            .map(SelectedPlace::placeId)
+            .map(this::lookupRegionByPlaceId)
+            .flatMap(Optional::stream)
+            .distinct()
+            .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    private Optional<String> lookupRegionByPlaceId(String placeId) {
+        if (placeId == null || placeId.isBlank()) {
+            return Optional.empty();
+        }
+        return travelCandidateRepository.findFirstByPlaceId(placeId)
+            .map(TravelCandidate::getRegion);
     }
 
     // SelectedPlace를 SelectedSchedule로 변환

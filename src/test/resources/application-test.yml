@@ -14,11 +14,11 @@ spring:
         format_sql: true
     show-sql: false
 
-# 카카오 API 설정 - 실제 키 사용
+# 카카오 API 설정 - 테스트 실행 시 환경 변수로 주입
 kakao:
   api:
-    js-key: 510b624b2b131b82ad7aee34c7864031
-    rest-key: e441db4b56f018bdfb43f87db66c216a
+    js-key: ${KAKAO_JS_KEY:}
+    rest-key: ${KAKAO_REST_KEY:}
     map:
       base-url: https://dapi.kakao.com
       rate-limit: 30
