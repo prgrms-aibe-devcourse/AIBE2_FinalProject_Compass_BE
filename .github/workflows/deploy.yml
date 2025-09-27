@@ -69,7 +69,7 @@ jobs:
 
       # 6. 배포 패키지 압축
       - name: Create deployment package
-        run: zip -r deploy.zip Dockerrun.aws.json .ebextensions/ -R
+        run: zip -r deploy.zip Dockerrun.aws.json .ebextensions/
 
       # 7. S3에 배포 패키지 업로드
       - name: Upload package to S3
