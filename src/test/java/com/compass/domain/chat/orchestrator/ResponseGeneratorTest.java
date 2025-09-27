@@ -6,7 +6,7 @@ import com.compass.domain.chat.model.dto.QuickInputFormDto;
 import com.compass.domain.chat.model.request.ChatRequest;
 import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.model.enums.Intent;
-import com.compass.domain.chat.model.enums.TravelPhase;.
+import com.compass.domain.chat.model.enums.TravelPhase;
 import com.compass.domain.chat.service.TravelPlanGenerationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
