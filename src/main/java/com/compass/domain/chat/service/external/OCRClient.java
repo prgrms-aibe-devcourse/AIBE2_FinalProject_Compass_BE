@@ -29,6 +29,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.threeten.bp.Duration;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 @Slf4j
 @Component
 public class OCRClient {
@@ -61,9 +64,36 @@ public class OCRClient {
     });
 
     private ImageAnnotatorClient client;
+    private boolean enabled = true;
 
     @PostConstruct
     void init() {
+        String credentialsPath = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+        if (credentialsPath == null || credentialsPath.isBlank()) {
+            log.warn("⚠️ GOOGLE_APPLICATION_CREDENTIALS 가 설정되지 않았습니다. OCR 기능을 비활성화합니다.");
+            enabled = false;
+            return;
+        }
+
+        Path credentialFile = Path.of(credentialsPath);
+        if (!Files.exists(credentialFile)) {
+            log.warn("⚠️ OCR 자격 증명 파일이 존재하지 않습니다: {}. OCR 기능을 비활성화합니다.", credentialsPath);
+            enabled = false;
+            return;
+        }
+
+        try {
+            if (Files.size(credentialFile) == 0) {
+                log.warn("⚠️ OCR 자격 증명 파일이 비어 있습니다: {}. OCR 기능을 비활성화합니다.", credentialsPath);
+                enabled = false;
+                return;
+            }
+        } catch (IOException ioException) {
+            log.warn("⚠️ OCR 자격 증명 파일을 읽는 중 오류가 발생했습니다. OCR 기능을 비활성화합니다.", ioException);
+            enabled = false;
+            return;
+        }
+
         try {
             var settingsBuilder = ImageAnnotatorSettings.newBuilder();
             RetrySettings retrySettings = settingsBuilder.batchAnnotateImagesSettings().getRetrySettings().toBuilder()
@@ -74,6 +104,7 @@ public class OCRClient {
                     .setRetrySettings(retrySettings);
             client = ImageAnnotatorClient.create(settingsBuilder.build());
         } catch (IOException e) {
+            enabled = false;
             throw new IllegalStateException("Vision API 클라이언트를 초기화하지 못했습니다.", e);
         }
         rateResetScheduler.scheduleAtFixedRate(this::resetRateLimiter, 1, 1, TimeUnit.MINUTES);
@@ -88,6 +119,10 @@ public class OCRClient {
     }
 
     public String extractText(byte[] data) {
+        if (!enabled) {
+            log.debug("OCR 기능이 비활성화되어 있어 빈 문자열을 반환합니다.");
+            return "";
+        }
         return extractDetailed(data).text();
     }
 
@@ -95,18 +130,30 @@ public class OCRClient {
         if (data == null || data.length == 0) {
             throw new IllegalArgumentException("이미지 데이터가 비어 있습니다.");
         }
+        if (!enabled) {
+            log.debug("OCR 기능이 비활성화되어 있어 빈 결과를 반환합니다.");
+            return new OcrResult("", 0f);
+        }
         var cacheKey = "bytes:" + hashBytes(data);
         var image = Image.newBuilder().setContent(ByteString.copyFrom(data)).build();
         return annotate(image, cacheKey);
     }
 
     public String extractTextFromUrl(String imageUrl) {
+        if (!enabled) {
+            log.debug("OCR 기능이 비활성화되어 있어 빈 문자열을 반환합니다.");
+            return "";
+        }
         return extractDetailedFromUrl(imageUrl).text();
     }
 
     public OcrResult extractDetailedFromUrl(String imageUrl) {
         if (imageUrl == null || imageUrl.isBlank()) {
             throw new IllegalArgumentException("이미지 URL이 필요합니다.");
+        }
+        if (!enabled) {
+            log.debug("OCR 기능이 비활성화되어 있어 빈 결과를 반환합니다.");
+            return new OcrResult("", 0f);
         }
         var cacheKey = "url:" + imageUrl.trim();
         var image = Image.newBuilder()
@@ -147,6 +194,9 @@ public class OCRClient {
     }
 
     private OcrResult annotate(Image image, String cacheKey) {
+        if (!enabled) {
+            return new OcrResult("", 0f);
+        }
         var cached = getCached(cacheKey);
         if (cached != null) {
             return cached;

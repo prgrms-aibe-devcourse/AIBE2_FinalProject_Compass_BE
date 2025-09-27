@@ -53,7 +53,7 @@ done
 echo -e "${YELLOW}5. Docker 컨테이너 정리 중...${NC}"
 if docker ps >/dev/null 2>&1; then
     # Compass 관련 컨테이너만 종료
-    docker ps -a | grep -E 'compass|COMPASS' | awk '{print $1}' | while read container; do
+    docker ps -a | grep -E 'compass|COMPASS' | grep -v 'compass-redis' | awk '{print $1}' | while read container; do
         if [ ! -z "$container" ]; then
             echo -e "  ${RED}→ Container $container 종료${NC}"
             docker stop $container 2>/dev/null

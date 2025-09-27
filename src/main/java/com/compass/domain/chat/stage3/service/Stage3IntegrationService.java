@@ -37,6 +37,7 @@ public class Stage3IntegrationService {
 
         // TravelContext에서 Phase 2 정보 추출
         String destination = extractDestination(context);
+        String departureLocation = (String) context.getCollectedInfo().get(TravelContext.KEY_DEPARTURE);
 
         // 날짜 안전하게 변환 (String 또는 LocalDate 모두 처리)
         LocalDate startDate = convertToLocalDate(context.getCollectedInfo().get(TravelContext.KEY_START_DATE));
@@ -55,14 +56,17 @@ public class Stage3IntegrationService {
             destination, startDate, endDate, travelStyle, companions, transportMode
         );
 
-        // OCR 확정 일정을 고려한 처리
-        return processWithConfirmedSchedules(input, confirmedSchedules);
+        // OCR 확정 일정을 고려한 처리 (출발지 정보 포함)
+        return processWithConfirmedSchedules(input, confirmedSchedules, departureLocation);
     }
 
     // Phase 2 Output → Stage 3 처리
     @Transactional(readOnly = true)
     public Stage3Output processPhase2Output(Stage3Input input) {
         log.info("Starting Stage 3 processing for destination: {}", input.destination());
+
+        // Phase2에서는 출발지 정보가 없으므로 null 사용
+        String departureLocation = null;
 
         // 1. travel_candidates에서 해당 지역의 장소들 조회
         List<TravelCandidate> candidates = fetchEnrichedCandidates(
@@ -86,10 +90,11 @@ public class Stage3IntegrationService {
             input.userSelectedPlaces()
         );
 
-        // 4. 경로 최적화
+        // 4. 경로 최적화 (출발지 정보 포함)
         List<OptimizedRoute> optimizedRoutes = optimizeRoutes(
             dailyItineraries,
-            input.transportMode()
+            input.transportMode(),
+            departureLocation
         );
 
         return Stage3Output.builder()
@@ -104,9 +109,11 @@ public class Stage3IntegrationService {
     // OCR 확정 일정을 고려한 Stage 3 처리
     private Stage3Output processWithConfirmedSchedules(
             Stage3Input input,
-            List<ConfirmedSchedule> confirmedSchedules) {
+            List<ConfirmedSchedule> confirmedSchedules,
+            String departureLocation) {
 
-        log.info("Processing with {} confirmed schedules from OCR", confirmedSchedules.size());
+        log.info("Processing with {} confirmed schedules from OCR, departing from {}",
+                confirmedSchedules.size(), departureLocation);
 
         // 1. travel_candidates에서 해당 지역의 장소들 조회
         List<TravelCandidate> candidates = fetchEnrichedCandidates(
@@ -132,10 +139,11 @@ public class Stage3IntegrationService {
             confirmedSchedules
         );
 
-        // 4. 경로 최적화
+        // 4. 경로 최적화 (출발지 정보 포함)
         List<OptimizedRoute> optimizedRoutes = optimizeRoutes(
             dailyItineraries,
-            input.transportMode()
+            input.transportMode(),
+            departureLocation
         );
 
         return Stage3Output.builder()
@@ -184,7 +192,7 @@ public class Stage3IntegrationService {
                     a.getReviewCount() != null ? a.getReviewCount() : 0
                 );
             })
-            .limit(210) // 2박3일 최대 70개*3일
+            .limit(45) // 더 현실적인 수: 일당 15개 * 3일
             .collect(Collectors.toList());
 
         log.info("Fetched {} enriched candidates for {}", candidates.size(), destination);
@@ -290,15 +298,17 @@ public class Stage3IntegrationService {
             .collect(Collectors.toList());
     }
 
-    // 경로 최적화
+    // 경로 최적화 (출발지 정보 포함)
     private List<OptimizedRoute> optimizeRoutes(
             List<DailyItinerary> itineraries,
-            String transportMode) {
+            String transportMode,
+            String departureLocation) {
 
         return itineraries.stream()
             .map(itinerary -> routeOptimizationService.optimize(
                 itinerary.getPlaces(),
-                transportMode
+                transportMode,
+                departureLocation
             ))
             .collect(Collectors.toList());
     }

@@ -10,9 +10,7 @@ RUN gradle build --no-daemon -x test
 FROM openjdk:17-slim
 WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
-
-# Google Cloud 서비스 계정 키 파일 복사 (존재하는 경우)
-COPY travelagent-468611-1ae0c9d4e187.json* /app/
+COPY docker-entrypoint.sh /entrypoint.sh
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["/entrypoint.sh"]

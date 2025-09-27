@@ -15,11 +15,17 @@ public class Stage3RouteOptimizationService {
 
     // TSP + 2-opt 알고리즘을 사용한 경로 최적화
     public OptimizedRoute optimize(List<TravelPlace> places, String transportMode) {
+        return optimize(places, transportMode, null);
+    }
+
+    // 출발지를 고려한 경로 최적화
+    public OptimizedRoute optimize(List<TravelPlace> places, String transportMode, String departureLocation) {
         if (places == null || places.isEmpty()) {
             return createEmptyRoute(transportMode);
         }
 
-        log.info("Optimizing route for {} places with transport mode: {}", places.size(), transportMode);
+        log.info("Optimizing route for {} places with transport mode: {} from departure: {}",
+                places.size(), transportMode, departureLocation);
 
         // 고정 일정과 자유 일정 분리
         List<TravelPlace> fixedPlaces = new ArrayList<>();
@@ -41,8 +47,15 @@ public class Stage3RouteOptimizationService {
             return 0;
         });
 
-        // 자유 일정을 고정 일정 사이에 최적 배치
-        List<TravelPlace> optimizedPlaces = arrangeWithFixedConstraints(fixedPlaces, flexiblePlaces);
+        // 출발지가 있으면 출발지 기준으로 최적화
+        List<TravelPlace> optimizedPlaces;
+        if (departureLocation != null && !departureLocation.isEmpty()) {
+            optimizedPlaces = arrangeWithDepartureAndFixedConstraints(
+                departureLocation, fixedPlaces, flexiblePlaces);
+        } else {
+            // 자유 일정을 고정 일정 사이에 최적 배치
+            optimizedPlaces = arrangeWithFixedConstraints(fixedPlaces, flexiblePlaces);
+        }
 
         // 2-opt 최적화 적용 (자유 일정 구간만)
         optimizedPlaces = apply2OptOptimization(optimizedPlaces);
@@ -60,6 +73,69 @@ public class Stage3RouteOptimizationService {
             .transportMode(transportMode)
             .statistics(createStatistics(optimizedPlaces, totalDistance, totalDuration))
             .build();
+    }
+
+    // 출발지와 고정 일정을 고려한 장소 배치
+    private List<TravelPlace> arrangeWithDepartureAndFixedConstraints(
+            String departureLocation,
+            List<TravelPlace> fixedPlaces,
+            List<TravelPlace> flexiblePlaces) {
+
+        log.info("Arranging places from departure location: {}", departureLocation);
+
+        List<TravelPlace> result = new ArrayList<>();
+        List<TravelPlace> remainingFlexible = new ArrayList<>(flexiblePlaces);
+
+        // 1. 호텔이 있으면 가장 먼저 방문 (짐 맡기기/체크인)
+        TravelPlace hotel = findAndRemoveHotel(remainingFlexible);
+        if (hotel != null) {
+            log.info("Hotel found: {}. Adding as first destination for luggage/check-in", hotel.getName());
+            result.add(hotel);
+        }
+
+        // 2. 고정 일정이 없고 자유 일정만 있는 경우
+        if (fixedPlaces.isEmpty() && !remainingFlexible.isEmpty()) {
+            // 호텔 다음에 출발지에서 가까운 곳부터 방문
+            List<TravelPlace> optimizedPlaces = nearestNeighborFromDeparture(departureLocation, remainingFlexible);
+            result.addAll(optimizedPlaces);
+            return result;
+        }
+
+        // 3. 고정 일정이 있는 경우
+        // 첫 번째 고정 일정 전에 출발지에서 가까운 자유 일정 배치 (호텔 제외)
+        if (!fixedPlaces.isEmpty()) {
+            TravelPlace firstFixed = fixedPlaces.get(0);
+            List<TravelPlace> beforeFirst = selectPlacesFromDeparture(
+                departureLocation, firstFixed, remainingFlexible, 2
+            );
+            result.addAll(beforeFirst);
+            remainingFlexible.removeAll(beforeFirst);
+        }
+
+        // 나머지는 기존 로직과 동일
+        for (int i = 0; i < fixedPlaces.size(); i++) {
+            TravelPlace fixed = fixedPlaces.get(i);
+            result.add(fixed);
+
+            if (i < fixedPlaces.size() - 1) {
+                TravelPlace nextFixed = fixedPlaces.get(i + 1);
+                List<TravelPlace> segment = selectPlacesForSegment(
+                    fixed, nextFixed, remainingFlexible
+                );
+                result.addAll(segment);
+                remainingFlexible.removeAll(segment);
+            }
+        }
+
+        if (!remainingFlexible.isEmpty()) {
+            List<TravelPlace> lastSegment = nearestNeighborFromStart(
+                fixedPlaces.get(fixedPlaces.size() - 1),
+                remainingFlexible
+            );
+            result.addAll(lastSegment);
+        }
+
+        return result;
     }
 
     // 고정 일정을 고려한 장소 배치
@@ -362,6 +438,153 @@ public class Stage3RouteOptimizationService {
             .totalSegments(segments)
             .optimizationRate(0.8) // 예시 값
             .build();
+    }
+
+    // 출발지에서 가까운 장소 선택
+    private List<TravelPlace> selectPlacesFromDeparture(
+            String departureLocation,
+            TravelPlace nextFixed,
+            List<TravelPlace> candidates,
+            int maxPlaces) {
+
+        if (candidates.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 출발지 좌표 추정 (간단한 하드코딩, 실제로는 지오코딩 API 사용)
+        double[] departureCoords = getCoordinatesForLocation(departureLocation);
+
+        // 출발지와 첫 고정 일정 사이에 배치할 장소 선택
+        List<TravelPlace> selected = new ArrayList<>();
+        List<TravelPlace> sorted = new ArrayList<>(candidates);
+
+        sorted.sort((a, b) -> {
+            double distA = calculateDistanceFromPoint(departureCoords[0], departureCoords[1], a) +
+                          calculateDistance(a, nextFixed);
+            double distB = calculateDistanceFromPoint(departureCoords[0], departureCoords[1], b) +
+                          calculateDistance(b, nextFixed);
+            return Double.compare(distA, distB);
+        });
+
+        for (int i = 0; i < Math.min(maxPlaces, sorted.size()); i++) {
+            selected.add(sorted.get(i));
+        }
+
+        return selected;
+    }
+
+    // 출발지에서 시작하는 Nearest Neighbor
+    private List<TravelPlace> nearestNeighborFromDeparture(
+            String departureLocation,
+            List<TravelPlace> places) {
+
+        if (places.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        double[] departureCoords = getCoordinatesForLocation(departureLocation);
+        List<TravelPlace> result = new ArrayList<>();
+        Set<TravelPlace> unvisited = new HashSet<>(places);
+
+        // 출발지에서 가장 가까운 첫 장소 찾기
+        TravelPlace nearest = null;
+        double minDistance = Double.MAX_VALUE;
+
+        for (TravelPlace place : unvisited) {
+            double distance = calculateDistanceFromPoint(
+                departureCoords[0], departureCoords[1], place
+            );
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearest = place;
+            }
+        }
+
+        if (nearest != null) {
+            result.add(nearest);
+            unvisited.remove(nearest);
+
+            // 나머지는 일반 TSP로 처리
+            List<TravelPlace> remaining = nearestNeighborFromStart(nearest, new ArrayList<>(unvisited));
+            result.addAll(remaining);
+        }
+
+        return result;
+    }
+
+    // 좌표에서 장소까지 거리 계산
+    private double calculateDistanceFromPoint(double lat, double lon, TravelPlace place) {
+        if (place.getLatitude() == null || place.getLongitude() == null) {
+            return 0;
+        }
+
+        double earthRadius = 6371; // km
+        double lat1Rad = Math.toRadians(lat);
+        double lat2Rad = Math.toRadians(place.getLatitude());
+        double deltaLat = Math.toRadians(place.getLatitude() - lat);
+        double deltaLon = Math.toRadians(place.getLongitude() - lon);
+
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                  Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+                  Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return earthRadius * c;
+    }
+
+    // 호텔 찾기 및 제거
+    private TravelPlace findAndRemoveHotel(List<TravelPlace> places) {
+        for (int i = 0; i < places.size(); i++) {
+            TravelPlace place = places.get(i);
+            // 카테고리나 이름에 호텔 관련 키워드가 있는지 확인
+            if (isHotel(place)) {
+                places.remove(i);
+                return place;
+            }
+        }
+        return null;
+    }
+
+    // 호텔인지 확인
+    private boolean isHotel(TravelPlace place) {
+        String placeName = place.getName() != null ? place.getName().toLowerCase() : "";
+        String category = place.getCategory() != null ? place.getCategory().toLowerCase() : "";
+        String description = place.getDescription() != null ? place.getDescription().toLowerCase() : "";
+
+        // 호텔 관련 키워드 체크
+        return placeName.contains("호텔") || placeName.contains("hotel") ||
+               placeName.contains("숙소") || placeName.contains("숙박") ||
+               placeName.contains("펜션") || placeName.contains("모텔") ||
+               placeName.contains("게스트하우스") || placeName.contains("리조트") ||
+               category.contains("숙박") || category.contains("호텔") ||
+               category.contains("accommodation") || category.contains("lodging") ||
+               description.contains("숙박") || description.contains("호텔");
+    }
+
+    // 지역명을 좌표로 변환 (간단한 하드코딩, 실제로는 지오코딩 API 사용)
+    private double[] getCoordinatesForLocation(String location) {
+        // 주요 도시 좌표 하드코딩
+        Map<String, double[]> cityCoordinates = Map.of(
+            "서울", new double[]{37.5665, 126.9780},
+            "부산", new double[]{35.1796, 129.0756},
+            "대구", new double[]{35.8714, 128.6014},
+            "인천", new double[]{37.4563, 126.7052},
+            "광주", new double[]{35.1595, 126.8526},
+            "대전", new double[]{36.3504, 127.3845},
+            "울산", new double[]{35.5384, 129.3114},
+            "제주", new double[]{33.4996, 126.5312},
+            "수원", new double[]{37.2636, 127.0286},
+            "춘천", new double[]{37.8813, 127.7300}
+        );
+
+        // 지역명에서 도시명 추출 (예: "서울특별시" -> "서울")
+        String cityName = location.replace("특별시", "")
+                                  .replace("광역시", "")
+                                  .replace("시", "")
+                                  .trim();
+
+        return cityCoordinates.getOrDefault(cityName,
+               cityCoordinates.get("서울")); // 기본값: 서울
     }
 
     // 빈 경로 생성
