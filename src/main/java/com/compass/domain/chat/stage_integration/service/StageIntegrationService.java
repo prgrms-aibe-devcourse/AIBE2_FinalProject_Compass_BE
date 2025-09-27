@@ -26,6 +26,7 @@ public class StageIntegrationService {
     private final Stage2TimeBlockService stage2Service;
     private final Stage3IntegrationService stage3Service;
     private final Stage3RouteOptimizationService routeOptimizationService;
+    private final Stage2To3DirectConverter stage2To3DirectConverter;
 
     // Stage 1: DB에서 지역의 모든 장소 표시 (설계 문서 3.1 기반)
     public Map<String, Object> processStage1(TravelContext context) {
@@ -560,9 +561,10 @@ public class StageIntegrationService {
         }
     }
 
-    // Stage 2 → Stage 3 전환
+    // Stage 2 → Stage 3 전환 - 직접 변환 사용
     public Map<String, Object> processStage2ToStage3(TravelContext context, Map<String, Object> metadata) {
         log.info("🔄 [Stage 2 → Stage 3] 전환 시작");
+        log.info("📊 [Stage 2 → Stage 3] 받은 metadata: {}", metadata);
 
         try {
             // 메타데이터에서 선택된 장소 추출
@@ -570,22 +572,78 @@ public class StageIntegrationService {
             List<Map<String, Object>> selectedPlaces =
                 (List<Map<String, Object>>) metadata.get("selectedPlaces");
 
-            if (selectedPlaces != null && !selectedPlaces.isEmpty()) {
-                // 선택된 장소 ID들 추출
-                List<Long> placeIds = selectedPlaces.stream()
-                    .map(p -> ((Number) p.get("id")).longValue())
-                    .collect(Collectors.toList());
+            log.info("📍 [Stage 2 → Stage 3] selectedPlaces 수: {}",
+                selectedPlaces != null ? selectedPlaces.size() : "null");
 
-                // Stage 2 처리
-                processStage2(context, placeIds);
+            if (selectedPlaces != null && !selectedPlaces.isEmpty()) {
+                // 첫번째 장소의 ID를 확인하여 처리 방식 결정
+                Object firstId = selectedPlaces.get(0).get("id");
+                boolean isFromDatabase = false;
+
+                // ID가 숫자형이고 DB에서 가져올 수 있는 ID인지 확인
+                if (firstId instanceof Number) {
+                    try {
+                        Long placeId = ((Number) firstId).longValue();
+                        // DB에서 해당 ID가 존재하는지 확인
+                        isFromDatabase = travelCandidateRepository.existsById(placeId);
+                    } catch (Exception e) {
+                        log.debug("ID 확인 중 오류, 직접 변환 사용: {}", e.getMessage());
+                    }
+                }
+
+                if (isFromDatabase) {
+                    log.info("🗄️ [Stage 2 → Stage 3] DB 기반 처리 실행");
+                    // DB 기반 처리 (기존 방식)
+                    List<Long> placeIds = selectedPlaces.stream()
+                        .map(p -> ((Number) p.get("id")).longValue())
+                        .collect(Collectors.toList());
+
+                    log.info("🔢 [Stage 2 → Stage 3] 추출한 placeIds: {}", placeIds);
+
+                    // Stage 2 처리로 dailyDistribution 생성
+                    processStage2(context, placeIds);
+                } else {
+                    log.info("🔄 [Stage 2 → Stage 3] 직접 변환 처리 실행 (프론트엔드 데이터 사용)");
+                    // 직접 변환 사용 (프론트엔드 데이터를 직접 TravelPlace로 변환)
+                    Map<String, Object> conversionResult = stage2To3DirectConverter
+                        .convertSelectedPlacesToStage3(context, metadata);
+
+                    // 직접 변환이 실패한 경우
+                    if (!(Boolean) conversionResult.get("success")) {
+                        log.error("❌ 직접 변환 실패: {}", conversionResult.get("message"));
+                        return conversionResult;
+                    }
+
+                    log.info("✅ 직접 변환 성공: {}", conversionResult.get("message"));
+                }
+            } else {
+                log.warn("⚠️ [Stage 2 → Stage 3] selectedPlaces가 비어있거나 null입니다.");
+                return Map.of(
+                    "stage", 3,
+                    "type", "ERROR",
+                    "message", "선택된 장소가 없습니다.",
+                    "success", false
+                );
             }
+
+            // Stage 3 실행 전 context 확인
+            @SuppressWarnings("unchecked")
+            Map<Integer, List<TravelPlace>> dailyDistribution =
+                (Map<Integer, List<TravelPlace>>) context.getMetadata().get("dailyDistribution");
+            log.info("📅 [Stage 2 → Stage 3] Stage 3 실행 전 dailyDistribution 존재 여부: {}",
+                dailyDistribution != null ? "있음 (일 수: " + dailyDistribution.size() + ")" : "없음");
 
             // Stage 3 실행
             return processStage3(context);
 
         } catch (Exception e) {
             log.error("❌ [Stage 2 → Stage 3] 전환 오류: ", e);
-            throw new RuntimeException("Stage 전환 중 오류 발생", e);
+            return Map.of(
+                "stage", 3,
+                "type", "ERROR",
+                "message", "Stage 전환 중 오류 발생: " + e.getMessage(),
+                "success", false
+            );
         }
     }
 

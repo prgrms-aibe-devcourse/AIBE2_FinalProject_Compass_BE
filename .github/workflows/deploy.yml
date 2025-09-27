@@ -135,3 +135,15 @@ jobs:
             --environment-name "${{ env.EB_ENVIRONMENT_NAME }}" \
             --version-label "ver-${{ github.sha }}"
 
+      # 11. 배포 URL 출력
+      - name: Get deployment URL
+        run: |
+          echo "🚀 Deployment complete!"
+          URL=$(aws elasticbeanstalk describe-environments \
+            --application-name "${{ env.EB_APPLICATION_NAME }}" \
+            --environment-names "${{ env.EB_ENVIRONMENT_NAME }}" \
+            --query "Environments[0].EndpointURL" \
+            --output text)
+          echo "📍 Application URL: http://$URL"
+          echo "✅ You can access your application at: http://$URL"
+
