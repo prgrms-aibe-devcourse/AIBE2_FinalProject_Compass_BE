@@ -7,6 +7,7 @@ import com.compass.domain.chat.model.request.ChatRequest;
 import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.model.enums.Intent;
 import com.compass.domain.chat.model.enums.TravelPhase;
+import com.compass.domain.travel_plan.service.TravelPlanGenerationService; // ⬅️ 추가됨
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,9 @@ class ResponseGeneratorTest {
     @Mock
     private ShowQuickInputFormFunction showQuickInputFormFunction;
 
+    @Mock // ⬅️ 추가됨
+    private TravelPlanGenerationService travelPlanGenerationService;
+
     @Mock
     private PromptBuilder promptBuilder;
 
@@ -53,7 +57,8 @@ class ResponseGeneratorTest {
 
     @BeforeEach
     void setUp() {
-        responseGenerator = new ResponseGenerator(showQuickInputFormFunction);
+        // ⬅️ 수정됨: 누락되었던 travelPlanGenerationService 인자 추가
+        responseGenerator = new ResponseGenerator(showQuickInputFormFunction, travelPlanGenerationService);
         // ChatModel은 @Autowired(required = false)로 주입되므로 리플렉션으로 설정
         ReflectionTestUtils.setField(responseGenerator, "chatModel", chatModel);
     }
