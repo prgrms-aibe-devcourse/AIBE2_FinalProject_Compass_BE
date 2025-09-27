@@ -59,14 +59,15 @@ logging:
 # Kakao API 설정
 kakao:
   api:
-    js-key: ${KAKAO_JS_KEY:dummy-js-key}  # JavaScript API Key (프론트엔드용)
-    rest-key: ${KAKAO_REST_KEY:dummy-rest-key}  # REST API Key (백엔드용)
+    js-key: ${KAKAO_JS_KEY:dummy-js-key}
+    rest-key: ${KAKAO_REST_KEY:dummy-rest-key}
     map:
       base-url: https://dapi.kakao.com
-      rate-limit: 30  # requests per second
+      rate-limit: 30
     mobility:
       base-url: https://apis-navi.kakaomobility.com
-      rate-limit: 10  # requests per second (B2B only)
+      rate-limit: 10
+      api-key: ${KAKAO_REST_KEY:dummy-rest-key}
 
 # Swagger/OpenAPI 설정
 springdoc:
