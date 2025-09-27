@@ -68,8 +68,18 @@ class MainLLMOrchestratorTest {
     void handleFormSubmission_triggersPlanGeneration_whenFormIsComplete() {
         // given
         setupFormSubmissionRequest();
+        // 폼 제출 로직을 타기 위해 현재 단계를 INFORMATION_COLLECTION으로 설정
+        context.setCurrentPhase(TravelPhase.INFORMATION_COLLECTION.name());
+
         when(submitTravelFormFunction.apply(any(TravelFormSubmitRequest.class)))
                 .thenReturn(ChatResponse.builder().nextAction("TRIGGER_PLAN_GENERATION").build());
+
+        // savePhase가 호출될 때 context의 상태를 실제로 변경하도록 설정
+        doAnswer(invocation -> {
+            context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
+            return null;
+        }).when(phaseManager).savePhase(anyString(), eq(TravelPhase.PLAN_GENERATION));
+
 
         // when
         ChatResponse response = orchestrator.processChat(chatRequest);
@@ -97,11 +107,7 @@ class MainLLMOrchestratorTest {
         // then
         verify(travelInfoService, never()).saveTravelInfo(anyString(), any());
         verify(startFollowUpFunction).apply(travelFormRequest);
-
-        // ✅ *** 여기가 수정된 부분입니다 ***
-        // 1(사용자) + 1(초기응답) + 1(후속질문) = 총 3번 호출
         verify(chatThreadService, times(3)).saveMessage(any());
-
         assertThat(response.getContent()).isEqualTo("후속 질문입니다.");
     }
 
@@ -110,6 +116,9 @@ class MainLLMOrchestratorTest {
     void handleFormSubmission_recommendsDestinations_whenDestinationIsUndecided() {
         // given
         setupFormSubmissionRequest();
+        // 폼 제출 로직을 타기 위해 현재 단계를 INFORMATION_COLLECTION으로 설정
+        context.setCurrentPhase(TravelPhase.INFORMATION_COLLECTION.name());
+
         when(submitTravelFormFunction.apply(any(TravelFormSubmitRequest.class)))
                 .thenReturn(ChatResponse.builder().nextAction("RECOMMEND_DESTINATIONS").build());
         when(recommendDestinationsFunction.apply(any(TravelFormSubmitRequest.class)))
