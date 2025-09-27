@@ -29,6 +29,7 @@ jobs:
 
       # 2. AWS 자격 증명 (OIDC 역할 수임)
       - name: Configure AWS credentials
+        id: login-aws # <<<<<<<<<< 수정된 부분 1: 이 단계에 ID를 부여하여 결과물을 참조할 수 있게 합니다.
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
@@ -82,6 +83,10 @@ jobs:
       - name: Deploy to AWS Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v21
         with:
+          # <<<<<<<<<< 수정된 부분 2: OIDC로 발급받은 임시 자격 증명을 직접 전달합니다.
+          aws_access_key: ${{ steps.login-aws.outputs.aws-access-key-id }}
+          aws_secret_key: ${{ steps.login-aws.outputs.aws-secret-access-key }}
+          aws_session_token: ${{ steps.login-aws.outputs.aws-session-token }}
           application_name: ${{ env.EB_APPLICATION_NAME }}
           environment_name: ${{ env.EB_ENVIRONMENT_NAME }}
           version_label: "ver-${{ github.sha }}"
