@@ -15,16 +15,19 @@ spring:
     show-sql: false
 
 # 카카오 API 설정 - 테스트 실행 시 환경 변수로 주입
+# Kakao API 설정 - 테스트 실행 시 환경 변수로 주입
 kakao:
   api:
-    js-key: ${KAKAO_JS_KEY:}
-    rest-key: ${KAKAO_REST_KEY:}
+    js-key: ${KAKAO_JS_KEY:dummy-key}
+    rest-key: ${KAKAO_REST_KEY:dummy-key}
     map:
       base-url: https://dapi.kakao.com
       rate-limit: 30
     mobility:
       base-url: https://apis-navi.kakaomobility.com
       rate-limit: 10
+      # 👇 이 부분을 추가하면 해결됩니다.
+      api-key: ${KAKAO_REST_KEY:dummy-key}
 
 # 로깅 설정
 logging:
