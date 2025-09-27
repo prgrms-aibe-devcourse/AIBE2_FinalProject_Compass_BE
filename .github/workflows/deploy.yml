@@ -100,7 +100,34 @@ jobs:
             --source-bundle S3Bucket="${S3_BUCKET_NAME}",S3Key="deploy-${{ github.sha }}.zip" \
             --description "Commit SHA is ${{ github.sha }}"
 
-      # 9. 새 버전을 Elastic Beanstalk 환경에 배포
+      # 9. 환경이 Ready 상태인지 확인
+      - name: Wait for environment to be ready
+        run: |
+          echo "Checking environment status..."
+          for i in {1..30}; do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --application-name "${{ env.EB_APPLICATION_NAME }}" \
+              --environment-names "${{ env.EB_ENVIRONMENT_NAME }}" \
+              --query "Environments[0].Status" \
+              --output text)
+
+            echo "Current status: $STATUS"
+
+            if [ "$STATUS" = "Ready" ]; then
+              echo "Environment is ready!"
+              break
+            fi
+
+            if [ "$STATUS" = "Terminated" ] || [ "$STATUS" = "Terminating" ]; then
+              echo "ERROR: Environment is terminated or terminating"
+              exit 1
+            fi
+
+            echo "Waiting for environment to be ready... (attempt $i/30)"
+            sleep 20
+          done
+
+      # 10. 새 버전을 Elastic Beanstalk 환경에 배포
       - name: Deploy new version to Elastic Beanstalk
         run: |
           aws elasticbeanstalk update-environment \
