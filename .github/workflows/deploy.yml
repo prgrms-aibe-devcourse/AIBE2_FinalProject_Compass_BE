@@ -11,7 +11,8 @@ env:
   AWS_REGION: ap-northeast-2
   EB_APPLICATION_NAME: ${{ secrets.EB_APPLICATION_NAME }}
   EB_ENVIRONMENT_NAME: ${{ secrets.EB_ENVIRONMENT_NAME }}
-  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }} # ECR 리포지토리 이름을 GitHub Secret에 추가해야 합니다.
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
 
 permissions:
   id-token: write
@@ -29,7 +30,7 @@ jobs:
 
       # 2. AWS 자격 증명 (OIDC 역할 수임)
       - name: Configure AWS credentials
-        id: login-aws # <<<<<<<<<< 수정된 부분 1: 이 단계에 ID를 부여하여 결과물을 참조할 수 있게 합니다.
+        id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
@@ -70,25 +71,25 @@ jobs:
 
       # 6. 배포 패키지 압축
       - name: Create deployment package
-        run: zip -r deploy.zip Dockerrun.aws.json .ebextensions/
+        run: zip deploy.zip Dockerrun.aws.json
 
       # 7. S3에 배포 패키지 업로드
       - name: Upload package to S3
-        env:
-          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
         run: |
-          aws s3 cp deploy.zip s3://$S3_BUCKET_NAME/deploy-${{ github.sha }}.zip
+          aws s3 cp deploy.zip s3://${S3_BUCKET_NAME}/deploy-${{ github.sha }}.zip
 
-      # 8. Elastic Beanstalk 애플리케이션 버전 생성 및 배포
-      - name: Deploy to AWS Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v21
-        with:
-          # <<<<<<<<<< 수정된 부분 2: OIDC로 발급받은 임시 자격 증명을 직접 전달합니다.
-          aws_access_key: ${{ steps.login-aws.outputs.aws-access-key-id }}
-          aws_secret_key: ${{ steps.login-aws.outputs.aws-secret-access-key }}
-          aws_session_token: ${{ steps.login-aws.outputs.aws-session-token }}
-          application_name: ${{ env.EB_APPLICATION_NAME }}
-          environment_name: ${{ env.EB_ENVIRONMENT_NAME }}
-          version_label: "ver-${{ github.sha }}"
-          region: ${{ env.AWS_REGION }}
-          deployment_package: deploy.zip
+      # 8. Elastic Beanstalk 애플리케이션 버전 생성
+      - name: Create new Elastic Beanstalk version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name "${{ env.EB_APPLICATION_NAME }}" \
+            --version-label "ver-${{ github.sha }}" \
+            --source-bundle S3Bucket="${S3_BUCKET_NAME}",S3Key="deploy-${{ github.sha }}.zip" \
+            --description "Commit SHA is ${{ github.sha }}"
+
+      # 9. 새 버전을 Elastic Beanstalk 환경에 배포
+      - name: Deploy new version to Elastic Beanstalk
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name "${{ env.EB_ENVIRONMENT_NAME }}" \
+            --version-label "ver-${{ github.sha }}"
