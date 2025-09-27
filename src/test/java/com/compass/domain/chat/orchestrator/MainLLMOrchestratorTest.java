@@ -14,7 +14,9 @@ import com.compass.domain.chat.model.request.TravelFormSubmitRequest;
 import com.compass.domain.chat.model.response.ChatResponse;
 import com.compass.domain.chat.model.response.FollowUpResponse;
 import com.compass.domain.chat.service.ChatThreadService;
-import com.compass.domain.chat.service.TravelInfoService;
+// ❌ 사용되지 않는 의존성 (테스트 실패의 원인)
+// import com.compass.domain.chat.service.TravelInfoService; 
+import com.compass.domain.chat.service.TravelFormWorkflowService; // ✅ 실제 사용되는 서비스
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,7 +46,8 @@ class MainLLMOrchestratorTest {
     @Mock private ChatThreadService chatThreadService;
     @Mock private PromptBuilder promptBuilder;
     @Mock private FormDataConverter formDataConverter;
-    @Mock private TravelInfoService travelInfoService;
+    // @Mock private TravelInfoService travelInfoService; // ❌ 사용되지 않음
+    @Mock private TravelFormWorkflowService travelFormWorkflowService; // ✅ Mock 객체 추가
     @Mock private SubmitTravelFormFunction submitTravelFormFunction;
     @Mock private StartFollowUpFunction startFollowUpFunction;
     @Mock private RecommendDestinationsFunction recommendDestinationsFunction;
@@ -68,25 +71,20 @@ class MainLLMOrchestratorTest {
     void handleFormSubmission_triggersPlanGeneration_whenFormIsComplete() {
         // given
         setupFormSubmissionRequest();
-        // 폼 제출 로직을 타기 위해 현재 단계를 INFORMATION_COLLECTION으로 설정
-        context.setCurrentPhase(TravelPhase.INFORMATION_COLLECTION.name());
-
         when(submitTravelFormFunction.apply(any(TravelFormSubmitRequest.class)))
                 .thenReturn(ChatResponse.builder().nextAction("TRIGGER_PLAN_GENERATION").build());
-
-        // savePhase가 호출될 때 context의 상태를 실제로 변경하도록 설정
-        doAnswer(invocation -> {
-            context.setCurrentPhase(TravelPhase.PLAN_GENERATION.name());
-            return null;
-        }).when(phaseManager).savePhase(anyString(), eq(TravelPhase.PLAN_GENERATION));
-
 
         // when
         ChatResponse response = orchestrator.processChat(chatRequest);
 
         // then
-        verify(travelInfoService).saveTravelInfo(chatRequest.getThreadId(), travelFormRequest);
-        verify(phaseManager).savePhase(chatRequest.getThreadId(), TravelPhase.PLAN_GENERATION);
+        // ✅ 실제 호출되는 travelFormWorkflowService.persistFormData를 검증
+        boolean shouldTransition = true;
+        verify(travelFormWorkflowService).persistFormData(context, chatRequest.getThreadId(), travelFormRequest, shouldTransition);
+        // ❌ phaseManager.savePhase는 호출되지 않으므로 검증 제거
+        // verify(phaseManager).savePhase(chatRequest.getThreadId(), TravelPhase.PLAN_GENERATION);
+
+        // ✅ Orchestrator가 context를 직접 변경하므로, 그 결과를 검증
         assertThat(context.getCurrentPhase()).isEqualTo(TravelPhase.PLAN_GENERATION.name());
         assertThat(response.getNextAction()).isEqualTo("TRIGGER_PLAN_GENERATION");
     }
@@ -105,7 +103,8 @@ class MainLLMOrchestratorTest {
         ChatResponse response = orchestrator.processChat(chatRequest);
 
         // then
-        verify(travelInfoService, never()).saveTravelInfo(anyString(), any());
+        // ✅ 실제 구현과 동일하게 persistFormData가 호출되지 않음을 검증
+        verify(travelFormWorkflowService, never()).persistFormData(any(), any(), any(), anyBoolean());
         verify(startFollowUpFunction).apply(travelFormRequest);
         verify(chatThreadService, times(3)).saveMessage(any());
         assertThat(response.getContent()).isEqualTo("후속 질문입니다.");
@@ -116,9 +115,6 @@ class MainLLMOrchestratorTest {
     void handleFormSubmission_recommendsDestinations_whenDestinationIsUndecided() {
         // given
         setupFormSubmissionRequest();
-        // 폼 제출 로직을 타기 위해 현재 단계를 INFORMATION_COLLECTION으로 설정
-        context.setCurrentPhase(TravelPhase.INFORMATION_COLLECTION.name());
-
         when(submitTravelFormFunction.apply(any(TravelFormSubmitRequest.class)))
                 .thenReturn(ChatResponse.builder().nextAction("RECOMMEND_DESTINATIONS").build());
         when(recommendDestinationsFunction.apply(any(TravelFormSubmitRequest.class)))
@@ -128,7 +124,9 @@ class MainLLMOrchestratorTest {
         ChatResponse response = orchestrator.processChat(chatRequest);
 
         // then
-        verify(travelInfoService).saveTravelInfo(chatRequest.getThreadId(), travelFormRequest);
+        // ✅ 실제 호출되는 travelFormWorkflowService.persistFormData를 검증
+        boolean shouldTransition = false;
+        verify(travelFormWorkflowService).persistFormData(context, chatRequest.getThreadId(), travelFormRequest, shouldTransition);
         verify(recommendDestinationsFunction).apply(travelFormRequest);
         assertThat(response.getType()).isEqualTo("DESTINATION_RECOMMENDATION");
         assertThat(response.getData()).isInstanceOf(DestinationRecommendationDto.class);
