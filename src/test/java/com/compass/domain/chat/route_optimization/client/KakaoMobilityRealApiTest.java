@@ -14,7 +14,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
+//추가
 @SpringBootTest(classes = {KakaoMobilityClient.class, RestTemplate.class, ObjectMapper.class})
 @ActiveProfiles("test")
 @DisplayName("카카오 모빌리티 실제 API 테스트")
