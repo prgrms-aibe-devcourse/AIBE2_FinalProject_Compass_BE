@@ -79,6 +79,7 @@ jobs:
           aws s3 cp deploy.zip s3://${S3_BUCKET_NAME}/deploy-${{ github.sha }}.zip
 
       # 8. Elastic Beanstalk 애플리케이션 버전 생성
+      
       - name: Create new Elastic Beanstalk version
         run: |
           aws elasticbeanstalk create-application-version \
