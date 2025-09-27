@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # postgres는 주석처리 (AWS RDS 사용)
   # postgres:
