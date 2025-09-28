@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 // 일별 여행 일정
 @Getter
@@ -16,6 +17,7 @@ public class DailyItinerary {
     private final long estimatedDuration;         // 예상 소요 시간 (분)
     private final boolean hasFixedSchedules;      // OCR 고정 일정 포함 여부
     private final List<TimeSlot> timeSlots;       // 시간대별 일정
+    private final Map<String, List<TravelPlace>> timeBlocks; // 시간 블록별 장소
 
     // 시간대별 일정 관리
     @Getter

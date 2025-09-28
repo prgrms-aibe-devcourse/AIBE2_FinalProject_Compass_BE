@@ -302,6 +302,7 @@ public class TravelCandidate {
             .openNow(this.openNow)
             .phoneNumber(this.phoneNumber)
             .website(this.website)
+            .isUserSelected(false)
             .build();
     }
 }

@@ -144,6 +144,19 @@ public class MainLLMOrchestrator {
                     return createErrorResponse("알 수 없는 Stage 요청입니다.");
             }
 
+            // Stage 처리가 컨텍스트를 변경하면 즉시 캐시에 반영한다.
+            String contextOwnerId = context.getUserId();
+            if ((contextOwnerId == null || contextOwnerId.isBlank()) && request.getUserId() != null) {
+                contextOwnerId = request.getUserId();
+                context.setUserId(contextOwnerId);
+            }
+            if (contextOwnerId != null && !contextOwnerId.isBlank()) {
+                contextManager.updateContext(context, contextOwnerId);
+            } else {
+                log.warn("⚠️ Stage 처리 후 컨텍스트 소유자 정보를 찾지 못해 캐시 반영을 건너뜁니다. threadId={}",
+                    context.getThreadId());
+            }
+
             // ChatResponse 생성
             ChatResponse response = ChatResponse.builder()
                 .type((String) stageData.get("type"))

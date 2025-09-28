@@ -333,6 +333,9 @@ public class StageIntegrationService {
             (Map<Integer, List<TravelPlace>>) context.getMetadata().get("dailyDistribution");
 
         log.info("🎯 [Stage 3] 최종 일정 생성 시작 - Stage 2 분배 데이터 사용");
+        log.info("📍 [Stage 3] Context metadata keys: {}", context.getMetadata().keySet());
+        log.info("📍 [Stage 3] dailyDistribution 존재: {}",
+            dailyDistribution != null ? "있음 (일 수: " + dailyDistribution.size() + ")" : "없음");
 
         try {
             // Stage 2에서 분배된 장소들을 기반으로 최종 일정 생성
@@ -389,34 +392,61 @@ public class StageIntegrationService {
 
         List<Map<String, Object>> optimizedSchedule = new ArrayList<>();
 
-        // 시간대별로 구성 (아침, 점심, 오후, 저녁)
-        String[] timeSlots = {"09:00", "12:00", "15:00", "18:00"};
-        int slotIndex = 0;
+        // 사용자 지정 시간 가져오기 (Phase 2에서 입력)
+        String departureTime = (String) context.getCollectedInfo().get("departureTime");
+        String endTime = (String) context.getCollectedInfo().get("endTime");
 
-        // 선택된 장소들 먼저 추가
+        // 기본값 설정
+        if (departureTime == null) departureTime = "09:00";
+        if (endTime == null) endTime = "21:00";
+
+        // 시간대 생성 (사용자 지정 시간 기반)
+        int startHour = Integer.parseInt(departureTime.split(":")[0]);
+        int endHour = Integer.parseInt(endTime.split(":")[0]);
+        List<String> timeSlots = new ArrayList<>();
+
+        // 3시간 간격으로 시간대 생성
+        for (int hour = startHour; hour < endHour && timeSlots.size() < selectedPlaces.size(); hour += 3) {
+            timeSlots.add(String.format("%02d:00", hour));
+        }
+
+        // 선택된 장소들 모두 추가 (사용자가 선택한 것 우선)
+        int slotIndex = 0;
         for (Map<String, Object> place : selectedPlaces) {
             Map<String, Object> scheduleItem = new HashMap<>();
-            scheduleItem.put("time", timeSlots[Math.min(slotIndex++, timeSlots.length - 1)]);
+            if (slotIndex < timeSlots.size()) {
+                scheduleItem.put("time", timeSlots.get(slotIndex++));
+            } else {
+                // 시간대가 부족하면 마지막 시간대 사용
+                scheduleItem.put("time", timeSlots.get(timeSlots.size() - 1));
+            }
             scheduleItem.put("place", place);
             scheduleItem.put("duration", 90); // 기본 90분
             scheduleItem.put("source", "user_selected");
             optimizedSchedule.add(scheduleItem);
         }
 
-        // 부족한 경우 DB에서 추가 장소 선별
-        if (optimizedSchedule.size() < 4) {
-            int needMore = 4 - optimizedSchedule.size();
+        // 사용자가 선택한 장소가 충분하면 DB 추가 제외
+        // 최소 3개 이상이면 추가하지 않음
+        if (optimizedSchedule.size() < 3 && optimizedSchedule.size() < timeSlots.size()) {
+            int needMore = Math.min(timeSlots.size() - optimizedSchedule.size(), 1);
+            log.info("📍 추가 장소 필요: 현재 {} 개, 추가 {} 개 조회", optimizedSchedule.size(), needMore);
+
             List<Map<String, Object>> additionalPlaces = fetchAdditionalPlacesFromDB(
                 day, needMore, selectedPlaces, context);
 
             for (Map<String, Object> place : additionalPlaces) {
-                Map<String, Object> scheduleItem = new HashMap<>();
-                scheduleItem.put("time", timeSlots[Math.min(slotIndex++, timeSlots.length - 1)]);
-                scheduleItem.put("place", place);
-                scheduleItem.put("duration", 60); // 추가 장소는 60분
-                scheduleItem.put("source", "ai_recommended");
-                optimizedSchedule.add(scheduleItem);
+                if (slotIndex < timeSlots.size()) {
+                    Map<String, Object> scheduleItem = new HashMap<>();
+                    scheduleItem.put("time", timeSlots.get(slotIndex++));
+                    scheduleItem.put("place", place);
+                    scheduleItem.put("duration", 60); // 추가 장소는 60분
+                    scheduleItem.put("source", "ai_recommended");
+                    optimizedSchedule.add(scheduleItem);
+                }
             }
+        } else {
+            log.info("📍 사용자 선택 장소 충분: {} 개 (추가 조회 없음)", optimizedSchedule.size());
         }
 
         return optimizedSchedule;
@@ -438,14 +468,14 @@ public class StageIntegrationService {
                 String region = destinations.get(0);
 
                 // 기존 장소 ID 추출 (중복 방지)
-                Set<Long> existingIds = existingPlaces.stream()
-                    .map(p -> ((Number) p.get("id")).longValue())
+                Set<String> existingNames = existingPlaces.stream()
+                    .map(p -> String.valueOf(p.get("name")))
                     .collect(Collectors.toSet());
 
-                // DB에서 추가 장소 조회
+                // DB에서 추가 장소 조회 (이름 중복 방지)
                 List<TravelCandidate> candidates = travelCandidateRepository
                     .findByRegion(region).stream()
-                    .filter(c -> !existingIds.contains(c.getId()))
+                    .filter(c -> !existingNames.contains(c.getName()))
                     .limit(count)
                     .collect(Collectors.toList());
 
@@ -492,6 +522,7 @@ public class StageIntegrationService {
                     route.put("transport", determineTransport(current, next));
 
                     current.put("nextRoute", route);
+                    current.put("transport", route);  // transport 필드도 추가
                 }
             }
         }
@@ -576,45 +607,33 @@ public class StageIntegrationService {
                 selectedPlaces != null ? selectedPlaces.size() : "null");
 
             if (selectedPlaces != null && !selectedPlaces.isEmpty()) {
-                // 첫번째 장소의 ID를 확인하여 처리 방식 결정
-                Object firstId = selectedPlaces.get(0).get("id");
-                boolean isFromDatabase = false;
+                // 항상 직접 변환 사용 - 사용자가 선택한 장소를 그대로 사용
+                log.info("🔄 [Stage 2 → Stage 3] 직접 변환 처리 실행 (사용자 선택 장소 사용)");
+                log.info("📍 선택된 장소들: {}", selectedPlaces.stream()
+                    .map(p -> p.get("name"))
+                    .collect(Collectors.toList()));
 
-                // ID가 숫자형이고 DB에서 가져올 수 있는 ID인지 확인
-                if (firstId instanceof Number) {
-                    try {
-                        Long placeId = ((Number) firstId).longValue();
-                        // DB에서 해당 ID가 존재하는지 확인
-                        isFromDatabase = travelCandidateRepository.existsById(placeId);
-                    } catch (Exception e) {
-                        log.debug("ID 확인 중 오류, 직접 변환 사용: {}", e.getMessage());
-                    }
+                // 직접 변환 사용 (프론트엔드 데이터를 직접 TravelPlace로 변환)
+                Map<String, Object> conversionResult = stage2To3DirectConverter
+                    .convertSelectedPlacesToStage3(context, metadata);
+
+                // 직접 변환이 실패한 경우
+                if (!(Boolean) conversionResult.get("success")) {
+                    log.error("❌ 직접 변환 실패: {}", conversionResult.get("message"));
+                    return conversionResult;
                 }
 
-                if (isFromDatabase) {
-                    log.info("🗄️ [Stage 2 → Stage 3] DB 기반 처리 실행");
-                    // DB 기반 처리 (기존 방식)
-                    List<Long> placeIds = selectedPlaces.stream()
-                        .map(p -> ((Number) p.get("id")).longValue())
-                        .collect(Collectors.toList());
+                log.info("✅ 직접 변환 성공: {}", conversionResult.get("message"));
 
-                    log.info("🔢 [Stage 2 → Stage 3] 추출한 placeIds: {}", placeIds);
-
-                    // Stage 2 처리로 dailyDistribution 생성
-                    processStage2(context, placeIds);
-                } else {
-                    log.info("🔄 [Stage 2 → Stage 3] 직접 변환 처리 실행 (프론트엔드 데이터 사용)");
-                    // 직접 변환 사용 (프론트엔드 데이터를 직접 TravelPlace로 변환)
-                    Map<String, Object> conversionResult = stage2To3DirectConverter
-                        .convertSelectedPlacesToStage3(context, metadata);
-
-                    // 직접 변환이 실패한 경우
-                    if (!(Boolean) conversionResult.get("success")) {
-                        log.error("❌ 직접 변환 실패: {}", conversionResult.get("message"));
-                        return conversionResult;
-                    }
-
-                    log.info("✅ 직접 변환 성공: {}", conversionResult.get("message"));
+                // dailyDistribution이 제대로 생성되었는지 확인
+                @SuppressWarnings("unchecked")
+                Map<Integer, List<TravelPlace>> afterConversion =
+                    (Map<Integer, List<TravelPlace>>) context.getMetadata().get("dailyDistribution");
+                if (afterConversion != null) {
+                    int totalPlaces = afterConversion.values().stream()
+                        .mapToInt(List::size).sum();
+                    log.info("📅 직접 변환 후 dailyDistribution: {} 일, 총 {} 개 장소",
+                        afterConversion.size(), totalPlaces);
                 }
             } else {
                 log.warn("⚠️ [Stage 2 → Stage 3] selectedPlaces가 비어있거나 null입니다.");
