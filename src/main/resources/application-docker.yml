@@ -39,12 +39,6 @@ spring:
               temperature: 0.7
               max-output-tokens: 8192
 
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      chat:
-        options:
-          model: gpt-4o-mini
-
   # Security Configuration - JWT
   security:
     jwt:

@@ -23,7 +23,7 @@ services:
       - compass-network
 
   app:
-    build: .
+    image: compass-backend:latest
     container_name: compass-backend
     ports:
       - "8080:8080"
@@ -60,8 +60,7 @@ services:
       GCP_SERVICE_ACCOUNT_JSON: ${GCP_SERVICE_ACCOUNT_JSON}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
 
-      # OpenAI & Perplexity
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # Perplexity
       PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
 
       # AWS Configuration

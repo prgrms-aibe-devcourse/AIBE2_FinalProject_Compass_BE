@@ -1,6 +1,6 @@
 package com.compass.domain.chat.service;
 
-import com.compass.domain.chat.entity.TourPlace;
+import com.compass.domain.chat.model.TravelPlace;
 import com.compass.domain.chat.model.Cluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +56,8 @@ public class PlaceFilterService {
      * @param preferences 사용자 선호도
      * @return 필터링된 장소 리스트
      */
-    public List<TourPlace> filterByPreferences(
-        List<TourPlace> places,
+    public List<TravelPlace> filterByPreferences(
+        List<TravelPlace> places,
         UserPreferences preferences
     ) {
         if (places == null || places.isEmpty()) {
@@ -67,7 +67,7 @@ public class PlaceFilterService {
         log.info("장소 필터링 시작: {} 개 장소, 스타일: {}, 예산: {}", 
                 places.size(), preferences.travelStyle(), preferences.budget());
 
-        List<TourPlace> filtered = places.stream()
+        List<TravelPlace> filtered = places.stream()
             // 1. 예산 범위 필터링
             .filter(place -> matchesBudget(place, preferences.budget()))
             // 2. 여행 스타일 매칭
@@ -97,8 +97,8 @@ public class PlaceFilterService {
      * @param preferences 사용자 선호도
      * @return 클러스터링이 적용된 필터링된 장소 리스트
      */
-    public List<TourPlace> filterByPreferencesWithClustering(
-        List<TourPlace> places,
+    public List<TravelPlace> filterByPreferencesWithClustering(
+        List<TravelPlace> places,
         UserPreferences preferences
     ) {
         if (places == null || places.isEmpty()) {
@@ -108,10 +108,10 @@ public class PlaceFilterService {
         log.info("Stage 1: 스타일 기반 장소 선별 시작 - {} 개 장소", places.size());
 
         // 1. 기본 필터링 적용 (기존 기능 유지)
-        List<TourPlace> basicFiltered = filterByPreferences(places, preferences);
+        List<TravelPlace> basicFiltered = filterByPreferences(places, preferences);
         
         // 2. 클러스터링 적용
-        List<TourPlace> clusteredPlaces = applyClustering(basicFiltered, preferences);
+        List<TravelPlace> clusteredPlaces = applyClustering(basicFiltered, preferences);
         
         log.info("Stage 1 완료: {} -> {} 개 장소 (클러스터링 적용)", 
                 basicFiltered.size(), clusteredPlaces.size());
@@ -123,7 +123,7 @@ public class PlaceFilterService {
      * 클러스터링 적용 (Stage 1 핵심 로직)
      * 개선안의 스타일 기반 매칭 알고리즘 구현
      */
-    private List<TourPlace> applyClustering(List<TourPlace> places, UserPreferences preferences) {
+    private List<TravelPlace> applyClustering(List<TravelPlace> places, UserPreferences preferences) {
         // 1. 여행 스타일을 클러스터 매칭 형식으로 변환
         Map<String, Object> travelStyle = convertToClusterFormat(preferences);
         
@@ -135,7 +135,7 @@ public class PlaceFilterService {
         Map<String, Integer> placeDistribution = clusterService.calculatePlaceDistribution(clusterScores, totalPlaces);
         
         // 4. 클러스터별로 장소 선별
-        List<TourPlace> selectedPlaces = selectPlacesByCluster(places, placeDistribution, clusterScores);
+        List<TravelPlace> selectedPlaces = selectPlacesByCluster(places, placeDistribution, clusterScores);
         
         return selectedPlaces;
     }
@@ -194,12 +194,12 @@ public class PlaceFilterService {
      * 클러스터별로 장소 선별
      * 개선안의 클러스터 분배 알고리즘 구현
      */
-    private List<TourPlace> selectPlacesByCluster(
-        List<TourPlace> places, 
+    private List<TravelPlace> selectPlacesByCluster(
+        List<TravelPlace> places, 
         Map<String, Integer> placeDistribution, 
         Map<String, Double> clusterScores
     ) {
-        List<TourPlace> selectedPlaces = new ArrayList<>();
+        List<TravelPlace> selectedPlaces = new ArrayList<>();
         
         // 클러스터별로 장소 수집
         for (Map.Entry<String, Integer> entry : placeDistribution.entrySet()) {
@@ -209,7 +209,7 @@ public class PlaceFilterService {
             
             if (placeCount > 0 && score > 0.1) {
                 Cluster cluster = clusterService.getCluster(clusterName);
-                List<TourPlace> clusterPlaces = selectPlacesFromCluster(places, cluster, placeCount);
+                List<TravelPlace> clusterPlaces = selectPlacesFromCluster(places, cluster, placeCount);
                 selectedPlaces.addAll(clusterPlaces);
                 
                 log.debug("클러스터 {}: {}개 장소 선별 (매칭점수: {})", 
@@ -218,7 +218,7 @@ public class PlaceFilterService {
         }
         
         // 클러스터에서 선별되지 않은 장소들을 나머지로 추가
-        List<TourPlace> remainingPlaces = places.stream()
+        List<TravelPlace> remainingPlaces = places.stream()
             .filter(place -> !selectedPlaces.contains(place))
             .limit(places.size() - selectedPlaces.size())
             .collect(Collectors.toList());
@@ -232,8 +232,8 @@ public class PlaceFilterService {
      * 특정 클러스터에서 장소 선별
      * 지리적 근접성 + 동적 점수 시스템 기반으로 장소 선별
      */
-    private List<TourPlace> selectPlacesFromCluster(
-        List<TourPlace> places, 
+    private List<TravelPlace> selectPlacesFromCluster(
+        List<TravelPlace> places, 
         Cluster cluster, 
         int placeCount
     ) {
@@ -257,7 +257,7 @@ public class PlaceFilterService {
     /**
      * 장소가 클러스터 반경 내에 있는지 확인
      */
-    private boolean isWithinClusterRadius(TourPlace place, Cluster cluster) {
+    private boolean isWithinClusterRadius(TravelPlace place, Cluster cluster) {
         if (place.getLatitude() == null || place.getLongitude() == null) {
             return false;
         }
@@ -274,7 +274,7 @@ public class PlaceFilterService {
     /**
      * 두 지점 간의 거리 계산 (Haversine 공식)
      */
-    private double calculateDistance(TourPlace place, Double centerLat, Double centerLng) {
+    private double calculateDistance(TravelPlace place, Double centerLat, Double centerLng) {
         if (place.getLatitude() == null || place.getLongitude() == null || 
             centerLat == null || centerLng == null) {
             return Double.MAX_VALUE;
@@ -298,7 +298,7 @@ public class PlaceFilterService {
     /**
      * 예산 범위 체크
      */
-    private boolean matchesBudget(TourPlace place, Budget budget) {
+    private boolean matchesBudget(TravelPlace place, Budget budget) {
         if (budget == null || place.getPriceLevel() == null) {
             return true; // 정보가 없으면 통과
         }
@@ -310,7 +310,7 @@ public class PlaceFilterService {
     /**
      * 여행 스타일 매칭
      */
-    private boolean matchesStyle(TourPlace place, TravelStyle style) {
+    private boolean matchesStyle(TravelPlace place, TravelStyle style) {
         if (style == null || place.getCategory() == null) {
             return true; // 정보가 없으면 통과
         }
@@ -325,7 +325,7 @@ public class PlaceFilterService {
     /**
      * 선호 카테고리 필터링
      */
-    private boolean matchesCategories(TourPlace place, List<String> preferredCategories) {
+    private boolean matchesCategories(TravelPlace place, List<String> preferredCategories) {
         if (preferredCategories == null || preferredCategories.isEmpty() || place.getCategory() == null) {
             return true; // 선호도가 없거나 카테고리 정보가 없으면 통과
         }
@@ -338,13 +338,13 @@ public class PlaceFilterService {
     /**
      * 운영 시간 확인
      */
-    private boolean isOperatingDuringTrip(TourPlace place, DateRange dates) {
-        if (dates == null || place.getOperatingHours() == null) {
+    private boolean isOperatingDuringTrip(TravelPlace place, DateRange dates) {
+        if (dates == null || null == null) {
             return true; // 정보가 없으면 통과
         }
 
         // 간단한 운영시간 체크 (24시간 운영이거나 일반적인 운영시간)
-        String hours = place.getOperatingHours().toLowerCase();
+        String hours = null.toLowerCase();
         
         // 24시간 운영
         if (hours.contains("24시간") || hours.contains("00:00-24:00")) {
@@ -366,7 +366,7 @@ public class PlaceFilterService {
     /**
      * 장소 점수 계산 (정렬용)
      */
-    private int compareByScore(TourPlace p1, TourPlace p2) {
+    private int compareByScore(TravelPlace p1, TravelPlace p2) {
         double score1 = calculateScore(p1);
         double score2 = calculateScore(p2);
         return Double.compare(score2, score1);  // 내림차순 (높은 점수 우선)
@@ -375,14 +375,14 @@ public class PlaceFilterService {
     /**
      * 장소 점수 계산 (기본 버전 - 하위 호환성)
      */
-    private double calculateScore(TourPlace place) {
+    private double calculateScore(TravelPlace place) {
         return calculateScore(place, null, null, null);
     }
 
     /**
      * 장소 점수 계산 (동적 점수 시스템 사용)
      */
-    private double calculateScore(TourPlace place, String timeBlock, String clusterName, List<TourPlace> allPlaces) {
+    private double calculateScore(TravelPlace place, String timeBlock, String clusterName, List<TravelPlace> allPlaces) {
         double score = 0.0;
 
         // 평점 (40% 가중치)
@@ -400,7 +400,7 @@ public class PlaceFilterService {
         double categoryScore = getCategoryPopularity(place.getCategory(), timeBlock, clusterName, allPlaces);
         score += categoryScore * 0.2;
 
-        // 태그 다양성 (10% 가중치) - TourPlace에는 tags 필드가 없으므로 기본값
+        // 태그 다양성 (10% 가중치) - TravelPlace에는 tags 필드가 없으므로 기본값
         double tagScore = 0.5; // 기본값
         score += tagScore * 0.1;
 
@@ -410,7 +410,7 @@ public class PlaceFilterService {
     /**
      * 정보 완성도 계산
      */
-    private double calculateCompleteness(TourPlace place) {
+    private double calculateCompleteness(TravelPlace place) {
         int totalFields = 7; // 주요 필드 개수 (tags 제외)
         int filledFields = 0;
 
@@ -419,8 +419,8 @@ public class PlaceFilterService {
         if (place.getLatitude() != null && place.getLongitude() != null) filledFields++;
         if (place.getCategory() != null && !place.getCategory().trim().isEmpty()) filledFields++;
         if (place.getRating() != null) filledFields++;
-        if (place.getOverview() != null && !place.getOverview().trim().isEmpty()) filledFields++;
-        if (place.getOperatingHours() != null && !place.getOperatingHours().trim().isEmpty()) filledFields++;
+        if (null != null && !null.trim().isEmpty()) filledFields++;
+        if (null != null && !null.trim().isEmpty()) filledFields++;
 
         return (double) filledFields / totalFields;
     }
@@ -428,7 +428,7 @@ public class PlaceFilterService {
     /**
      * 동적 카테고리 인기도 점수 계산 (실제 데이터 기반)
      */
-    private double getCategoryPopularity(String category, String timeBlock, String clusterName, List<TourPlace> allPlaces) {
+    private double getCategoryPopularity(String category, String timeBlock, String clusterName, List<TravelPlace> allPlaces) {
         if (category == null) return 0.5;
 
         String cat = category.toLowerCase();
@@ -566,11 +566,11 @@ public class PlaceFilterService {
     /**
      * 실제 데이터 기반 점수 (평점, 리뷰 수 등)
      */
-    private double getDataBasedScore(String category, List<TourPlace> allPlaces) {
+    private double getDataBasedScore(String category, List<TravelPlace> allPlaces) {
         if (allPlaces == null || allPlaces.isEmpty()) return 0.5;
         
         // 해당 카테고리의 평균 평점과 리뷰 수 계산
-        List<TourPlace> categoryPlaces = allPlaces.stream()
+        List<TravelPlace> categoryPlaces = allPlaces.stream()
             .filter(place -> place.getCategory() != null && 
                    place.getCategory().toLowerCase().contains(category.toLowerCase()))
             .collect(Collectors.toList());

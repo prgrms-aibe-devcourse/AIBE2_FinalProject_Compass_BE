@@ -1,8 +1,9 @@
 package com.compass.domain.chat.controller;
 
-import com.compass.domain.chat.entity.TourPlace;
+import com.compass.domain.chat.model.TravelPlace;
+import com.compass.domain.chat.entity.TravelCandidate;
 import com.compass.domain.chat.function.external.SearchKakaoPlacesFunction;
-import com.compass.domain.chat.repository.TourPlaceRepository;
+import com.compass.domain.chat.repository.TravelCandidateRepository;
 import com.compass.domain.chat.service.PlaceFilterService;
 import com.compass.domain.chat.service.ClusterService;
 import com.compass.domain.chat.model.Cluster;
@@ -24,12 +25,12 @@ public class KakaoPlacesController {
     
     private final SearchKakaoPlacesFunction kakaoPlacesFunction;
     private final PlaceFilterService placeFilterService;
-    private final TourPlaceRepository tourPlaceRepository;
+    private final TravelCandidateRepository tourPlaceRepository;
     private final ClusterService clusterService;
     
     public KakaoPlacesController(SearchKakaoPlacesFunction kakaoPlacesFunction, 
                                 PlaceFilterService placeFilterService,
-                                TourPlaceRepository tourPlaceRepository,
+                                TravelCandidateRepository tourPlaceRepository,
                                 ClusterService clusterService) {
         this.kakaoPlacesFunction = kakaoPlacesFunction;
         this.placeFilterService = placeFilterService;
@@ -76,8 +77,8 @@ public class KakaoPlacesController {
             
             log.info("Kakao API 검색 결과: {}개 장소", kakaoPlaces.size());
             
-            // Kakao Place를 TourPlace로 변환 (시간블록 분배 포함)
-            List<TourPlace> tourPlaces = new ArrayList<>();
+            // Kakao Place를 TravelCandidate로 변환 (시간블록 분배 포함)
+            List<TravelCandidate> tourPlaces = new ArrayList<>();
             for (int i = 0; i < kakaoPlaces.size(); i++) {
                 SearchKakaoPlacesFunction.KakaoPlace kakaoPlace = kakaoPlaces.get(i);
                 
@@ -87,22 +88,22 @@ public class KakaoPlacesController {
                     continue;
                 }
                 
-                TourPlace tourPlace = convertKakaoPlaceToTourPlace(kakaoPlace, request.getClusterName(), i);
+                TravelCandidate tourPlace = convertKakaoPlaceToTravelCandidate(kakaoPlace, request.getClusterName(), i);
                 tourPlaces.add(tourPlace);
             }
             
             // 중복 제거 후 DB에 저장
-            List<TourPlace> uniquePlaces = filterDuplicatePlaces(tourPlaces);
+            List<TravelCandidate> uniquePlaces = filterDuplicatePlaces(tourPlaces);
             
             // 저장 전 overview 확인
-            for (TourPlace place : uniquePlaces) {
+            for (TravelCandidate place : uniquePlaces) {
                 log.info("저장 전 장소: {} - overview: {}", place.getName(), place.getOverview());
             }
             
-            List<TourPlace> savedPlaces = tourPlaceRepository.saveAll(uniquePlaces);
+            List<TravelCandidate> savedPlaces = tourPlaceRepository.saveAll(uniquePlaces);
             
             // 저장된 장소들의 overview 확인
-            for (TourPlace savedPlace : savedPlaces) {
+            for (TravelCandidate savedPlace : savedPlaces) {
                 log.info("저장된 장소: {} - overview: {}", savedPlace.getName(), savedPlace.getOverview());
             }
             
@@ -129,11 +130,11 @@ public class KakaoPlacesController {
     /**
      * 중복 장소 필터링
      */
-    private List<TourPlace> filterDuplicatePlaces(List<TourPlace> places) {
+    private List<TravelCandidate> filterDuplicatePlaces(List<TravelCandidate> places) {
         Set<String> uniqueNames = new HashSet<>();
-        List<TourPlace> uniquePlaces = new ArrayList<>();
+        List<TravelCandidate> uniquePlaces = new ArrayList<>();
         
-        for (TourPlace place : places) {
+        for (TravelCandidate place : places) {
             String name = place.getName();
             if (!uniqueNames.contains(name)) {
                 uniqueNames.add(name);
@@ -332,9 +333,9 @@ public class KakaoPlacesController {
     }
     
     /**
-     * Kakao Place를 TourPlace로 변환 (카테고리 매핑 개선 + 클러스터별 시간블록 분배)
+     * Kakao Place를 TravelCandidate로 변환 (카테고리 매핑 개선 + 클러스터별 시간블록 분배)
      */
-    private TourPlace convertKakaoPlaceToTourPlace(SearchKakaoPlacesFunction.KakaoPlace kakaoPlace, String clusterName, int placeIndex) {
+    private TravelCandidate convertKakaoPlaceToTravelCandidate(SearchKakaoPlacesFunction.KakaoPlace kakaoPlace, String clusterName, int placeIndex) {
         String kakaoCategory = kakaoPlace.getCategory();
         String mappedCategory = mapKakaoCategoryToTourCategory(kakaoCategory);
         String operatingHours = getOperatingHoursByCategory(mappedCategory);
@@ -353,8 +354,8 @@ public class KakaoPlacesController {
         log.info("생성된 simple description: {}", simpleDescription);
         log.info("생성된 detailed overview: {}", detailedOverview);
         
-        // TourPlace 객체를 생성자로 직접 생성 (Builder 대신)
-        TourPlace tourPlace = new TourPlace();
+        // TravelCandidate 객체를 생성자로 직접 생성 (Builder 대신)
+        TravelCandidate tourPlace = new TravelCandidate();
         tourPlace.setExternalId("kakao_" + System.currentTimeMillis() + "_" + kakaoPlace.getName().hashCode());
         tourPlace.setName(kakaoPlace.getName());
         tourPlace.setAddress(kakaoPlace.getAddress());
@@ -823,7 +824,7 @@ public class KakaoPlacesController {
     }
     
     /**
-     * Kakao 카테고리를 TourPlace 카테고리로 매핑 (실제 API 응답 기반)
+     * Kakao 카테고리를 TravelCandidate 카테고리로 매핑 (실제 API 응답 기반)
      */
     private String mapKakaoCategoryToTourCategory(String kakaoCategory) {
         if (kakaoCategory == null || kakaoCategory.isEmpty()) {

@@ -30,11 +30,14 @@ public class Stage3IntegrationService {
     private final PlaceScoreCalculationService scoreCalculationService;
     private final Stage3RouteOptimizationService routeOptimizationService;
     private final Stage3KMeansClusteringService kMeansClusteringService;
+    private final TimeBlockRecommendationService timeBlockRecommendationService;
 
     // TravelContext를 활용한 Phase 2 → Stage 3 통합 처리
     @Transactional(readOnly = true)
     public Stage3Output processWithTravelContext(TravelContext context) {
         log.info("Processing Stage 3 with TravelContext for user: {}", context.getUserId());
+        log.info("Context metadata keys: {}", context.getMetadata().keySet());
+        log.info("Context collectedInfo keys: {}", context.getCollectedInfo().keySet());
 
         // TravelContext에서 Phase 2 정보 추출
         String destination = extractDestination(context);
@@ -44,6 +47,8 @@ public class Stage3IntegrationService {
         LocalDate startDate = convertToLocalDate(context.getCollectedInfo().get(TravelContext.KEY_START_DATE));
         LocalDate endDate = convertToLocalDate(context.getCollectedInfo().get(TravelContext.KEY_END_DATE));
 
+        log.info("Destination: {}, Start: {}, End: {}", destination, startDate, endDate);
+
         // travelStyle 처리 (List 또는 String)
         String travelStyle = extractTravelStyle(context);
         String companions = (String) context.getCollectedInfo().get(TravelContext.KEY_COMPANIONS);
@@ -52,6 +57,11 @@ public class Stage3IntegrationService {
         // 사용자 선택 장소 추출
         List<SelectedSchedule> userSelectedPlaces = extractUserSelectedPlaces(context);
         log.info("Extracted {} user selected places from context", userSelectedPlaces.size());
+
+        // 장소별 상세 로깅
+        for (SelectedSchedule place : userSelectedPlaces) {
+            log.info("User selected place: {} ({})", place.placeName(), place.placeId());
+        }
 
         // OCR 확정 일정 활용
         List<ConfirmedSchedule> confirmedSchedules = context.getOcrConfirmedSchedules();
@@ -104,13 +114,18 @@ public class Stage3IntegrationService {
             departureLocation
         );
 
-        return Stage3Output.builder()
+        Stage3Output output = Stage3Output.builder()
             .dailyItineraries(dailyItineraries)
             .optimizedRoutes(optimizedRoutes)
             .totalDistance(calculateTotalDistance(optimizedRoutes))
             .totalDuration(calculateTotalDuration(optimizedRoutes))
             .generatedAt(LocalDateTime.now())
             .build();
+
+        // 프론트엔드 콘솔용 상세 로깅
+        logDetailedItineraryForFrontend(output);
+
+        return output;
     }
 
     // OCR 확정 일정을 고려한 Stage 3 처리
@@ -155,13 +170,18 @@ public class Stage3IntegrationService {
             departureLocation
         );
 
-        return Stage3Output.builder()
+        Stage3Output output = Stage3Output.builder()
             .dailyItineraries(dailyItineraries)
             .optimizedRoutes(optimizedRoutes)
             .totalDistance(calculateTotalDistance(optimizedRoutes))
             .totalDuration(calculateTotalDuration(optimizedRoutes))
             .generatedAt(LocalDateTime.now())
             .build();
+
+        // 프론트엔드 콘솔용 상세 로깅
+        logDetailedItineraryForFrontend(output);
+
+        return output;
     }
 
     // TravelContext에서 목적지 추출
@@ -217,6 +237,12 @@ public class Stage3IntegrationService {
             List<SelectedSchedule> userSelected,
             String travelStyle) {
 
+        log.info("=== Creating daily itineraries ===");
+        log.info("Candidates: {}, ScoredPlaces: {}, UserSelected: {}, Days: {} to {}",
+                candidates.size(), scoredPlaces.size(),
+                userSelected != null ? userSelected.size() : 0,
+                startDate, endDate);
+
         List<DailyItinerary> itineraries = new ArrayList<>();
         long days = endDate.toEpochDay() - startDate.toEpochDay() + 1;
 
@@ -225,18 +251,62 @@ public class Stage3IntegrationService {
         log.info("User selected places count: {}, userSelected input count: {}",
                 userPlaces.size(), userSelected != null ? userSelected.size() : 0);
 
+        // 각 사용자 선택 장소 로깅
+        for (TravelPlace place : userPlaces) {
+            log.info("User place: {} (id: {}, lat: {}, lon: {})",
+                    place.getName(), place.getPlaceId(), place.getLatitude(), place.getLongitude());
+        }
+
         if (userPlaces.isEmpty()) {
-            log.warn("No user selected places found. Creating empty itineraries.");
+            log.warn("No user selected places found. Creating AI-only itineraries.");
+
+            // 사용자 선택 장소가 없어도 AI 추천으로 일정 생성
+            Set<String> globalUsedPlaceIds = new HashSet<>();
+
             for (int day = 0; day < days; day++) {
                 LocalDate currentDate = startDate.plusDays(day);
+
+                // 서울 중심 좌표를 기본 클러스터 중심으로 사용
+                Stage3KMeansClusteringService.ClusterCenter defaultCenter =
+                    new Stage3KMeansClusteringService.ClusterCenter(0, 37.5665, 126.9780, 1);
+                List<Stage3KMeansClusteringService.ClusterCenter> centers = List.of(defaultCenter);
+
+                // AI 추천 장소 검색 (시간 블록당 최소 1개씩, 총 4-6개)
+                List<TravelPlace> aiRecommended = searchNearbyPlacesWithGlobalTracking(
+                    candidates,
+                    centers,
+                    globalUsedPlaceIds,
+                    travelStyle,
+                    scoredPlaces
+                );
+
+                // 부족하면 추가 검색
+                if (aiRecommended.size() < 4) {
+                    List<TravelPlace> additional = searchAdditionalPlaces(
+                        candidates,
+                        scoredPlaces,
+                        globalUsedPlaceIds,
+                        4 - aiRecommended.size()
+                    );
+                    aiRecommended.addAll(additional);
+                }
+
+                // 시간 블록에 따른 일정 배치
+                List<TravelPlace> arrangedPlaces = arrangeByDetailedTimeBlocks(
+                    aiRecommended, "09:00", "21:00", currentDate
+                );
+
                 DailyItinerary itinerary = DailyItinerary.builder()
                     .date(currentDate)
                     .dayNumber(day + 1)
-                    .places(new ArrayList<>())
-                    .estimatedDuration(0L)
-                    .timeBlocks(createTimeBlocks(new ArrayList<>()))
+                    .places(arrangedPlaces)
+                    .estimatedDuration(calculateDayDuration(arrangedPlaces))
+                    .timeBlocks(createTimeBlocks(arrangedPlaces))
                     .build();
+
                 itineraries.add(itinerary);
+
+                log.info("Created AI-only itinerary for Day {}: {} places", day + 1, arrangedPlaces.size());
             }
             return itineraries;
         }
@@ -341,17 +411,92 @@ public class Stage3IntegrationService {
         }
 
         return userSelected.stream()
-            .map(s -> TravelPlace.builder()
-                .placeId(s.placeId())
-                .name(s.placeName())
-                .category(s.category())
-                .latitude(s.latitude())
-                .longitude(s.longitude())
-                .address(s.address())
-                .rating(s.rating())
-                .isUserSelected(true)
-                .build())
+            .map(s -> {
+                log.info("🔍 [DEBUG] 사용자 선택 장소 변환: 이름={}, 주소={}, 좌표=({}, {})",
+                    s.placeName(), s.address(), s.latitude(), s.longitude());
+
+                TravelPlace place = TravelPlace.builder()
+                    .placeId(s.placeId())
+                    .name(s.placeName())
+                    .category(s.category())
+                    .latitude(s.latitude())
+                    .longitude(s.longitude())
+                    .address(s.address())
+                    .rating(s.rating())
+                    .isUserSelected(true)
+                    .build();
+
+                // 주소나 좌표가 없는 경우 DB에서 검색하여 보충
+                if (needsEnrichment(place)) {
+                    log.info("⚠️ [DEBUG] Enrichment 필요: {}", place.getName());
+                    place = enrichPlaceFromDatabase(place);
+                } else {
+                    log.info("✅ [DEBUG] Enrichment 불필요 (주소와 좌표 모두 있음): {}", place.getName());
+                }
+
+                return place;
+            })
             .collect(Collectors.toList());
+    }
+
+    // 장소 정보가 불완전한지 확인
+    private boolean needsEnrichment(TravelPlace place) {
+        return (place.getAddress() == null || place.getAddress().isEmpty()) ||
+               (place.getLatitude() == null || place.getLongitude() == null);
+    }
+
+    // DB에서 장소 정보 보충
+    private TravelPlace enrichPlaceFromDatabase(TravelPlace place) {
+        try {
+            // 이름으로 DB 검색
+            List<TravelCandidate> candidates = travelCandidateRepository
+                .findAll()
+                .stream()
+                .filter(c -> c.getName() != null &&
+                            place.getName() != null &&
+                            c.getName().toLowerCase().contains(place.getName().toLowerCase()))
+                .limit(1)
+                .collect(Collectors.toList());
+
+            if (!candidates.isEmpty()) {
+                TravelCandidate candidate = candidates.get(0);
+                log.info("✅ DB에서 장소 정보 보충: {} → 주소: {}, 좌표: ({}, {})",
+                    place.getName(), candidate.getAddress(),
+                    candidate.getLatitude(), candidate.getLongitude());
+
+                // 부족한 정보만 보충
+                if (place.getAddress() == null || place.getAddress().isEmpty()) {
+                    place.setAddress(candidate.getAddress());
+                }
+                if (place.getLatitude() == null || place.getLongitude() == null) {
+                    place.setLatitude(candidate.getLatitude());
+                    place.setLongitude(candidate.getLongitude());
+                }
+                if (place.getPlaceId() == null || place.getPlaceId().isEmpty()) {
+                    place.setPlaceId(String.valueOf(candidate.getId()));
+                }
+                if (place.getRating() == null || place.getRating() == 0.0) {
+                    place.setRating(candidate.getRating());
+                }
+            } else {
+                log.warn("⚠️ DB에서 장소 정보를 찾을 수 없음: {}, 기본값 사용", place.getName());
+                // 기본 좌표 설정 (서울 시청)
+                if (place.getLatitude() == null || place.getLongitude() == null) {
+                    place.setLatitude(37.5666805);
+                    place.setLongitude(126.9784147);
+                    log.info("📍 기본 좌표 적용: 서울 시청 (37.5666805, 126.9784147)");
+                }
+            }
+        } catch (Exception e) {
+            log.error("❌ DB 검색 중 오류 발생: {}", e.getMessage());
+            // 실패해도 기본 좌표 설정
+            if (place.getLatitude() == null || place.getLongitude() == null) {
+                place.setLatitude(37.5666805);
+                place.setLongitude(126.9784147);
+            }
+        }
+
+        return place;
     }
 
     // 클러스터 중심점 주변에서 AI 추천 장소 검색 (전역 추적 포함 - 이름 기반)
@@ -605,26 +750,35 @@ public class Stage3IntegrationService {
     private boolean isSimilarPlace(String name1, String name2) {
         if (name1 == null || name2 == null) return false;
 
+        // 빠른 체크: 정규화된 이름이 같은지
         String normalized1 = name1.toLowerCase().replaceAll("\\s+", "");
         String normalized2 = name2.toLowerCase().replaceAll("\\s+", "");
-
-        // 완전히 같은 경우
-        if (normalized1.equals(normalized2)) return true;
+        if (normalized1.equals(normalized2)) {
+            log.debug("Exact match after normalization: {} == {}", name1, name2);
+            return true;
+        }
 
         // 핵심 장소명 추출하여 비교
         String core1 = extractCorePlaceName(name1);
         String core2 = extractCorePlaceName(name2);
 
+        // 빈 문자열 체크
+        if (core1.isEmpty() || core2.isEmpty()) {
+            return false;
+        }
+
         // 핵심 장소명이 같으면 유사한 장소로 판단
         if (core1.equals(core2)) {
-            log.debug("Similar places detected: {} ({}) == {} ({})", name1, core1, name2, core2);
+            log.debug("Similar places detected: '{}' (core: {}) == '{}' (core: {})", name1, core1, name2, core2);
             return true;
         }
 
-        // 한쪽이 다른 쪽을 포함하는 경우
-        if (core1.contains(core2) || core2.contains(core1)) {
-            log.debug("Containment detected: {} contains {} or vice versa", core1, core2);
-            return true;
+        // 길이가 충분히 긴 경우에만 포함 관계 체크 (너무 짧은 단어는 오탐 가능성)
+        if (core1.length() >= 3 && core2.length() >= 3) {
+            if (core1.contains(core2) || core2.contains(core1)) {
+                log.debug("Containment detected: '{}' contains '{}' or vice versa", core1, core2);
+                return true;
+            }
         }
 
         return false;
@@ -632,17 +786,28 @@ public class Stage3IntegrationService {
 
     // 장소명에서 핵심 이름만 추출하는 메서드
     private String extractCorePlaceName(String name) {
-        String cleaned = name.toLowerCase()
-            // 공백 제거
-            .replaceAll("\\s+", "")
-            // 수식어구 제거
-            .replaceAll("(야경|야간개장|전망대|플라자|어드벤처|야간|주간|특별|이벤트)", "")
-            // N서울타워 변형 통일
-            .replaceAll("(n서울타워|남산서울타워|서울타워|남산타워)", "서울타워")
-            // 롯데월드 변형 통일
-            .replaceAll("(롯데월드타워|롯데타워|롯데월드어드벤처|롯데월드)", "롯데월드")
-            // 국립중앙박물관 변형 통일
-            .replaceAll("(국립중앙박물관|중앙박물관)", "국립중앙박물관");
+        if (name == null) return "";
+
+        String cleaned = name.toLowerCase();
+
+        // 1단계: 변형들을 먼저 통일 (공백이 있는 상태에서)
+        // N서울타워 계열
+        cleaned = cleaned.replaceAll("(n서울타워|남산서울타워|남산 서울타워|남산타워|남산 타워|n 서울타워)", "서울타워");
+
+        // 롯데월드 계열
+        cleaned = cleaned.replaceAll("(롯데월드타워|롯데타워|롯데 타워|롯데월드어드벤처|롯데월드 어드벤처|롯데 월드)", "롯데월드");
+
+        // 국립중앙박물관 계열
+        cleaned = cleaned.replaceAll("(국립중앙박물관|국립 중앙 박물관|중앙박물관|중앙 박물관)", "국립중앙박물관");
+
+        // 2단계: 수식어구 제거 (공백 포함 패턴)
+        cleaned = cleaned.replaceAll("\\s*(야경|야간개장|전망대|플라자|어드벤처|야간|주간|특별|이벤트|입장|체험|관람|투어|방문)\\s*", " ");
+
+        // 3단계: 연속된 공백을 단일 공백으로 정리
+        cleaned = cleaned.replaceAll("\\s+", " ").trim();
+
+        // 4단계: 최종적으로 공백 제거
+        cleaned = cleaned.replaceAll("\\s+", "");
 
         return cleaned;
     }
@@ -714,15 +879,58 @@ public class Stage3IntegrationService {
             .collect(Collectors.toList());
     }
 
-    // 시간 블록 정보 생성
+    // 시간 블록 정보 생성 (개선된 버전 - 중복 완전 제거)
     private Map<String, List<TravelPlace>> createTimeBlocks(List<TravelPlace> places) {
+        // 사용자 선택 장소와 AI 추천 장소 분리
+        List<TravelPlace> userSelected = places.stream()
+            .filter(p -> p.getIsUserSelected() != null && p.getIsUserSelected())
+            .collect(Collectors.toList());
+
+        List<TravelPlace> aiRecommended = places.stream()
+            .filter(p -> p.getIsUserSelected() == null || !p.getIsUserSelected())
+            .collect(Collectors.toList());
+
+        // 시간 블록별 분배를 위한 기본 구조
         Map<String, List<TravelPlace>> timeBlocks = new LinkedHashMap<>();
         timeBlocks.put("09:00-12:00", new ArrayList<>());
         timeBlocks.put("12:00-15:00", new ArrayList<>());
         timeBlocks.put("15:00-18:00", new ArrayList<>());
         timeBlocks.put("18:00-21:00", new ArrayList<>());
 
-        // 각 블록에 최대 1개의 장소만 배치 (일반적인 여행 일정)
+        Map<String, List<TravelPlace>> result;
+
+        // 카테고리 기반 스마트 분배 사용 가능 여부 체크
+        if (timeBlockRecommendationService != null) {
+            try {
+                // AI 추천 장소를 시간대별로 적절히 분류
+                Map<String, List<TravelPlace>> aiByTimeBlock = categorizeByTimeBlock(aiRecommended);
+
+                // 사용자 선택 장소와 AI 추천 장소를 시간대별로 조합
+                result = timeBlockRecommendationService.distributeWithUserSelection(
+                    userSelected,
+                    aiByTimeBlock
+                );
+            } catch (Exception e) {
+                log.warn("Failed to use smart time block distribution, falling back to simple distribution", e);
+                result = createSimpleTimeBlocks(places);
+            }
+        } else {
+            // 폴백: 기존의 단순 분배 로직
+            result = createSimpleTimeBlocks(places);
+        }
+
+        // 최종 중복 제거 및 검증
+        return removeDuplicatesFromTimeBlocks(result);
+    }
+
+    // 단순 시간 블록 분배 (폴백용)
+    private Map<String, List<TravelPlace>> createSimpleTimeBlocks(List<TravelPlace> places) {
+        Map<String, List<TravelPlace>> timeBlocks = new LinkedHashMap<>();
+        timeBlocks.put("09:00-12:00", new ArrayList<>());
+        timeBlocks.put("12:00-15:00", new ArrayList<>());
+        timeBlocks.put("15:00-18:00", new ArrayList<>());
+        timeBlocks.put("18:00-21:00", new ArrayList<>());
+
         int index = 0;
         for (String block : timeBlocks.keySet()) {
             if (index < places.size()) {
@@ -730,34 +938,247 @@ public class Stage3IntegrationService {
             }
         }
 
-        // 추가 장소가 있으면 시간블록에 균등 배치 (블록당 최대 2개)
         if (index < places.size()) {
             int blockIndex = 0;
             String[] blocks = timeBlocks.keySet().toArray(new String[0]);
-
             while (index < places.size()) {
                 String block = blocks[blockIndex % 4];
-                // 각 블록에 최대 2개까지만 허용
                 if (timeBlocks.get(block).size() < 2) {
                     timeBlocks.get(block).add(places.get(index++));
                 }
                 blockIndex++;
-
-                // 모든 블록이 2개씩 차면 중단
                 if (blockIndex % 4 == 0) {
-                    boolean allBlocksFull = true;
-                    for (List<TravelPlace> blockPlaces : timeBlocks.values()) {
-                        if (blockPlaces.size() < 2) {
-                            allBlocksFull = false;
-                            break;
-                        }
-                    }
+                    boolean allBlocksFull = timeBlocks.values().stream()
+                        .allMatch(blockPlaces -> blockPlaces.size() >= 2);
                     if (allBlocksFull) break;
                 }
             }
         }
+        return timeBlocks;
+    }
+
+    // AI 추천 장소를 시간대별로 카테고리 분류
+    private Map<String, List<TravelPlace>> categorizeByTimeBlock(List<TravelPlace> places) {
+        Map<String, List<TravelPlace>> categorized = new LinkedHashMap<>();
+        categorized.put("09:00-12:00", new ArrayList<>());
+        categorized.put("12:00-15:00", new ArrayList<>());
+        categorized.put("15:00-18:00", new ArrayList<>());
+        categorized.put("18:00-21:00", new ArrayList<>());
+
+        // 시간대별 카테고리 매칭
+        Map<String, List<String>> timeBlockCategories = Map.of(
+            "09:00-12:00", List.of("카페", "관광지", "고궁", "박물관", "공원"),
+            "12:00-15:00", List.of("맛집", "식당", "쇼핑", "시장"),
+            "15:00-18:00", List.of("관광지", "체험", "테마파크", "쇼핑"),
+            "18:00-21:00", List.of("맛집", "야경", "전망대", "야간개장")
+        );
+
+        // 중복 방지: placeId 또는 정규화된 name 사용
+        Set<String> usedPlaceIds = new HashSet<>();
+
+        // 각 시간대별로 적합한 장소 찾기
+        for (Map.Entry<String, List<String>> entry : timeBlockCategories.entrySet()) {
+            String timeBlock = entry.getKey();
+            List<String> categories = entry.getValue();
+
+            List<TravelPlace> matching = places.stream()
+                .filter(p -> {
+                    String placeKey = getPlaceKey(p);
+                    return !usedPlaceIds.contains(placeKey);
+                })
+                .filter(p -> matchesCategories(p, categories))
+                .limit(2)  // 블록당 최대 2개
+                .collect(Collectors.toList());
+
+            categorized.get(timeBlock).addAll(matching);
+            // 추가된 장소 ID 저장
+            matching.forEach(p -> usedPlaceIds.add(getPlaceKey(p)));
+        }
+
+        // 남은 장소들을 빈 블록 우선으로 분배
+        List<TravelPlace> remaining = places.stream()
+            .filter(p -> {
+                String placeKey = getPlaceKey(p);
+                return !usedPlaceIds.contains(placeKey);
+            })
+            .collect(Collectors.toList());
+
+        // 빈 블록 우선 채우기
+        for (TravelPlace place : remaining) {
+            // 장소가 0개인 블록 찾기
+            Optional<String> emptyBlock = categorized.entrySet().stream()
+                .filter(e -> e.getValue().isEmpty())
+                .map(Map.Entry::getKey)
+                .findFirst();
+
+            if (emptyBlock.isPresent()) {
+                categorized.get(emptyBlock.get()).add(place);
+                usedPlaceIds.add(getPlaceKey(place));
+                continue;
+            }
+
+            // 빈 블록이 없으면 1개만 있는 블록에 추가 (최대 2개까지)
+            Optional<String> singleBlock = categorized.entrySet().stream()
+                .filter(e -> e.getValue().size() == 1)
+                .map(Map.Entry::getKey)
+                .findFirst();
+
+            if (singleBlock.isPresent()) {
+                categorized.get(singleBlock.get()).add(place);
+                usedPlaceIds.add(getPlaceKey(place));
+            }
+        }
+
+        log.info("Categorized places: {}",
+            categorized.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue().size())
+                .collect(Collectors.joining(", ")));
+
+        return categorized;
+    }
+
+    // 장소 고유 키 생성 (중복 방지용)
+    private String getPlaceKey(TravelPlace place) {
+        if (place.getPlaceId() != null && !place.getPlaceId().isEmpty()) {
+            return place.getPlaceId();
+        }
+        if (place.getName() != null && !place.getName().isEmpty()) {
+            // 정규화된 이름 사용 (공백 제거, 소문자)
+            return extractCorePlaceName(place.getName());
+        }
+        // 최후의 수단: 좌표 기반
+        if (place.getLatitude() != null && place.getLongitude() != null) {
+            return String.format("%.6f_%.6f", place.getLatitude(), place.getLongitude());
+        }
+        return UUID.randomUUID().toString();
+    }
+
+    // 시간 블록에서 중복 제거 및 빈 공간 채우기
+    private Map<String, List<TravelPlace>> removeDuplicatesFromTimeBlocks(
+            Map<String, List<TravelPlace>> timeBlocks) {
+
+        log.info("=== Removing duplicates from time blocks ===");
+
+        // 전역적으로 사용된 장소 추적 (정규화된 키 사용)
+        Set<String> globalUsedKeys = new HashSet<>();
+        Map<String, List<TravelPlace>> cleanedBlocks = new LinkedHashMap<>();
+
+        // 각 시간 블록별로 중복 제거
+        for (Map.Entry<String, List<TravelPlace>> entry : timeBlocks.entrySet()) {
+            String timeBlock = entry.getKey();
+            List<TravelPlace> places = entry.getValue();
+
+            List<TravelPlace> uniquePlaces = new ArrayList<>();
+
+            for (TravelPlace place : places) {
+                String placeKey = getPlaceKey(place);
+
+                // 이미 사용된 장소인지 확인
+                if (!globalUsedKeys.contains(placeKey)) {
+                    uniquePlaces.add(place);
+                    globalUsedKeys.add(placeKey);
+
+                    // 추가 추적: ID와 이름 모두
+                    if (place.getPlaceId() != null) {
+                        globalUsedKeys.add(place.getPlaceId());
+                    }
+                    if (place.getName() != null) {
+                        globalUsedKeys.add(place.getName());
+                        globalUsedKeys.add(extractCorePlaceName(place.getName()));
+                    }
+                } else {
+                    log.debug("Duplicate detected in {}: {} (key: {})", timeBlock, place.getName(), placeKey);
+                }
+            }
+
+            cleanedBlocks.put(timeBlock, uniquePlaces);
+            log.info("Time block {}: {} places after deduplication", timeBlock, uniquePlaces.size());
+        }
+
+        // 빈 블록 채우기 (최소 1개씩)
+        return fillEmptyTimeBlocks(cleanedBlocks, globalUsedKeys);
+    }
+
+    // 빈 시간 블록 채우기
+    private Map<String, List<TravelPlace>> fillEmptyTimeBlocks(
+            Map<String, List<TravelPlace>> timeBlocks,
+            Set<String> globalUsedKeys) {
+
+        log.info("=== Filling empty time blocks ===");
+
+        // 빈 블록 찾기
+        List<String> emptyBlocks = timeBlocks.entrySet().stream()
+            .filter(e -> e.getValue().isEmpty())
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
+
+        if (emptyBlocks.isEmpty()) {
+            log.info("No empty blocks found");
+            return timeBlocks;
+        }
+
+        log.info("Found {} empty blocks: {}", emptyBlocks.size(), emptyBlocks);
+
+        // 다른 블록에서 여유 장소 재분배
+        List<TravelPlace> sparePlaces = new ArrayList<>();
+
+        // 2개 이상 있는 블록에서 여유 장소 수집
+        for (Map.Entry<String, List<TravelPlace>> entry : timeBlocks.entrySet()) {
+            List<TravelPlace> places = entry.getValue();
+            if (places.size() > 2) {
+                // 2개를 초과하는 장소들을 여유 장소로 수집
+                List<TravelPlace> extras = places.subList(2, places.size());
+                sparePlaces.addAll(new ArrayList<>(extras));
+                // 원본 리스트에서는 2개만 유지
+                entry.setValue(new ArrayList<>(places.subList(0, 2)));
+            }
+        }
+
+        log.info("Collected {} spare places for redistribution", sparePlaces.size());
+
+        // 빈 블록에 여유 장소 배분
+        int spareIndex = 0;
+        for (String emptyBlock : emptyBlocks) {
+            if (spareIndex < sparePlaces.size()) {
+                List<TravelPlace> blockPlaces = timeBlocks.get(emptyBlock);
+                blockPlaces.add(sparePlaces.get(spareIndex));
+                log.info("Filled empty block {} with place: {}", emptyBlock, sparePlaces.get(spareIndex).getName());
+                spareIndex++;
+            } else {
+                log.warn("Not enough spare places to fill all empty blocks");
+                break;
+            }
+        }
+
+        // 여전히 빈 블록이 있으면 경고
+        long stillEmpty = timeBlocks.values().stream()
+            .filter(List::isEmpty)
+            .count();
+
+        if (stillEmpty > 0) {
+            log.warn("Still {} empty blocks remaining after redistribution", stillEmpty);
+        } else {
+            log.info("✅ All time blocks filled successfully");
+        }
 
         return timeBlocks;
+    }
+
+    // 카테고리 매칭 헬퍼 메서드
+    private boolean matchesCategories(TravelPlace place, List<String> categories) {
+        if (place.getCategory() == null && place.getName() == null) {
+            return false;
+        }
+
+        String placeCategory = place.getCategory() != null ?
+            place.getCategory().toLowerCase() : "";
+        String placeName = place.getName() != null ?
+            place.getName().toLowerCase() : "";
+
+        return categories.stream().anyMatch(cat ->
+            placeCategory.contains(cat.toLowerCase()) ||
+            placeName.contains(cat.toLowerCase())
+        );
     }
 
     // 사용자 선택 장소 변환
@@ -800,6 +1221,71 @@ public class Stage3IntegrationService {
         return routes.stream()
             .mapToDouble(OptimizedRoute::getTotalDistance)
             .sum();
+    }
+
+    // 프론트엔드 콘솔용 상세 로깅
+    private void logDetailedItineraryForFrontend(Stage3Output output) {
+        log.info("===========================================");
+        log.info("🎯 [Stage 3] 완성된 여행 일정 상세 정보");
+        log.info("===========================================");
+        log.info("📅 총 {}일 일정", output.getDailyItineraries().size());
+        log.info("🚗 총 이동 거리: {}km", String.format("%.2f", output.getTotalDistance()));
+        log.info("⏱️ 총 이동 시간: {}분", output.getTotalDuration());
+
+        int dayCounter = 1;
+        for (DailyItinerary day : output.getDailyItineraries()) {
+            log.info("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            log.info("📆 Day {}: {}", day.getDayNumber(), day.getDate());
+            log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            if (day.getTimeBlocks() != null && !day.getTimeBlocks().isEmpty()) {
+                day.getTimeBlocks().forEach((timeSlot, placesList) -> {
+                    log.info("\n⏰ 시간대: {}", timeSlot);
+                    log.info("───────────────────────────────────");
+
+                    placesList.forEach(place -> {
+                        String marker = (place.getIsUserSelected() != null && place.getIsUserSelected()) ? "🎯" : "🤖";
+                        log.info("  {} {} [{}]", marker, place.getName(), place.getCategory());
+                        log.info("     📍 주소: {}", place.getAddress());
+                        if (place.getRating() != null) {
+                            log.info("     ⭐ 평점: {}", place.getRating());
+                        }
+                        if (place.getDescription() != null && !place.getDescription().isEmpty()) {
+                            log.info("     📝 설명: {}", place.getDescription());
+                        }
+                        log.info("     📊 품질 점수: {}", String.format("%.2f", place.getQualityScore()));
+                    });
+                });
+            }
+
+            // 경로 최적화 정보
+            final int currentDay = dayCounter;
+            OptimizedRoute route = output.getOptimizedRoutes().stream()
+                .filter(r -> output.getOptimizedRoutes().indexOf(r) == currentDay - 1)
+                .findFirst()
+                .orElse(null);
+
+            if (route != null) {
+                log.info("\n🗺️ 경로 최적화 정보:");
+                log.info("  - 총 이동거리: {}km", String.format("%.2f", route.getTotalDistance()));
+                log.info("  - 총 이동시간: {}분", route.getTotalDuration());
+                if (route.getPlaces() != null && !route.getPlaces().isEmpty()) {
+                    String routeStr = route.getPlaces().stream()
+                        .map(TravelPlace::getName)
+                        .reduce((a, b) -> a + " → " + b)
+                        .orElse("");
+                    log.info("  - 경로: {}", routeStr);
+                }
+            }
+
+            dayCounter++;
+        }
+
+        log.info("\n===========================================");
+        log.info("✅ Stage 3 여행 일정 생성 완료");
+        log.info("  - 사용자 선택 장소: 🎯");
+        log.info("  - AI 추천 장소: 🤖");
+        log.info("===========================================\n");
     }
 
     // 전체 소요 시간 계산
@@ -1165,12 +1651,18 @@ public class Stage3IntegrationService {
     // TravelContext에서 사용자 선택 장소 추출
     @SuppressWarnings("unchecked")
     private List<SelectedSchedule> extractUserSelectedPlaces(TravelContext context) {
-        log.info("Extracting user selected places from context. CollectedInfo keys: {}",
-                context.getCollectedInfo().keySet());
+        log.info("Extracting user selected places from context. CollectedInfo keys: {}, Metadata keys: {}",
+                context.getCollectedInfo().keySet(), context.getMetadata().keySet());
 
-        Object placesObj = context.getCollectedInfo().get("userSelectedPlaces");
+        // Try metadata first (from Stage2 integration)
+        Object placesObj = context.getMetadata().get("userSelectedPlaces");
         if (placesObj == null) {
-            log.warn("No userSelectedPlaces found in context");
+            // Fall back to collectedInfo
+            placesObj = context.getCollectedInfo().get("userSelectedPlaces");
+        }
+
+        if (placesObj == null) {
+            log.warn("No userSelectedPlaces found in context metadata or collectedInfo");
             return List.of();
         }
 

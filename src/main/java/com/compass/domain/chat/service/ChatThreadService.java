@@ -32,9 +32,6 @@ public class ChatThreadService {
     // 메시지 저장 요청 DTO
     public record MessageSaveRequest(String threadId, String sender, String content) {}
 
-    // 스레드 생성 응답 DTO
-    public record ThreadResponse(String threadId, LocalDateTime createdAt) {}
-
     // 메시지 히스토리 응답 DTO
     public record MessageResponse(Long messageId, String sender, String content, LocalDateTime createdAt) {}
 
@@ -43,16 +40,17 @@ public class ChatThreadService {
 
     // 새 대화 스레드 생성
     @Transactional
-    public ThreadResponse createThread(Long userId) {
+    public ChatThread createThread(Long userId, String title) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
 
         ChatThread newThread = ChatThread.builder()
                 .user(user)
+                .title(title != null && !title.isBlank() ? title : "새 대화")
+                .currentPhase("INITIALIZATION")
                 .build();
 
-        ChatThread savedThread = chatThreadRepository.save(newThread);
-        return new ThreadResponse(savedThread.getId(), savedThread.getCreatedAt());
+        return chatThreadRepository.save(newThread);
     }
 
     // ChatThread 존재 확인 및 생성 (첫 대화 시작 시점에 호출)
@@ -106,7 +104,7 @@ public class ChatThreadService {
 
     // 대화 메시지 저장 (Thread 없으면 자동 생성)
     @Transactional
-    public void saveMessage(MessageSaveRequest request) {
+    public ChatMessage saveMessage(MessageSaveRequest request) {
         // Thread가 없으면 자동 생성 (UUID를 ID로 사용)
         ChatThread thread = chatThreadRepository.findById(request.threadId())
                 .orElseGet(() -> {
@@ -126,19 +124,25 @@ public class ChatThreadService {
                     return chatThreadRepository.save(newThread);
                 });
 
+        boolean hadMessages = thread.getMessages() != null && !thread.getMessages().isEmpty();
+
         ChatMessage message = ChatMessage.builder()
                 .thread(thread)
                 .role(request.sender())
                 .content(request.content())
                 .build();
 
-        chatMessageRepository.save(message);
+        ChatMessage savedMessage = chatMessageRepository.save(message);
 
-        // 첫 메시지인 경우 제목 업데이트
-        if (thread.getMessages().isEmpty() && "user".equals(request.sender())) {
+        thread.addMessage(savedMessage);
+
+        if (!hadMessages && "user".equals(request.sender())) {
             thread.updateTitleFromFirstMessage(request.content());
-            chatThreadRepository.save(thread);
         }
+
+        chatThreadRepository.save(thread);
+
+        return savedMessage;
     }
 
     // 특정 스레드의 대화 기록 조회

@@ -16,6 +16,11 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import com.compass.config.jwt.JwtAuthenticationFilter;
 import com.compass.config.jwt.JwtTokenProvider;
 import com.compass.config.oauth.CustomOAuth2UserService;
@@ -44,6 +49,9 @@ public class SecurityConfig {
     @Value("${spring.profiles.active:default}")
     private String activeProfile;
 
+    @Value("${cors.allowed-origins:}")
+    private String allowedOriginsProperty;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
@@ -58,15 +66,20 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        if ("docker".equals(activeProfile)) {
-            configuration.addAllowedOriginPattern("*"); // Docker 환경에서 모든 origin 허용
-            configuration.setAllowCredentials(true); // 쿠키 포함 요청 허용
+        List<String> resolvedOrigins = resolveAllowedOrigins();
+
+        if (!resolvedOrigins.isEmpty()) {
+            resolvedOrigins.forEach(configuration::addAllowedOrigin);
+            configuration.setAllowCredentials(true);
+        } else if ("docker".equals(activeProfile)) {
+            configuration.addAllowedOriginPattern("*");
+            configuration.setAllowCredentials(true);
         } else {
-            configuration.addAllowedOrigin("http://localhost:3000"); // React 개발 서버
-            configuration.addAllowedOrigin("http://localhost:5173"); // Vite 개발 서버
-            configuration.addAllowedOrigin("http://localhost:5500"); // VS Code Live Server
-            configuration.addAllowedOrigin("http://127.0.0.1:5500"); // VS Code Live Server (127.0.0.1)
-            configuration.setAllowCredentials(true); // 쿠키 포함 요청 허용
+            configuration.addAllowedOrigin("http://localhost:3000");
+            configuration.addAllowedOrigin("http://localhost:5173");
+            configuration.addAllowedOrigin("http://localhost:5500");
+            configuration.addAllowedOrigin("http://127.0.0.1:5500");
+            configuration.setAllowCredentials(true);
         }
 
         configuration.addAllowedMethod("*"); // 모든 HTTP 메서드 허용
@@ -77,6 +90,32 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private List<String> resolveAllowedOrigins() {
+        List<String> origins = new ArrayList<>();
+
+        if (allowedOriginsProperty != null && !allowedOriginsProperty.isBlank()) {
+            origins.addAll(Arrays.stream(allowedOriginsProperty.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .collect(Collectors.toList()));
+        }
+
+        if (!"docker".equals(activeProfile)) {
+            List<String> localDefaults = List.of(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://localhost:5500",
+                "http://127.0.0.1:5500"
+            );
+
+            localDefaults.stream()
+                .filter(origin -> !origins.contains(origin))
+                .forEach(origins::add);
+        }
+
+        return origins;
     }
     
     @Bean

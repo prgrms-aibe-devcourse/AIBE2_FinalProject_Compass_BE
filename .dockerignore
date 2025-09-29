@@ -9,14 +9,14 @@
 .DS_Store
 
 # Build outputs
-build/
+# build/  # Docker에서 JAR 파일이 필요하므로 주석 처리
 out/
 target/
 *.class
 
 # Gradle
 .gradle/
-gradle/wrapper/gradle-wrapper.jar
+# gradle/wrapper/gradle-wrapper.jar  # Docker 빌드를 위해 필요
 
 # Logs
 logs/

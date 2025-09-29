@@ -12,7 +12,7 @@ import com.compass.domain.chat.function.itinerary.GenerateItineraryFunction;
 import com.compass.domain.chat.function.itinerary.SearchPlacesFunction;
 import com.compass.domain.chat.function.itinerary.ShowItineraryFunction;
 import com.compass.domain.chat.function.planning.DestinationSearchFunction;
-import com.compass.domain.chat.function.planning.GenerateTravelPlanFunction;
+// import com.compass.domain.chat.function.planning.GenerateTravelPlanFunction;
 import com.compass.domain.chat.function.planning.RecommendDestinationsFunction;
 import com.compass.domain.chat.function.processing.ExtractFlightInfoFunction;
 import com.compass.domain.chat.function.processing.ProcessImageFunction;
@@ -87,16 +87,16 @@ public class FunctionConfiguration {
 
     // ========== 여행 계획 Functions (Planning) ==========
 
-    private final GenerateTravelPlanFunction generateTravelPlanFunction;
+    // private final GenerateTravelPlanFunction generateTravelPlanFunction;
     private final DestinationSearchFunction destinationSearchFunction;
 
-    @Bean
-    public FunctionCallbackWrapper<?, ?> generateTravelPlanWrapper() {
-        return FunctionCallbackWrapper.builder(generateTravelPlanFunction)
-                .withName("generate_travel_plan")
-                .withDescription("여행 계획 생성")
-                .build();
-    }
+    // @Bean
+    // public FunctionCallbackWrapper<?, ?> generateTravelPlanWrapper() {
+    //     return FunctionCallbackWrapper.builder(generateTravelPlanFunction)
+    //             .withName("generate_travel_plan")
+    //             .withDescription("여행 계획 생성")
+    //             .build();
+    // }
 
     @Bean
     public FunctionCallbackWrapper<?, ?> destinationSearchWrapper() {

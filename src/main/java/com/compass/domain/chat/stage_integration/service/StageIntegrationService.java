@@ -8,13 +8,19 @@ import com.compass.domain.chat.stage1.service.Stage1DestinationSelectionService;
 import com.compass.domain.chat.stage2.service.Stage2TimeBlockService;
 import com.compass.domain.chat.stage3.service.Stage3IntegrationService;
 import com.compass.domain.chat.stage3.service.Stage3RouteOptimizationService;
+import com.compass.domain.chat.stage3.service.Stage3PersistenceService;
+import com.compass.domain.chat.stage3.dto.Stage3Output;
+import com.compass.domain.chat.stage3.dto.DailyItinerary;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -24,9 +30,10 @@ public class StageIntegrationService {
     private final TravelCandidateRepository travelCandidateRepository;
     private final Stage1DestinationSelectionService stage1Service;
     private final Stage2TimeBlockService stage2Service;
-    private final Stage3IntegrationService stage3Service;
+    private final Stage3IntegrationService stage3IntegrationService;
     private final Stage3RouteOptimizationService routeOptimizationService;
     private final Stage2To3DirectConverter stage2To3DirectConverter;
+    private final Stage3PersistenceService stage3PersistenceService;
 
     // Stage 1: DB에서 지역의 모든 장소 표시 (설계 문서 3.1 기반)
     public Map<String, Object> processStage1(TravelContext context) {
@@ -44,8 +51,10 @@ public class StageIntegrationService {
 
             log.info("📍 [Stage 1] {}개 장소 조회됨", allPlaces.size());
 
-            // 2. 여행 스타일과 매칭되는 장소 표시
+            // 2. 주소와 좌표가 있는 장소만 필터링하고 여행 스타일과 매칭
             List<Map<String, Object>> displayPlaces = allPlaces.stream()
+                .filter(place -> isValidAddress(place.getAddress()))
+                .filter(place -> place.getLatitude() != null && place.getLongitude() != null)
                 .map(place -> {
                     Map<String, Object> placeData = new HashMap<>();
                     placeData.put("id", place.getId());
@@ -65,6 +74,8 @@ public class StageIntegrationService {
                     return placeData;
                 })
                 .collect(Collectors.toList());
+
+            log.info("📍 [Stage 1] 필터링 후 {}개 장소 (주소/좌표 있는 장소만)", displayPlaces.size());
 
             // 3. 카테고리별 그룹화
             Map<String, List<Map<String, Object>>> categorizedPlaces = displayPlaces.stream()
@@ -139,8 +150,10 @@ public class StageIntegrationService {
                         placeInfo.put("id", place.getPlaceId());
                         placeInfo.put("name", place.getName());
                         placeInfo.put("category", place.getCategory());
+                        placeInfo.put("address", place.getAddress());
                         placeInfo.put("latitude", place.getLatitude());
                         placeInfo.put("longitude", place.getLongitude());
+                        placeInfo.put("rating", place.getRating());
                         return placeInfo;
                     })
                     .collect(Collectors.toList()));
@@ -312,13 +325,18 @@ public class StageIntegrationService {
             String startDate = travelDates.get("startDate");
             String endDate = travelDates.get("endDate");
 
-            if (startDate == null || endDate == null) {
+            if (!StringUtils.hasText(startDate) || !StringUtils.hasText(endDate)) {
                 return 1;
             }
 
-            // 날짜 차이 계산 (실제로는 LocalDate 사용)
-            // 간단한 구현: 끝날짜 - 시작날짜 + 1
-            return 3; // 일단 3일로 고정 (실제로는 날짜 계산 필요)
+            LocalDate start = LocalDate.parse(startDate);
+            LocalDate end = LocalDate.parse(endDate);
+
+            if (end.isBefore(start)) {
+                return 1;
+            }
+
+            return (int) ChronoUnit.DAYS.between(start, end) + 1;
 
         } catch (Exception e) {
             log.warn("날짜 계산 실패, 기본값 사용: ", e);
@@ -328,55 +346,103 @@ public class StageIntegrationService {
 
     // Stage 3: 일정 생성 (설계 문서 3.3 기반)
     public Map<String, Object> processStage3(TravelContext context) {
-        @SuppressWarnings("unchecked")
-        Map<Integer, List<TravelPlace>> dailyDistribution =
-            (Map<Integer, List<TravelPlace>>) context.getMetadata().get("dailyDistribution");
-
-        log.info("🎯 [Stage 3] 최종 일정 생성 시작 - Stage 2 분배 데이터 사용");
+        log.info("🎯 [Stage 3] 최종 일정 생성 시작 - Stage3IntegrationService 사용");
         log.info("📍 [Stage 3] Context metadata keys: {}", context.getMetadata().keySet());
-        log.info("📍 [Stage 3] dailyDistribution 존재: {}",
-            dailyDistribution != null ? "있음 (일 수: " + dailyDistribution.size() + ")" : "없음");
+        log.info("📍 [Stage 3] Context collectedInfo keys: {}", context.getCollectedInfo().keySet());
 
         try {
-            // Stage 2에서 분배된 장소들을 기반으로 최종 일정 생성
-            List<Map<String, Object>> finalItinerary = new ArrayList<>();
+            // Stage3IntegrationService를 사용하여 실제 일정 생성
+            var stage3Output = stage3IntegrationService.processWithTravelContext(context);
 
-            if (dailyDistribution != null) {
-                for (Map.Entry<Integer, List<TravelPlace>> dayEntry : dailyDistribution.entrySet()) {
-                    int day = dayEntry.getKey();
-                    List<TravelPlace> placesForDay = dayEntry.getValue();
+            // DB에 저장
+            try {
+                var savedItinerary = stage3PersistenceService.saveItinerary(context, stage3Output);
+                log.info("💾 [Stage 3] 일정 저장 완료 - Itinerary ID: {}", savedItinerary.getId());
+            } catch (Exception e) {
+                log.error("❌ [Stage 3] 일정 저장 실패: ", e);
+                // 저장 실패해도 프론트엔드에는 응답 반환
+            }
 
-                    // TravelPlace를 Map으로 변환
-                    List<Map<String, Object>> placeMaps = placesForDay.stream()
-                        .map(this::convertTravelPlaceToMap)
-                        .collect(Collectors.toList());
+            // Stage3Output을 프론트엔드가 기대하는 형식으로 변환
+            List<Map<String, Object>> itinerary = new ArrayList<>();
 
-                    // 각 날짜별로 DB에서 추가 장소 선별 (필요시)
-                    List<Map<String, Object>> optimizedDayPlan = selectAndOptimizePlaces(
-                        day, placeMaps, context);
+            if (stage3Output.getDailyItineraries() != null && !stage3Output.getDailyItineraries().isEmpty()) {
+                for (var dailyItinerary : stage3Output.getDailyItineraries()) {
+                    Map<String, Object> dayData = new HashMap<>();
+                    dayData.put("day", dailyItinerary.getDayNumber());
+                    dayData.put("date", dailyItinerary.getDate().toString());
 
-                    Map<String, Object> dayItinerary = new HashMap<>();
-                    dayItinerary.put("day", day);
-                    dayItinerary.put("date", calculateDate(context, day));
-                    dayItinerary.put("schedule", optimizedDayPlan);
-                    dayItinerary.put("totalPlaces", optimizedDayPlan.size());
+                    // 시간 블록별로 그룹화된 일정 생성 (프론트엔드 기대 형식)
+                    Map<String, List<Map<String, Object>>> timeBlocks = new LinkedHashMap<>();
 
-                    finalItinerary.add(dayItinerary);
+                    // 시간 블록을 순서대로 초기화
+                    timeBlocks.put("09:00-12:00", new ArrayList<>());
+                    timeBlocks.put("12:00-15:00", new ArrayList<>());
+                    timeBlocks.put("15:00-18:00", new ArrayList<>());
+                    timeBlocks.put("18:00-21:00", new ArrayList<>());
+
+                    if (dailyItinerary.getTimeBlocks() != null && !dailyItinerary.getTimeBlocks().isEmpty()) {
+                        for (Map.Entry<String, List<TravelPlace>> timeBlockEntry : dailyItinerary.getTimeBlocks().entrySet()) {
+                            String timeBlock = timeBlockEntry.getKey();
+                            List<TravelPlace> places = timeBlockEntry.getValue();
+
+                            List<Map<String, Object>> blockPlaces = timeBlocks.computeIfAbsent(timeBlock, k -> new ArrayList<>());
+                            for (TravelPlace place : places) {
+                                Map<String, Object> placeData = convertTravelPlaceToMap(place);
+                                blockPlaces.add(placeData);
+                            }
+                        }
+                    } else if (dailyItinerary.getPlaces() != null) {
+                        // 시간 블록이 없는 경우 places를 시간대별로 자동 분배
+                        List<TravelPlace> places = dailyItinerary.getPlaces();
+                        String[] blocks = {"09:00-12:00", "12:00-15:00", "15:00-18:00", "18:00-21:00"};
+
+                        for (int i = 0; i < places.size(); i++) {
+                            String block = blocks[Math.min(i, blocks.length - 1)];
+                            Map<String, Object> placeData = convertTravelPlaceToMap(places.get(i));
+                            timeBlocks.get(block).add(placeData);
+                        }
+                    }
+
+                    // 비어있지 않은 시간 블록만 포함
+                    Map<String, List<Map<String, Object>>> nonEmptyBlocks = new LinkedHashMap<>();
+                    for (Map.Entry<String, List<Map<String, Object>>> entry : timeBlocks.entrySet()) {
+                        if (!entry.getValue().isEmpty()) {
+                            nonEmptyBlocks.put(entry.getKey(), entry.getValue());
+                        }
+                    }
+
+                    dayData.put("timeBlocks", nonEmptyBlocks);
+                    dayData.put("totalPlaces", nonEmptyBlocks.values().stream()
+                        .mapToInt(List::size).sum());
+                    dayData.put("estimatedDuration", dailyItinerary.getEstimatedDuration());
+
+                    itinerary.add(dayData);
                 }
             }
 
-            // 경로 최적화 및 이동 정보 추가
-            enrichWithRouteInformation(finalItinerary, context);
+            // 경로 최적화 정보 추가
+            double totalDistance = 0.0;
+            long totalTime = 0;
+            if (stage3Output.getOptimizedRoutes() != null) {
+                for (var route : stage3Output.getOptimizedRoutes()) {
+                    totalDistance += route.getTotalDistance();
+                    totalTime += route.getTotalDuration();
+                }
+            }
 
             Map<String, Object> result = new HashMap<>();
-            result.put("dailyItineraries", finalItinerary);
-            result.put("totalDays", finalItinerary.size());
+            result.put("itinerary", itinerary);  // 프론트엔드가 기대하는 키
+            result.put("totalDays", itinerary.size());
             result.put("stage", 3);
             result.put("type", "FINAL_ITINERARY_CREATED");
             result.put("nextAction", "REVIEW_AND_CONFIRM");
             result.put("optimizationApplied", true);
+            result.put("totalDistance", totalDistance);
+            result.put("totalTime", totalTime);
 
-            log.info("✅ [Stage 3] 완료 - {}일 최종 일정 생성 완료", finalItinerary.size());
+            log.info("✅ [Stage 3] 완료 - {}일 최종 일정 생성 완료, 총 거리: {}km, 총 시간: {}분",
+                itinerary.size(), String.format("%.2f", totalDistance), totalTime);
 
             return result;
 
@@ -667,6 +733,22 @@ public class StageIntegrationService {
     }
 
     // 헬퍼 메서드들
+
+    // 유효한 주소인지 확인 (무의미한 주소 필터링)
+    private boolean isValidAddress(String address) {
+        if (address == null || address.isEmpty()) {
+            return false;
+        }
+
+        // 무의미한 주소 패턴들
+        String lowerAddress = address.toLowerCase().trim();
+        return !lowerAddress.contains("상이") &&
+               !lowerAddress.contains("별도") &&
+               !lowerAddress.contains("미정") &&
+               !lowerAddress.equals("-") &&
+               lowerAddress.length() > 5; // 최소 길이 체크
+    }
+
     private boolean matchesTravelStyle(TravelCandidate place, List<String> travelStyles) {
         if (travelStyles == null || travelStyles.isEmpty()) {
             return false;
@@ -746,6 +828,13 @@ public class StageIntegrationService {
         map.put("lat", place.getLatitude());
         map.put("lng", place.getLongitude());
         map.put("rating", place.getRating());
+        map.put("isUserSelected", place.getIsUserSelected());
+        return map;
+    }
+
+    private Map<String, Object> convertTravelPlaceToMapWithTimeBlock(TravelPlace place, String timeBlock) {
+        Map<String, Object> map = convertTravelPlaceToMap(place);
+        map.put("timeBlock", timeBlock);
         return map;
     }
 

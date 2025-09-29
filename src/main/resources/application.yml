@@ -33,12 +33,6 @@ spring:
               temperature: 0.7
               max-output-tokens: 8192
 
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      chat:
-        options:
-          model: gpt-4o-mini
-
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -55,6 +49,9 @@ logging:
   level:
     com.compass: DEBUG
     org.springframework.ai: DEBUG
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:}
 
 # Kakao API 설정
 kakao:

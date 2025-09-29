@@ -1,0 +1,8 @@
+FROM openjdk:17-slim
+WORKDIR /app
+
+COPY build/libs/compass-backend-0.0.1-SNAPSHOT.jar app.jar
+COPY docker-entrypoint.sh /entrypoint.sh
+
+EXPOSE 8080
+ENTRYPOINT ["/entrypoint.sh"]
