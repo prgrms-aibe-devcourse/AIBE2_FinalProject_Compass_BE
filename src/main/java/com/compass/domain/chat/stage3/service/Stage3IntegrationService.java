@@ -1661,6 +1661,7 @@ public class Stage3IntegrationService {
         return matchesTravelStyle(place.getCategory(), place.getDescription(), travelStyle);
     }
 
+    // 여행 스타일 매칭 (Stage1과 동일한 로직)
     private boolean matchesTravelStyle(String categoryValue, String descriptionValue, String travelStyle) {
         if (travelStyle == null || travelStyle.isBlank()) {
             return true;
@@ -1670,20 +1671,39 @@ public class Stage3IntegrationService {
         String category = categoryValue != null ? categoryValue.toLowerCase() : "";
         String description = descriptionValue != null ? descriptionValue.toLowerCase() : "";
 
+        // 직접 매칭
         if (category.contains(normalizedStyle) || description.contains(normalizedStyle)) {
             return true;
         }
 
+        // 한국어 여행 스타일 매칭 (Stage1과 동일)
         return switch (normalizedStyle) {
-            case "relax", "휴양", "편안한" ->
+            case "관광" ->
+                category.contains("관광") || category.contains("명소") || category.contains("랜드마크") ||
+                category.contains("전망") || category.contains("야경");
+            case "맛집" ->
+                category.contains("맛집") || category.contains("음식") || category.contains("레스토랑") ||
+                category.contains("식당");
+            case "편안한" ->
+                true; // 평점 기반 필터링은 다른 곳에서 처리
+            case "활동적인" ->
+                category.contains("액티비티") || category.contains("체험");
+            case "문화" ->
+                category.contains("문화") || category.contains("박물관") || category.contains("전통");
+            case "미식" ->
+                category.contains("맛집") || category.contains("음식");
+            case "쇼핑" ->
+                category.contains("쇼핑");
+            // 영어 여행 스타일 매칭
+            case "relax", "휴양" ->
                 category.contains("스파") || category.contains("카페") || category.contains("공원");
-            case "food", "미식" ->
+            case "food" ->
                 category.contains("맛집") || category.contains("음식") || category.contains("레스토랑") || category.contains("카페");
-            case "culture", "문화" ->
+            case "culture" ->
                 category.contains("문화") || category.contains("박물관") || category.contains("전통") || category.contains("역사");
             case "activity", "액티비티", "adventure" ->
                 category.contains("체험") || category.contains("액티비티") || category.contains("스포츠");
-            case "shopping", "쇼핑" ->
+            case "shopping" ->
                 category.contains("쇼핑") || category.contains("시장") || category.contains("백화점");
             case "nature", "자연" ->
                 category.contains("자연") || category.contains("공원") || category.contains("산") || category.contains("바다");

@@ -28,14 +28,18 @@ class HotelReservationServiceTest {
                 "Grand Hotel",
                 "123 Main St, City",
                 LocalDate.of(2024, 3, 15),
+                java.time.LocalTime.of(15, 0),
                 LocalDate.of(2024, 3, 17),
+                java.time.LocalTime.of(11, 0),
                 "Deluxe Room",
                 2,
                 "CONF12345",
                 500.0,
                 2,
                 37.5665,
-                126.9780
+                126.9780,
+                "John Doe",
+                "010-1234-5678"
         );
 
         var saved = hotelReservationService.save("thread-1", "user-1", reservation);
