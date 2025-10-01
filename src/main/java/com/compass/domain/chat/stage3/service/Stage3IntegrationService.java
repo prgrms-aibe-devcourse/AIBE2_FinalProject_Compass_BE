@@ -856,6 +856,14 @@ public class Stage3IntegrationService {
             String endTime,
             LocalDate date) {
 
+        // 출발지 분리 (category="출발")
+        List<TravelPlace> departures = places.stream()
+            .filter(p -> "출발".equals(p.getCategory()))
+            .collect(Collectors.toList());
+        List<TravelPlace> otherPlaces = places.stream()
+            .filter(p -> !"출발".equals(p.getCategory()))
+            .collect(Collectors.toList());
+
         // 시간 블록 정의
         Map<String, List<String>> timeBlockCategories = Map.of(
             "아침", List.of("카페", "cafe", "breakfast", "조식", "빵집", "bakery"),
@@ -867,14 +875,17 @@ public class Stage3IntegrationService {
         );
 
         // 사용자 선택 장소와 AI 추천 장소 분리
-        List<TravelPlace> userSelected = places.stream()
+        List<TravelPlace> userSelected = otherPlaces.stream()
             .filter(p -> Boolean.TRUE.equals(p.getIsUserSelected()))
             .collect(Collectors.toList());
-        List<TravelPlace> aiRecommended = places.stream()
+        List<TravelPlace> aiRecommended = otherPlaces.stream()
             .filter(p -> !Boolean.TRUE.equals(p.getIsUserSelected()))
             .collect(Collectors.toList());
 
         List<TravelPlace> arranged = new ArrayList<>();
+
+        // 출발지를 제일 먼저 추가
+        arranged.addAll(departures);
 
         // 시간 블록별 처리
         String[] timeBlocks = {"아침", "오전", "점심", "오후", "저녁", "야간"};
@@ -918,12 +929,25 @@ public class Stage3IntegrationService {
 
     // 시간 블록 정보 생성 (개선된 버전 - 중복 완전 제거)
     private Map<String, List<TravelPlace>> createTimeBlocks(List<TravelPlace> places) {
-        // 사용자 선택 장소와 AI 추천 장소 분리
-        List<TravelPlace> userSelected = places.stream()
+        // ✅ CRITICAL FIX: Extract departure places FIRST (category="출발")
+        List<TravelPlace> departures = places.stream()
+            .filter(p -> "출발".equals(p.getCategory()))
+            .collect(Collectors.toList());
+
+        // Process only non-departure places
+        List<TravelPlace> otherPlaces = places.stream()
+            .filter(p -> !"출발".equals(p.getCategory()))
+            .collect(Collectors.toList());
+
+        log.info("createTimeBlocks: {} total places, {} departures, {} other places",
+            places.size(), departures.size(), otherPlaces.size());
+
+        // 사용자 선택 장소와 AI 추천 장소 분리 (departures 제외)
+        List<TravelPlace> userSelected = otherPlaces.stream()
             .filter(p -> p.getIsUserSelected() != null && p.getIsUserSelected())
             .collect(Collectors.toList());
 
-        List<TravelPlace> aiRecommended = places.stream()
+        List<TravelPlace> aiRecommended = otherPlaces.stream()
             .filter(p -> p.getIsUserSelected() == null || !p.getIsUserSelected())
             .collect(Collectors.toList());
 
@@ -949,15 +973,33 @@ public class Stage3IntegrationService {
                 );
             } catch (Exception e) {
                 log.warn("Failed to use smart time block distribution, falling back to simple distribution", e);
-                result = createSimpleTimeBlocks(places);
+                result = createSimpleTimeBlocks(otherPlaces);
             }
         } else {
             // 폴백: 기존의 단순 분배 로직
-            result = createSimpleTimeBlocks(places);
+            result = createSimpleTimeBlocks(otherPlaces);
         }
 
         // 최종 중복 제거 및 검증
-        return removeDuplicatesFromTimeBlocks(result);
+        result = removeDuplicatesFromTimeBlocks(result);
+
+        // ✅ CRITICAL FIX: Add departures FIRST to 09:00-12:00 time block
+        if (!departures.isEmpty()) {
+            List<TravelPlace> morningBlock = result.get("09:00-12:00");
+            if (morningBlock == null) {
+                morningBlock = new ArrayList<>();
+                result.put("09:00-12:00", morningBlock);
+            }
+            // Add departures at the BEGINNING
+            List<TravelPlace> finalMorningBlock = new ArrayList<>(departures);
+            finalMorningBlock.addAll(morningBlock);
+            result.put("09:00-12:00", finalMorningBlock);
+
+            log.info("✅ Added {} departure(s) to 09:00-12:00 time block", departures.size());
+            departures.forEach(d -> log.info("  - Departure: {}", d.getName()));
+        }
+
+        return result;
     }
 
     // 단순 시간 블록 분배 (폴백용)
