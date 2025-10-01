@@ -6,6 +6,7 @@ import com.compass.domain.chat.function.processing.phase3.date_selection.model.c
 import com.compass.domain.chat.function.processing.phase3.date_selection.util.DistanceUtils;
 import com.compass.domain.chat.model.context.TravelContext;
 import com.compass.domain.chat.orchestrator.ContextManager;
+import com.compass.domain.chat.service.HotelReservationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class DateSelectionDistributor {
     private final ContextManager contextManager;
     private final OCRScheduleIntegrationService ocrIntegrationService;
     private final LLMReviewService llmReviewService;
+    private final HotelReservationService hotelReservationService;
     private final ObjectMapper objectMapper;
 
     // 최대 이동 거리 임계값 (km)
@@ -39,6 +41,17 @@ public class DateSelectionDistributor {
 
         List<com.compass.domain.chat.model.dto.ConfirmedSchedule> ocrSchedules =
             contextOpt.map(TravelContext::getOcrConfirmedSchedules).orElse(new ArrayList<>());
+
+        // DB에서 호텔 예약 데이터 조회하여 OCR 일정에 추가
+        try {
+            var hotelSchedules = hotelReservationService.findConfirmedSchedulesByThreadId(threadId);
+            if (!hotelSchedules.isEmpty()) {
+                log.info("DB에서 호텔 예약 {}개 조회 완료 - OCR 일정에 추가", hotelSchedules.size());
+                ocrSchedules.addAll(hotelSchedules);
+            }
+        } catch (Exception e) {
+            log.error("DB 호텔 예약 조회 실패", e);
+        }
 
         LocalDate tripStartDate = contextOpt
             .map(ctx -> ctx.getCollectedInfo().get(TravelContext.KEY_START_DATE))

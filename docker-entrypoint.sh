@@ -15,4 +15,11 @@ else
   echo "GCP_SERVICE_ACCOUNT_JSON is not set; skipping credential restoration."
 fi
 
-exec java -jar app.jar "$@"
+# Elastic Beanstalk 포트 설정 (PORT 환경 변수 또는 기본값 8080)
+JAVA_OPTS="-Dserver.port=${PORT:-8080}"
+
+# DNS 및 네트워크 설정 개선 (RDS 연결 안정화)
+JAVA_OPTS="$JAVA_OPTS -Djava.net.preferIPv4Stack=true"
+JAVA_OPTS="$JAVA_OPTS -Dnetworkaddress.cache.ttl=60"
+
+exec java ${JAVA_OPTS} -jar app.jar "$@"

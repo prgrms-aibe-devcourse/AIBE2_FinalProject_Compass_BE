@@ -140,6 +140,25 @@ public class Stage1DestinationSelectionService {
         // 여행 스타일에 따른 필터링
         for (String style : travelStyle) {
             switch (style) {
+                case "관광":
+                    if (candidate.getCategory() != null &&
+                        (candidate.getCategory().contains("관광") ||
+                         candidate.getCategory().contains("명소") ||
+                         candidate.getCategory().contains("랜드마크") ||
+                         candidate.getCategory().contains("전망") ||
+                         candidate.getCategory().contains("야경"))) {
+                        return true;
+                    }
+                    break;
+                case "맛집":
+                    if (candidate.getCategory() != null &&
+                        (candidate.getCategory().contains("맛집") ||
+                         candidate.getCategory().contains("음식") ||
+                         candidate.getCategory().contains("레스토랑") ||
+                         candidate.getCategory().contains("식당"))) {
+                        return true;
+                    }
+                    break;
                 case "편안한":
                     // 평점이 높고 리뷰가 많은 검증된 장소
                     if (candidate.getRating() != null && candidate.getRating() >= 4.0) {

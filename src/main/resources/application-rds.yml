@@ -28,6 +28,10 @@ spring:
     host: localhost
     port: 6379
 
+# CORS 설정 - 모든 도메인 허용 (임시)
+cors:
+  allowed-origins: "*"
+
 logging:
   level:
     com.compass: INFO

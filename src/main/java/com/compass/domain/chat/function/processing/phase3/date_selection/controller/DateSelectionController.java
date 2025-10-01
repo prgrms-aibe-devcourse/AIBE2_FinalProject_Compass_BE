@@ -1,7 +1,7 @@
 package com.compass.domain.chat.function.processing.phase3.date_selection.controller;
 
 import com.compass.domain.chat.function.processing.phase3.date_selection.model.DateSelectionOutput;
-import com.compass.domain.chat.function.processing.phase3.date_selection.service.DateSelectionService;
+import com.compass.domain.chat.function.processing.phase3.date_selection.service.DateSelectionDistributor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class DateSelectionController {
 
-    private final DateSelectionService dateSelectionService;
+    private final DateSelectionDistributor dateSelectionDistributor;
 
     // 날짜별 선별 일정 분산 처리
     @PostMapping("/distribute")
@@ -28,7 +28,7 @@ public class DateSelectionController {
 
         try {
             log.info("날짜별 선별 일정 분산 요청");
-            var output = dateSelectionService.processDistribution(threadId, tripDays);
+            var output = dateSelectionDistributor.processDistribution(threadId, tripDays);
             log.info("날짜별 선별 처리 완료: {}개 일정", output.dailyItineraries().size());
             return ResponseEntity.ok(output);
 
@@ -51,7 +51,7 @@ public class DateSelectionController {
 
         try {
             log.info("Mock 데이터 테스트");
-            var output = dateSelectionService.processDistribution(testThreadId, tripDays);
+            var output = dateSelectionDistributor.processDistribution(testThreadId, tripDays);
             return ResponseEntity.ok(output);
 
         } catch (Exception e) {

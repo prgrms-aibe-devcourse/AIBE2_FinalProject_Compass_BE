@@ -68,7 +68,11 @@ public class SecurityConfig {
 
         List<String> resolvedOrigins = resolveAllowedOrigins();
 
-        if (!resolvedOrigins.isEmpty()) {
+        // "*" 처리: allowCredentials(true)와 함께 사용하려면 addAllowedOriginPattern 사용
+        if (resolvedOrigins.size() == 1 && "*".equals(resolvedOrigins.get(0))) {
+            configuration.addAllowedOriginPattern("*");
+            configuration.setAllowCredentials(true);
+        } else if (!resolvedOrigins.isEmpty()) {
             resolvedOrigins.forEach(configuration::addAllowedOrigin);
             configuration.setAllowCredentials(true);
         } else if ("docker".equals(activeProfile)) {
@@ -146,7 +150,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/crawl/**").permitAll()  // Crawl API endpoints for testing
                 .requestMatchers("/api/mock/**").permitAll()  // Mock data endpoints for Stage 2 testing
                 .requestMatchers("/api/admin/**", "/api/v1/admin/**").permitAll()  // Admin endpoints for data collection
-                .requestMatchers("/api/v1/ocr/**").permitAll()  // OCR endpoints for image processing
+                .requestMatchers("/api/ocr/**", "/api/v1/ocr/**").permitAll()  // OCR endpoints for image processing
+                .requestMatchers("/api/phase3/**").permitAll()  // Phase3 endpoints for testing
                 .requestMatchers("/health").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()

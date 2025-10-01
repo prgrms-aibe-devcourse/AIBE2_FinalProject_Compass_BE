@@ -69,14 +69,18 @@ public class ExtractHotelInfoFunction implements java.util.function.Function<OCR
                 hotelName,
                 address,
                 checkIn,
+                null,  // checkInTime - default handled by record
                 checkOut,
+                null,  // checkOutTime - default handled by record
                 roomType,
                 guests,
                 confirmation,
                 totalPrice,
                 nights,
                 coordinates.map(HotelGeocodingService.Coordinates::latitude).orElse(null),
-                coordinates.map(HotelGeocodingService.Coordinates::longitude).orElse(null)
+                coordinates.map(HotelGeocodingService.Coordinates::longitude).orElse(null),
+                null,  // guestName - not available from regex parsing
+                null   // phone - not available from regex parsing
         );
         hotelReservationService.save(ocrText.threadId(), ocrText.userId(), reservation);
         return reservation;

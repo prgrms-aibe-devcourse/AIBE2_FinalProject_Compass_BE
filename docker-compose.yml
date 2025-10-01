@@ -27,9 +27,15 @@ services:
     container_name: compass-backend
     ports:
       - "8080:8080"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       # Spring Profile - docker 프로파일 사용
       SPRING_PROFILES_ACTIVE: docker
+
+      # Server Port (Elastic Beanstalk compatibility)
+      SERVER_PORT: 8080
 
       # Database Configuration (AWS RDS)
       DATABASE_URL: ${DATABASE_URL:-jdbc:postgresql://compass-db.ch6mum0221cb.ap-northeast-2.rds.amazonaws.com:5432/compass}

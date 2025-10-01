@@ -57,10 +57,12 @@ public class ChatThreadService {
     @Transactional
     public void ensureThreadExists(String threadId, String userIdOrEmail) {
         // Thread가 이미 존재하는지 확인
-        if (chatThreadRepository.existsById(threadId)) {
-            log.debug("Thread already exists: {}", threadId);
+        if (chatThreadRepository.findById(threadId).isPresent()) {
+            log.debug("✅ [TX] Thread already exists: {}", threadId);
             return;
         }
+
+        log.info("🔧 [TX] Creating new thread: threadId={}, userIdOrEmail={}", threadId, userIdOrEmail);
 
         // 사용자 조회 - userId(숫자)로 먼저 시도, 실패하면 email로 시도
         User user = null;
@@ -70,11 +72,11 @@ public class ChatThreadService {
             Long userId = Long.parseLong(userIdOrEmail);
             user = userRepository.findById(userId).orElse(null);
             if (user != null) {
-                log.debug("User found by ID: {}", userId);
+                log.debug("✅ [TX] User found by ID: {}", userId);
             }
         } catch (NumberFormatException e) {
             // 숫자가 아니면 이메일로 간주
-            log.debug("Not a numeric ID, trying as email: {}", userIdOrEmail);
+            log.debug("📧 [TX] Not a numeric ID, trying as email: {}", userIdOrEmail);
         }
 
         // ID로 못 찾았으면 email로 시도
@@ -82,7 +84,7 @@ public class ChatThreadService {
             user = userRepository.findByEmail(userIdOrEmail)
                     .orElseGet(() -> {
                         // 테스트 또는 개발 환경에서 기본 사용자 사용
-                        log.warn("User not found with ID/email: {}, using default user", userIdOrEmail);
+                        log.warn("⚠️ [TX] User not found with ID/email: {}, using default user", userIdOrEmail);
                         return userRepository.findByEmail("testac@test.com")
                                 .orElse(userRepository.findByEmail("test-user@test.com")
                                         .orElse(userRepository.findAll().stream().findFirst()
@@ -98,16 +100,21 @@ public class ChatThreadService {
                 .currentPhase("INITIALIZATION")
                 .build();
 
-        chatThreadRepository.save(newThread);
-        log.info("🎉 New ChatThread created: threadId={}, userId={}, userEmail={}", threadId, user.getId(), user.getEmail());
+        ChatThread savedThread = chatThreadRepository.save(newThread);
+        chatThreadRepository.flush(); // 강제로 DB에 즉시 반영
+        log.info("✅ [TX] ChatThread created and flushed: threadId={}, userId={}, userEmail={}",
+            savedThread.getId(), user.getId(), user.getEmail());
     }
 
     // 대화 메시지 저장 (Thread 없으면 자동 생성)
     @Transactional
     public ChatMessage saveMessage(MessageSaveRequest request) {
+        log.debug("💾 [TX] saveMessage 시작 - threadId: {}, sender: {}", request.threadId(), request.sender());
+
         // Thread가 없으면 자동 생성 (UUID를 ID로 사용)
         ChatThread thread = chatThreadRepository.findById(request.threadId())
                 .orElseGet(() -> {
+                    log.warn("⚠️ [TX] Thread 없음, 자동 생성 시도 - threadId: {}", request.threadId());
                     // Thread ID로 사용자 정보 추출이 어려우므로 임시 처리
                     // 실제로는 request에 userId를 포함시키거나 SecurityContext에서 가져와야 함
                     User defaultUser = userRepository.findByEmail("test-user@test.com")
@@ -121,7 +128,9 @@ public class ChatThreadService {
                             .currentPhase("INITIALIZATION")
                             .build();
 
-                    return chatThreadRepository.save(newThread);
+                    ChatThread saved = chatThreadRepository.save(newThread);
+                    log.info("✅ [TX] Thread 자동 생성 완료 - threadId: {}", saved.getId());
+                    return saved;
                 });
 
         boolean hadMessages = thread.getMessages() != null && !thread.getMessages().isEmpty();
@@ -133,14 +142,18 @@ public class ChatThreadService {
                 .build();
 
         ChatMessage savedMessage = chatMessageRepository.save(message);
+        log.debug("✅ [TX] 메시지 저장 완료 - messageId: {}, role: {}", savedMessage.getId(), savedMessage.getRole());
 
         thread.addMessage(savedMessage);
 
         if (!hadMessages && "user".equals(request.sender())) {
             thread.updateTitleFromFirstMessage(request.content());
+            log.debug("📝 [TX] 제목 업데이트 - title: {}", thread.getTitle());
         }
 
         chatThreadRepository.save(thread);
+        log.debug("✅ [TX] Thread 업데이트 완료 - threadId: {}, messageCount: {}",
+            thread.getId(), thread.getMessages().size());
 
         return savedMessage;
     }

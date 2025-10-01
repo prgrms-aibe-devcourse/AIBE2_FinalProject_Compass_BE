@@ -54,9 +54,15 @@ public class HotelReservationEntity {
     @Column(name = "check_in_date", nullable = false)
     private LocalDate checkInDate;
 
+    @Column(name = "check_in_time")
+    private java.time.LocalTime checkInTime;
+
     @NotNull
     @Column(name = "check_out_date", nullable = false)
     private LocalDate checkOutDate;
+
+    @Column(name = "check_out_time")
+    private java.time.LocalTime checkOutTime;
 
     @Column(name = "room_type")
     private String roomType;
@@ -83,6 +89,12 @@ public class HotelReservationEntity {
 
     @Column(name = "longitude")
     private Double longitude;
+
+    @Column(name = "guest_name")
+    private String guestName;
+
+    @Column(name = "phone")
+    private String phone;
 
     // 숙박 기간의 유효성을 검증한다
     @PrePersist

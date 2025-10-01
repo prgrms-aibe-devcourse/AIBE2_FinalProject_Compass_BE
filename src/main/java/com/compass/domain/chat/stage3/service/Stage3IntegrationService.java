@@ -163,6 +163,33 @@ public class Stage3IntegrationService {
             input.travelStyle()
         );
 
+        // Day 1 첫번째에 출발지 추가
+        if (departureLocation != null && !departureLocation.isEmpty() && !dailyItineraries.isEmpty()) {
+            DailyItinerary day1 = dailyItineraries.get(0);
+            List<TravelPlace> places = new ArrayList<>(day1.getPlaces());
+
+            TravelPlace departure = TravelPlace.builder()
+                .name(departureLocation + " 출발")
+                .category("출발")
+                .description("여행 출발지")
+                .latitude(null)  // TODO: TravelContext에서 departureLat 가져오도록 수정 필요
+                .longitude(null)
+                .build();
+
+            places.add(0, departure);
+
+            DailyItinerary updatedDay1 = DailyItinerary.builder()
+                .date(day1.getDate())
+                .dayNumber(day1.getDayNumber())
+                .places(places)
+                .estimatedDuration(day1.getEstimatedDuration())
+                .timeBlocks(day1.getTimeBlocks())
+                .build();
+
+            dailyItineraries.set(0, updatedDay1);
+            log.info("Added departure location '{}' to Day 1", departureLocation);
+        }
+
         // 4. 경로 최적화 (출발지 정보 포함)
         List<OptimizedRoute> optimizedRoutes = optimizeRoutes(
             dailyItineraries,
@@ -266,9 +293,15 @@ public class Stage3IntegrationService {
             for (int day = 0; day < days; day++) {
                 LocalDate currentDate = startDate.plusDays(day);
 
-                // 서울 중심 좌표를 기본 클러스터 중심으로 사용
+                // 목적지 후보 장소들의 평균 좌표를 기본 클러스터 중심으로 사용
+                double avgLat = candidates.stream()
+                    .mapToDouble(c -> c.getLatitude() != null ? c.getLatitude() : 37.5665)
+                    .average().orElse(37.5665);
+                double avgLng = candidates.stream()
+                    .mapToDouble(c -> c.getLongitude() != null ? c.getLongitude() : 126.9780)
+                    .average().orElse(126.9780);
                 Stage3KMeansClusteringService.ClusterCenter defaultCenter =
-                    new Stage3KMeansClusteringService.ClusterCenter(0, 37.5665, 126.9780, 1);
+                    new Stage3KMeansClusteringService.ClusterCenter(0, avgLat, avgLng, 1);
                 List<Stage3KMeansClusteringService.ClusterCenter> centers = List.of(defaultCenter);
 
                 // AI 추천 장소 검색 (시간 블록당 최소 1개씩, 총 4-6개)
@@ -295,6 +328,8 @@ public class Stage3IntegrationService {
                 List<TravelPlace> arrangedPlaces = arrangeByDetailedTimeBlocks(
                     aiRecommended, "09:00", "21:00", currentDate
                 );
+
+                // 출발지는 상위 메소드(processWithConfirmedSchedules)에서 처리
 
                 DailyItinerary itinerary = DailyItinerary.builder()
                     .date(currentDate)
@@ -389,6 +424,8 @@ public class Stage3IntegrationService {
             List<TravelPlace> arrangedPlaces = arrangeByDetailedTimeBlocks(
                 allDayPlaces, "09:00", "21:00", currentDate
             );
+
+            // 숙소 정보는 향후 사용자 입력 기반으로 처리 예정
 
             DailyItinerary itinerary = DailyItinerary.builder()
                 .date(currentDate)
@@ -1429,13 +1466,19 @@ public class Stage3IntegrationService {
             int currentDayPlaces = dayPlaces.size();
             int minPlacesNeeded = 4;
 
-            // 클러스터 중심이 없으면 전체 데이터에서 검색
+            // 클러스터 중심이 없으면 목적지 장소들의 평균 좌표 사용
             if (centersForDay.isEmpty() && currentDayPlaces < minPlacesNeeded) {
-                // 서울 중심 좌표 사용
-                Stage3KMeansClusteringService.ClusterCenter seoulCenter =
-                    new Stage3KMeansClusteringService.ClusterCenter(0, 37.5665, 126.9780, 1);
-                centersForDay.add(seoulCenter);
-                log.info("Day {} has no clusters, using Seoul center for AI recommendations", day);
+                double avgLat = candidates.stream()
+                    .mapToDouble(c -> c.getLatitude() != null ? c.getLatitude() : 37.5665)
+                    .average().orElse(37.5665);
+                double avgLng = candidates.stream()
+                    .mapToDouble(c -> c.getLongitude() != null ? c.getLongitude() : 126.9780)
+                    .average().orElse(126.9780);
+                Stage3KMeansClusteringService.ClusterCenter destinationCenter =
+                    new Stage3KMeansClusteringService.ClusterCenter(0, avgLat, avgLng, 1);
+                centersForDay.add(destinationCenter);
+                log.info("Day {} has no clusters, using destination center ({}, {}) for AI recommendations",
+                    day, avgLat, avgLng);
             }
 
             List<TravelPlace> aiRecommended = searchNearbyPlacesWithGlobalTracking(

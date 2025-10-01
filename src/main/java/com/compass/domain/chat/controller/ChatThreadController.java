@@ -69,13 +69,18 @@ public class ChatThreadController {
         Long userId = resolveUserId(request.userId(), authHeader, httpRequest);
         ChatThread thread = chatThreadService.createThread(userId, request.title());
 
+        String lastMessage = null;
         if (StringUtils.hasText(request.initialMessage())) {
             chatThreadService.saveMessage(new ChatThreadService.MessageSaveRequest(
                 thread.getId(), "user", request.initialMessage().trim()
             ));
+            lastMessage = request.initialMessage().trim();
+            // Reload thread to get updated title from saveMessage
+            thread = chatThreadRepository.findById(thread.getId())
+                .orElseThrow(() -> new IllegalStateException("Thread not found after creation"));
         }
 
-        ThreadDto dto = toThreadDto(thread, request.initialMessage());
+        ThreadDto dto = toThreadDto(thread, lastMessage);
         return ResponseEntity.ok(dto);
     }
 
