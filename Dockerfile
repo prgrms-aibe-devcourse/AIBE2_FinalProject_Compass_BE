@@ -20,5 +20,5 @@ WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
 COPY docker-entrypoint.sh /entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 5000
 ENTRYPOINT ["/entrypoint.sh"]
