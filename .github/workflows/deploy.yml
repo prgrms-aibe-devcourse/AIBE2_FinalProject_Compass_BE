@@ -74,9 +74,9 @@ jobs:
       - name: Generate Dockerrun.aws.json
         run: |
           mkdir -p .ebextensions
-          # 필요한 설정 파일이 있다면 .ebextensions 폴더에 추가할 수 있습니다.
-          # 예: cp .ebextensions_example/logging.config .ebextensions/
-          zip -r deploy.zip build/libs/*.jar .ebextensions .platform Procfile
+          # Docker 플랫폼 배포: 소스 코드와 Docker 설정 포함
+          zip -r deploy.zip Dockerfile docker-entrypoint.sh .ebextensions .platform \
+            src gradle gradlew settings.gradle build.gradle google-credentials.json
 
       - name: Sync EB application environment
         run: |
